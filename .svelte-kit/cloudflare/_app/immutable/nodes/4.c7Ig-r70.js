@@ -1,0 +1,1 @@
+import{K as e,n as t,q as n}from"../chunks/DBgZ8ocX.js";import{r}from"../chunks/CtfxRuSJ.js";import"../chunks/CP97kCR3.js";import"../chunks/DDCgHMcn.js";import{t as i}from"../chunks/CS1Bo8i4.js";function a(a,o){n(o,!0),t(async()=>{let{data:{session:e}}=await i.auth.getSession();r(e?`/dashboard`:`/login`)}),e()}export{a as component};
