@@ -57,6 +57,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/check-assets" | "/api/check-assets/latest" | "/assets" | "/dashboard" | "/events" | "/login" | "/members" | "/playback" | `/p/${string}` & {} | "/settings";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/favicon.svg" | string & {};
+		Asset(): "/.assetsignore" | "/favicon.svg" | string & {};
 	}
 }

@@ -3019,7 +3019,7 @@ async function internal_respond(request, options, manifest, state) {
 		cookies,
 		fetch: null,
 		getClientAddress: state.getClientAddress || (() => {
-			throw new Error(`@sveltejs/adapter-auto does not specify getClientAddress. Please raise an issue`);
+			throw new Error(`@sveltejs/adapter-cloudflare does not specify getClientAddress. Please raise an issue`);
 		}),
 		locals: {},
 		params: {},
