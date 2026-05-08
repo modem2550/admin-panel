@@ -1,5 +1,11 @@
 .env
 node_modules
+.DS_Store
+
+# SvelteKit build artifacts
+.svelte-kit
+.netlify
+build
 
 # wrangler files
 .wrangler
