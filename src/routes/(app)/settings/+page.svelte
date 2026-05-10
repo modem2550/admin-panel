@@ -10,7 +10,7 @@
 	});
 </script>
 
-<div class="page-container">
+<div class="page-shell">
 	<header class="page-header">
 		<div class="header-left">
 			<span class="mono-label">Environment Config</span>
@@ -23,8 +23,8 @@
 
 	<div class="config-surface">
 		{#if user}
-			<section class="config-section">
-				<header class="section-header">
+			<section class="co-panel-section config-section">
+				<header class="co-section-head">
 					<h2 class="technical-title">User Identity</h2>
 					<span class="mono-label opacity-50">NODE_AUTH_ID: {user.id.substring(0, 8)}...</span>
 				</header>
@@ -60,8 +60,8 @@
 				</div>
 			</section>
 
-			<section class="config-section">
-				<header class="section-header">
+			<section class="co-panel-section config-section">
+				<header class="co-section-head">
 					<h2 class="technical-title">Security Protocols</h2>
 				</header>
 
@@ -97,45 +97,15 @@
 </div>
 
 <style>
-	.page-container {
-		animation: fade-in 0.6s ease-out;
-	}
-
-	.page-header {
-		margin-bottom: 80px;
-	}
-
-	.hero-display {
-		font-size: 72px;
-		line-height: 1.0;
-		margin: 8px 0 24px;
-	}
-
-	.body-large {
-		font-size: 18px;
-		color: var(--co-slate-muted);
-		max-width: 600px;
-	}
-
 	.config-surface {
 		display: flex;
 		flex-direction: column;
-		gap: 64px;
-		margin-bottom: 120px;
+		gap: clamp(2rem, 4vw, 3rem);
+		margin-bottom: clamp(3rem, 8vw, 5rem);
 	}
 
 	.config-section {
-		display: flex;
-		flex-direction: column;
-		gap: 32px;
-	}
-
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-end;
-		padding-bottom: 16px;
-		border-bottom: 1px solid var(--co-ink);
+		gap: 1.5rem;
 	}
 
 	.config-grid {
@@ -156,9 +126,12 @@
 	}
 
 	.config-item:hover {
-		border-color: var(--co-blue);
-		background: var(--co-white);
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+		border-color: color-mix(in srgb, var(--co-blue) 45%, var(--co-hairline));
+		box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
+	}
+
+	:global(.dark) .config-item:hover {
+		box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 	}
 
 	.item-meta {
@@ -194,25 +167,10 @@
 		color: #008a5d;
 	}
 
-	/* Status Stream */
-	.status-stream {
-		display: flex;
-		justify-content: center;
-		margin: 80px 0;
-	}
-
-	.status-node {
-		background: var(--co-black);
-		color: var(--co-white);
-		padding: 12px 24px;
-		border-radius: var(--radius-pill);
-		display: flex;
-		align-items: center;
-		font-size: 12px;
-	}
-
 	@media (max-width: 768px) {
-		.hero-display { font-size: 48px; }
-		.section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+		.co-section-head {
+			flex-direction: column;
+			align-items: flex-start;
+		}
 	}
 </style>

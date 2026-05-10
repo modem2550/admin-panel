@@ -4,17 +4,7 @@
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<!-- Content Security Policy: tighten as needed for your deployment -->
-		<meta http-equiv="Content-Security-Policy" content="
-			default-src 'self';
-			script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-			style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
-			font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;
-			img-src 'self' data: https: blob:;
-			connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net;
-			frame-ancestors 'none';
-		" />
-		<meta name="referrer" content="strict-origin-when-cross-origin" />
+		<!-- CSP ถูกตั้งผ่าน HTTP header ใน hooks.server.ts -->
 		<!-- Preconnect for fonts — improves LCP -->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

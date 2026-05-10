@@ -87,7 +87,7 @@
     });
 </script>
 
-<div class="page-container">
+<div class="page-shell">
     <header class="page-header">
         <div class="header-left">
             <span class="mono-label">Technical Intelligence</span>
@@ -108,9 +108,9 @@
                     await update();
                 };
             }}
-            class="technical-search"
+            class="playback-search-form"
         >
-            <div class="search-field">
+            <div class="playback-search-field">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input
                     type="text"
@@ -135,14 +135,14 @@
     </header>
 
     {#if form?.error}
-        <div class="error-node">
+        <div class="banner-error" role="alert">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <span>System Error: {form.error}</span>
         </div>
     {/if}
 
     {#if form?.lives}
-        <div class="results-technical-header">
+        <div class="section-divider">
             <h2 class="card-heading">{form.memberName} Sessions</h2>
             <div class="mono-label">
                 Total Nodes: {(form.lives as MemberLive[]).length}
@@ -183,8 +183,7 @@
             {/each}
         </div>
     {:else if !isLoading && !form?.error}
-        <div class="empty-technical-state">
-            <i class="fa-solid fa-database mb-3 opacity-20"></i>
+        <div class="empty-state">
             <h3 class="card-heading">Null Response</h3>
             <p class="body">
                 Enter a valid member identifier to begin technical extraction.
@@ -207,7 +206,7 @@
                     <h2 class="card-heading">Playback Records</h2>
                 </div>
                 <button
-                    class="close-btn"
+                    class="close-trigger"
                     onclick={() => (showVodModal = false)}
                     aria-label="Close modal"
                 >
@@ -310,7 +309,7 @@
                     <h2 class="card-heading">Extraction Results</h2>
                 </div>
                 <button
-                    class="close-btn"
+                    class="close-trigger"
                     onclick={closeModals}
                     aria-label="Close modal"
                 >
@@ -438,89 +437,6 @@
 {/if}
 
 <style>
-    .page-container {
-        animation: fade-in 0.6s ease-out;
-    }
-
-    .page-header {
-        margin-bottom: 80px;
-    }
-
-    .hero-display {
-        font-size: 72px;
-        line-height: 1;
-        margin: 8px 0 24px;
-    }
-
-    .body-large {
-        font-size: 18px;
-        color: var(--co-slate-muted);
-        max-width: 600px;
-        margin-bottom: 48px;
-    }
-
-    .technical-search {
-        max-width: 800px;
-    }
-
-    .search-field {
-        display: flex;
-        align-items: center;
-        background: var(--co-stone);
-        border: 1px solid var(--co-hairline);
-        border-radius: var(--radius-sm);
-        padding: 8px 8px 8px 24px;
-        gap: 16px;
-    }
-
-    .search-field i {
-        color: var(--co-slate-muted);
-    }
-
-    .search-field input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        font-family: var(--font-body);
-        font-size: 16px;
-        color: var(--co-ink);
-        outline: none;
-    }
-
-    .error-node {
-        background: #fff1f1;
-        border: 1px solid #ffcfcf;
-        color: #b30000;
-        padding: 16px 24px;
-        border-radius: var(--radius-sm);
-        margin-bottom: 48px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-family: var(--font-mono);
-        font-size: 13px;
-    }
-
-    :global(.dark) .error-node {
-        background: #2a0a0a;
-        border-color: #4a1a1a;
-        color: #ff8080;
-    }
-
-    .results-technical-header {
-        border-bottom: 1px solid var(--co-hairline);
-        padding-bottom: 24px;
-        margin-bottom: 40px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-    }
-
-    .card-heading {
-        font-size: 32px;
-        margin: 0;
-    }
-
     .technical-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -582,16 +498,6 @@
         line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-    }
-
-    .empty-technical-state {
-        padding: 120px 0;
-        text-align: center;
-        color: var(--co-slate-muted);
-    }
-
-    .empty-technical-state i {
-        font-size: 64px;
     }
 
     /* Modal Styling */
@@ -738,9 +644,4 @@
         transform: scale(1.2);
     }
 
-    @media (max-width: 640px) {
-        .hero-display {
-            font-size: 48px;
-        }
-    }
 </style>

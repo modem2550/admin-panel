@@ -1,19 +1,19 @@
 import { n as private_env } from "../../../../chunks/shared-server.js";
-import { a as M3U_URL, c as TIMELINE_INFO_URL, i as INFO_URL, l as TIMELINE_VIDEO_URL, n as AUTH_URL, o as MEMBER_URL, r as BATCH_THANKYOU_URL, s as PLAYBACK_URL_HEAD, t as API_V2_BASE, u as proxyUrl } from "../../../../chunks/bnk48.js";
+import { a as M3U_URL, c as TIMELINE_INFO_URL, d as proxyUrl, i as INFO_URL, l as TIMELINE_VIDEO_URL, n as AUTH_URL, o as MEMBER_URL, r as BATCH_THANKYOU_URL, s as PLAYBACK_URL_HEAD, t as API_V2_BASE } from "../../../../chunks/bnk48.js";
 //#region src/lib/bnk48.server.ts
 var cachedToken = null;
+var tokenExpiresAt = 0;
 var authPromise = null;
+var TOKEN_BUFFER_MS = 300 * 1e3;
+function isTokenExpired() {
+	return Date.now() >= tokenExpiresAt - TOKEN_BUFFER_MS;
+}
 async function getToken() {
-	if (cachedToken) return cachedToken;
+	if (cachedToken && !isTokenExpired()) return cachedToken;
 	if (authPromise) return authPromise;
 	authPromise = (async () => {
 		try {
 			if (!private_env.BNK48_EMAIL || !private_env.BNK48_PASSWORD) throw new Error("BNK48_EMAIL and BNK48_PASSWORD env vars are required");
-			console.log(`[BNK48 API] Authenticating as ${private_env.BNK48_EMAIL}...`);
-			const authData = {
-				"email": private_env.BNK48_EMAIL,
-				"password": private_env.BNK48_PASSWORD
-			};
 			const response = await fetch(AUTH_URL, {
 				method: "POST",
 				headers: {
@@ -22,16 +22,24 @@ async function getToken() {
 					"BNK48-AppCode": "null",
 					"BNK48-Device-Model": "null"
 				},
-				body: JSON.stringify(authData)
+				body: JSON.stringify({
+					email: private_env.BNK48_EMAIL,
+					password: private_env.BNK48_PASSWORD
+				})
 			});
-			if (!response.ok) {
-				console.error(`[BNK48 API] Auth failed: ${response.status} ${response.statusText}`);
-				throw new Error(`Auth failed: ${response.statusText}`);
-			}
+			if (!response.ok) throw new Error("BNK48 authentication failed");
 			const result = await response.json();
-			console.log(`[BNK48 API] Auth successful, token acquired.`);
 			cachedToken = result.token;
+			try {
+				tokenExpiresAt = (JSON.parse(atob(result.token.split(".")[1])).exp ?? 0) * 1e3;
+			} catch {
+				tokenExpiresAt = Date.now() + 360 * 60 * 1e3;
+			}
 			return cachedToken;
+		} catch (e) {
+			cachedToken = null;
+			tokenExpiresAt = 0;
+			throw e;
 		} finally {
 			authPromise = null;
 		}
@@ -40,7 +48,6 @@ async function getToken() {
 }
 async function httpGet(url) {
 	const token = await getToken();
-	console.log(`[BNK48 API] GET ${url}`);
 	const response = await fetch(url, { headers: {
 		"BNK48-Device-Id": "null",
 		"BNK48-AppCode": "null",
@@ -48,8 +55,11 @@ async function httpGet(url) {
 		"Authorization": `Bearer ${token}`
 	} });
 	if (!response.ok) {
-		console.warn(`[BNK48 API] GET failed (${response.status}): ${url}`);
-		throw new Error(`GET ${url} failed: ${response.statusText}`);
+		if (response.status === 401) {
+			cachedToken = null;
+			tokenExpiresAt = 0;
+		}
+		throw new Error(`BNK48 API request failed: ${response.status}`);
 	}
 	return await response.json();
 }
@@ -90,14 +100,9 @@ async function getVOD(videoId) {
 		info
 	};
 }
-/**
-* Robustly search for any video URL (m3u8 or mp4) in a complex JSON object
-*/
 function extractVideoUrl(obj) {
 	if (typeof obj === "string") {
-		if (obj.includes(".m3u8") || obj.includes(".mp4")) {
-			if (obj.startsWith("http")) return obj;
-		}
+		if ((obj.includes(".m3u8") || obj.includes(".mp4")) && obj.startsWith("http")) return obj;
 		return null;
 	}
 	if (obj && typeof obj === "object") {
@@ -135,8 +140,6 @@ async function getTimeline(postId) {
 		url,
 		data: null
 	}))));
-	for (const r of results) if (r.data) console.log(`[BNK48 API] ✅ ${r.url}:`, JSON.stringify(r.data, null, 2));
-	else console.log(`[BNK48 API] ❌ ${r.url}: 404/failed`);
 	const merged = Object.assign({}, ...results.map((r) => r.data ?? {}));
 	const resourceUrl = extractVideoUrl(merged);
 	let images = [];

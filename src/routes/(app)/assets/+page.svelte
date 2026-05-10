@@ -2,7 +2,7 @@
 	import { untrack, onMount } from "svelte";
 	import { toasts } from "$lib/toasts";
 
-	let itemsPerPage = 50;
+	let itemsPerPage = 120;
 	let assetType = $state<"product" | "group">("product");
 	let sortOrder = $state<"asc" | "desc">("desc");
 	interface Asset {
@@ -96,15 +96,20 @@
 		scanningStatus = "กำลังหา ID ล่าสุด...";
 
 		try {
-			// 1. ลองใช้ Server API ก่อน (เร็วที่สุด)
+			// ใช้ Server API แบบ Binary Search (เร็วที่สุดและแก้ปัญหา Timeout แล้ว)
 			const apiResp = await fetch(
 				`/api/check-assets/latest?type=${assetType}`,
 			);
 			if (apiResp.ok) {
 				const latest = await apiResp.json();
-				if (latest && latest.id && latest.id !== "0000") {
+				if (
+					latest &&
+					latest.id &&
+					latest.id !== "0" &&
+					latest.id !== "0000"
+				) {
 					const latestId = parseInt(latest.id);
-					scanningStatus = `พบ ID ล่าสุด = ${latestId} (via API)`;
+					scanningStatus = `พบ ID ล่าสุด = ${latestId}`;
 					if (sortOrder !== "desc") sortOrder = "desc";
 					currentCursor = latestId;
 					_fetchInFlight = false; // release ก่อน loadNextBatch
@@ -113,72 +118,7 @@
 				}
 			}
 
-			// 2. ถ้า API ไม่ชัวร์ ให้ใช้ Client-side Adaptive Search (ช้ากว่าแต่ชัวร์)
-			scanningStatus = "API ไม่พบข้อมูล กำลังสแกนเอง...";
-			const type = assetType;
-			let latestId = 0;
-
-			async function checkId(id: number): Promise<boolean> {
-				const padded = id.toString().padStart(4, "0");
-				const rawUrl =
-					type === "product"
-						? `https://img.bnk48cdn.net/shop/product/${padded}/sku-1.jpg`
-						: `https://img.bnk48cdn.net/shop/product-group/${padded}.jpg`;
-
-				// Stealthy path-based proxy
-				const path = rawUrl.split('.net/')[1];
-				const proxiedUrl = `/p/img/${path}`;
-				return assetExists(proxiedUrl);
-			}
-
-			// Step 1: +1000
-			let lastSuccess = 0;
-			for (let id = 1000; id <= 25000; id += 1000) {
-				if (await checkId(id)) lastSuccess = id;
-				else {
-					for (
-						let back = id - 100;
-						back >= lastSuccess;
-						back -= 100
-					) {
-						if (await checkId(back)) {
-							lastSuccess = back;
-							break;
-						}
-					}
-					break;
-				}
-			}
-
-			// Step 2: +10
-			let currentId = lastSuccess;
-			for (let inc = 10; inc <= 100; inc += 10) {
-				const testId = lastSuccess + inc;
-				if (await checkId(testId)) currentId = testId;
-				else {
-					currentId = testId - 10;
-					break;
-				}
-			}
-
-			// Step 3: +1
-			let fineId = currentId;
-			while (true) {
-				const nextId = fineId + 1;
-				if (await checkId(nextId)) fineId = nextId;
-				else break;
-			}
-			latestId = fineId;
-
-			if (latestId === 0) {
-				scanningStatus = "ไม่พบ asset เลย";
-			} else {
-				scanningStatus = `พบ ID ล่าสุด = ${latestId}`;
-				if (sortOrder !== "desc") sortOrder = "desc";
-				currentCursor = latestId;
-				_fetchInFlight = false;
-				await loadNextBatch();
-			}
+			scanningStatus = "ไม่พบ asset เลย หรือเกิดข้อผิดพลาดจาก Server";
 		} catch (err) {
 			console.error(err);
 			scanningStatus = "เกิดข้อผิดพลาด";
@@ -192,8 +132,8 @@
 	function resetAndLoad() {
 		assets = [];
 		if (sortOrder === "asc") {
-			// ใช้จุดเริ่มต้นที่เริ่มมีข้อมูลจริง (Product ~1009, Group ~1000)
-			currentCursor = assetType === "product" ? 1009 : 1000;
+			// Start from the beginning to catch new low-ID assets
+			currentCursor = 0;
 			loadNextBatch();
 		} else {
 			currentCursor = null;
@@ -205,12 +145,7 @@
 	function clearResults() {
 		assets = [];
 		scanningStatus = "ล้างรายการแล้ว";
-		currentCursor =
-			sortOrder === "asc"
-				? assetType === "product"
-					? 1009
-					: 1000
-				: null;
+		currentCursor = sortOrder === "asc" ? 0 : null;
 	}
 
 	function copyAllUrls() {
@@ -248,15 +183,33 @@
 				return;
 			}
 
-			// ใช้ Server API ในการเช็ค SKU เพื่อเลี่ยง CORS
+			// ดึง skus array จาก DB ผ่าน sku endpoint
 			const resp = await fetch(
-				`/api/check-assets?start=${asset.id}&count=1&type=product&includeSkus=true`,
+				`/api/assets/scan/status/sku?id=${asset.id}&type=product`,
 			);
 			if (resp.ok) {
 				const data = await resp.json();
-				if (data && data[0] && data[0].extra_skus) {
-					modalSkus = data[0].extra_skus;
-					// เก็บลง Cache
+				if (
+					data?.skus &&
+					Array.isArray(data.skus) &&
+					data.skus.length > 1
+				) {
+					// skus เป็น array ของตัวเลข เช่น [1, 2, 3]
+					// ต้องแปลงเป็น URL โดยดู format จาก asset.url ของ sku-1 แล้วแทนที่เลข
+					const baseUrl = asset.url; // เช่น /p/img/shop/product/1009/sku-1.jpg
+					const skuUrls: string[] = [];
+					for (const sku of data.skus) {
+						if (sku === 1) continue; // sku-1 คือ thumbnail อยู่แล้ว
+						// แทนที่ตัวเลขท้าย URL เช่น sku-1.jpg → sku-2.jpg
+						const skuUrl = baseUrl.replace(
+							/(sku-)(\d+)(\.\w+)$/,
+							`$1${sku}$3`,
+						);
+						if (skuUrl !== baseUrl) {
+							skuUrls.push(skuUrl);
+						}
+					}
+					modalSkus = skuUrls;
 					skuCache.set(asset.id, modalSkus);
 				}
 			}
@@ -339,8 +292,8 @@
 	let modalMainUrl = $state("");
 </script>
 
-<div class="page-container">
-	<header class="page-header">
+<div class="page-shell">
+	<header class="page-header page-header--split">
 		<div class="header-left">
 			<span class="mono-label">Visual Infrastructure</span>
 			<h1 class="hero-display">Asset Registry</h1>
@@ -350,7 +303,7 @@
 			</p>
 		</div>
 
-		<div class="header-actions">
+		<div class="technical-filter-bar">
 			<div class="filter-pills">
 				<button
 					class="button-pill-outline"
@@ -375,19 +328,12 @@
 				</select>
 			</div>
 
-			<div class="technical-input-group jump-box">
+			<div class="search-box jump-box">
 				<input
 					type="number"
 					placeholder="Jump to Node ID"
 					bind:value={jumpToId}
 				/>
-				<button
-					class="query-btn"
-					onclick={jumpTo}
-					aria-label="Go to ID"
-				>
-					<i class="fa-solid fa-chevron-right"></i>
-				</button>
 			</div>
 
 			<button
@@ -424,7 +370,19 @@
 				tabindex="0"
 			>
 				<div class="media-wrap">
-					<img src={asset.url} alt={asset.id} loading="lazy" />
+					<img
+						src={asset.url}
+						alt={asset.id}
+						loading="lazy"
+						onerror={(e) => {
+							const img = e.currentTarget as HTMLImageElement;
+							img.style.opacity = "0.15";
+							img.closest(".editorial-card")?.setAttribute(
+								"data-broken",
+								"true",
+							);
+						}}
+					/>
 					<div class="node-id">#{asset.id}</div>
 				</div>
 				<div class="card-overlay">
@@ -566,122 +524,19 @@
 {/if}
 
 <style>
-	.page-container {
-		animation: fade-in 0.6s ease-out;
-		max-width: 1400px;
-		margin: 0 auto;
-	}
-
-	.hero-display {
-		font-size: 72px;
-		line-height: 1;
-		margin: 8px 0 24px;
-	}
-
-	.body-large {
-		font-size: 18px;
-		color: var(--co-slate-muted);
-		max-width: 600px;
-	}
-
-	.header-actions {
-		display: flex;
-		align-items: center;
-		gap: 20px;
-		margin-top: 48px;
-		margin-bottom: 48px;
-		flex-wrap: wrap;
-	}
-
 	@media (max-width: 768px) {
-		.header-actions {
-			flex-direction: column;
-			align-items: stretch;
-		}
 		.filter-pills {
 			justify-content: space-between;
 		}
 		.filter-pills button {
 			flex: 1;
 		}
-		.technical-select select,
-		.technical-input-group {
-			width: 100%;
-		}
-	}
-
-	.filter-pills {
-		display: flex;
-		gap: 8px;
-	}
-
-	.technical-select select {
-		padding: 10px 20px;
-		border-radius: var(--radius-pill);
-		border: 1px solid var(--co-hairline);
-		background: var(--co-stone);
-		font-family: var(--font-body);
-		font-size: 14px;
-		color: var(--co-ink);
-		outline: none;
-		cursor: pointer;
-	}
-
-	.technical-input-group {
-		display: flex;
-		background: var(--co-stone);
-		border: 1px solid var(--co-hairline);
-		border-radius: var(--radius-sm);
-		padding: 4px;
-		align-items: center;
-		min-width: 200px;
-	}
-
-	.technical-input-group input {
-		background: none;
-		border: none;
-		padding: 8px 14px;
-		font-family: var(--font-mono);
-		font-size: 13px;
-		color: var(--co-ink);
-		outline: none;
-		width: 100%;
-	}
-
-	.query-btn {
-		background: var(--co-white);
-		border: 1px solid var(--co-hairline);
-		border-radius: var(--radius-xs);
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		color: var(--co-blue);
-	}
-
-	/* Status Stream */
-	.status-stream {
-		display: flex;
-		justify-content: center;
-		margin-bottom: 48px;
-	}
-
-	.status-node {
-		background: var(--co-black);
-		color: var(--co-white);
-		padding: 12px 24px;
-		border-radius: var(--radius-pill);
-		display: flex;
-		align-items: center;
-		font-size: 12px;
 	}
 
 	/* Asset Grid */
 	.asset-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 		gap: 24px;
 	}
 
@@ -938,9 +793,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.hero-display {
-			font-size: 48px;
-		}
 		.gallery-overlay {
 			padding: 20px;
 		}

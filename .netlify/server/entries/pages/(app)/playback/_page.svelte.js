@@ -17,19 +17,19 @@ function _page($$renderer, $$props) {
 				minute: "2-digit"
 			});
 		}
-		$$renderer.push(`<div class="page-container svelte-8my1qj"><header class="page-header svelte-8my1qj"><div class="header-left"><span class="mono-label">Technical Intelligence</span> <h1 class="hero-display svelte-8my1qj">Playback</h1> <p class="body-large svelte-8my1qj">Automated extraction and indexing of member broadcast
-                infrastructure and media resources.</p></div> <form method="POST" action="?/search" class="technical-search svelte-8my1qj"><div class="search-field svelte-8my1qj"><i class="fa-solid fa-magnifying-glass svelte-8my1qj"></i> <input type="text" name="name" placeholder="Member alias or App URI endpoint..." required="" autocomplete="off" class="svelte-8my1qj"/> <button type="submit" class="button-pill-outline"${attr("disabled", isLoading, true)}>`);
+		$$renderer.push(`<div class="page-shell"><header class="page-header"><div class="header-left"><span class="mono-label">Technical Intelligence</span> <h1 class="hero-display">Playback</h1> <p class="body-large">Automated extraction and indexing of member broadcast
+                infrastructure and media resources.</p></div> <form method="POST" action="?/search" class="playback-search-form"><div class="playback-search-field"><i class="fa-solid fa-magnifying-glass"></i> <input type="text" name="name" placeholder="Member alias or App URI endpoint..." required="" autocomplete="off"/> <button type="submit" class="button-pill-outline"${attr("disabled", isLoading, true)}>`);
 		$$renderer.push("<!--[-1-->");
 		$$renderer.push(`Query`);
 		$$renderer.push(`<!--]--></button></div></form></header> `);
 		if (form?.error) {
 			$$renderer.push("<!--[0-->");
-			$$renderer.push(`<div class="error-node svelte-8my1qj"><i class="fa-solid fa-triangle-exclamation"></i> <span>System Error: ${escape_html(form.error)}</span></div>`);
+			$$renderer.push(`<div class="banner-error" role="alert"><i class="fa-solid fa-triangle-exclamation"></i> <span>System Error: ${escape_html(form.error)}</span></div>`);
 		} else $$renderer.push("<!--[-1-->");
 		$$renderer.push(`<!--]--> `);
 		if (form?.lives) {
 			$$renderer.push("<!--[0-->");
-			$$renderer.push(`<div class="results-technical-header svelte-8my1qj"><h2 class="card-heading svelte-8my1qj">${escape_html(form.memberName)} Sessions</h2> <div class="mono-label">Total Nodes: ${escape_html(form.lives.length)}</div></div> <div class="technical-grid svelte-8my1qj"><!--[-->`);
+			$$renderer.push(`<div class="section-divider"><h2 class="card-heading">${escape_html(form.memberName)} Sessions</h2> <div class="mono-label">Total Nodes: ${escape_html(form.lives.length)}</div></div> <div class="technical-grid svelte-8my1qj"><!--[-->`);
 			const each_array = ensure_array_like(form.lives);
 			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
 				let live = each_array[$$index];
@@ -46,7 +46,7 @@ function _page($$renderer, $$props) {
 			$$renderer.push(`<!--]--></div>`);
 		} else if (!form?.error) {
 			$$renderer.push("<!--[1-->");
-			$$renderer.push(`<div class="empty-technical-state svelte-8my1qj"><i class="fa-solid fa-database mb-3 opacity-20 svelte-8my1qj"></i> <h3 class="card-heading svelte-8my1qj">Null Response</h3> <p class="body">Enter a valid member identifier to begin technical extraction.</p></div>`);
+			$$renderer.push(`<div class="empty-state"><h3 class="card-heading">Null Response</h3> <p class="body">Enter a valid member identifier to begin technical extraction.</p></div>`);
 		} else $$renderer.push("<!--[-1-->");
 		$$renderer.push(`<!--]--></div> `);
 		$$renderer.push("<!--[-1-->");

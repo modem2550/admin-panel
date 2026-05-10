@@ -8,196 +8,197 @@
 	let loading = $state(false);
 
 	async function handleLogin() {
-		console.log("[Login] Starting login process...", { email });
+		if (import.meta.env.DEV) console.log("--- [Login] Sequence Started ---");
+		
+		// Manual sync for some password managers that don't trigger events
+		const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+		const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement;
+		
+		const currentEmail = email.trim() || (emailInput?.value || "").trim();
+		const currentPassword = password.trim() || (passwordInput?.value || "").trim();
+
+		if (import.meta.env.DEV) {
+			console.log("[Login] Step 1: Credentials Validation", { 
+				emailProvided: !!currentEmail,
+				passwordProvided: !!currentPassword,
+				source: email.trim() ? "Svelte State" : "DOM Direct"
+			});
+		}
+
+		if (!currentEmail || !currentPassword) {
+			if (import.meta.env.DEV) console.warn("[Login] Aborted: Missing credentials");
+			error = "Identification and security token required.";
+			return;
+		}
+
 		loading = true;
 		error = "";
 
 		try {
-			console.log("[Login] Calling supabase.auth.signInWithPassword...");
-			const { data, error: err } = await supabase.auth.signInWithPassword(
-				{ email, password },
-			);
+			if (import.meta.env.DEV) console.log("[Login] Step 2: Authenticating with Supabase...");
+			const { data, error: err } = await supabase.auth.signInWithPassword({
+				email: currentEmail,
+				password: currentPassword
+			});
 
 			if (err) {
-				console.error("[Login] Supabase auth error:", err);
+				if (import.meta.env.DEV) console.error("[Login] Step 2 Failed: Supabase Auth", err.message);
 				error = err.message;
 			} else {
-				console.log("[Login] Login successful!", {
-					user: data.user?.email,
-					session: !!data.session,
-				});
-
-				// Manually set cookie before redirecting to ensure server sees it immediately
+				if (import.meta.env.DEV) console.log("[Login] Step 2 Success: Credentials verified");
+				
 				if (data.session) {
-					document.cookie = `sb-session=${JSON.stringify(data.session)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax;`;
-					console.log("[Login] Session cookie set.");
+					if (import.meta.env.DEV) console.log("[Login] Step 3: Synchronizing server session...");
+					const res = await fetch("/api/auth/session", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							access_token: data.session.access_token,
+							refresh_token: data.session.refresh_token,
+						}),
+					});
+					
+					if (res.ok) {
+						if (import.meta.env.DEV) console.log("[Login] Step 3 Success: Server session established");
+					} else {
+						if (import.meta.env.DEV) console.error("[Login] Step 3 Failed: Server session API error", res.status);
+						error = "Could not establish server session. Try again.";
+						return;
+					}
 				}
 
-				console.log("[Login] Redirecting to /dashboard...");
-				goto("/dashboard");
+				if (import.meta.env.DEV) console.log("[Login] Step 4: Finalizing and redirecting...");
+				await goto("/dashboard", { invalidateAll: true });
+				if (import.meta.env.DEV) console.log("--- [Login] Sequence Completed ---");
 			}
 		} catch (e) {
-			console.error("[Login] Unexpected error during login:", e);
+			if (import.meta.env.DEV) console.error("[Login] Step 2-4 Failed: Unexpected Error", e);
 			error = "An unexpected error occurred.";
 		} finally {
 			loading = false;
-			console.log(
-				"[Login] Login process finished. Loading state:",
-				loading,
-			);
 		}
 	}
 </script>
 
-<div class="access-terminal">
-	<header class="terminal-header">
+<div class="auth-shell">
+	<header class="auth-terminal-header">
 		<span class="mono-label">Authentication Protocol</span>
-		<h1 class="hero-display">Access Terminal</h1>
+		<h1 class="hero-display hero-display--auth">Access Terminal</h1>
 	</header>
 
 	{#if error}
-		<div class="status-stream error">
-			<div class="status-node danger">
+		<div class="status-stream" style="margin-top: -0.5rem;">
+			<div class="status-node status-node--danger">
 				<i class="fa-solid fa-triangle-exclamation me-2"></i>
 				<span class="mono-label">{error.toUpperCase()}</span>
 			</div>
 		</div>
 	{/if}
 
-	<div class="terminal-form">
-		<div class="input-section">
-			<span class="mono-label">USER_IDENTIFIER</span>
-			<div class="technical-input-group">
-				<input
-					type="email"
-					bind:value={email}
-					placeholder="admin@cohere.lab"
-					disabled={loading}
-				/>
-			</div>
-		</div>
-
-		<div class="input-section">
-			<span class="mono-label">SECURITY_TOKEN</span>
-			<div class="technical-input-group">
-				<input
-					type="password"
-					bind:value={password}
-					placeholder="••••••••"
-					disabled={loading}
-				/>
-			</div>
-		</div>
-
-		<button
-			class="button-pill-outline w-full mt-8"
-			onclick={handleLogin}
-			disabled={loading}
+	<div class="auth-panel">
+		<form
+			class="login-form"
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleLogin();
+			}}
 		>
-			{#if loading}
-				<i class="fa-solid fa-spinner fa-spin me-2"></i> INITIALIZING...
-			{:else}
-				ESTABLISH_SESSION
-			{/if}
-		</button>
+			<div class="login-field">
+				<span class="mono-label">USER_IDENTIFIER</span>
+				<div class="technical-input-group">
+					<input
+						type="email"
+						bind:value={email}
+						placeholder="admin@example.com"
+						disabled={loading}
+						autocomplete="username"
+						required
+					/>
+				</div>
+			</div>
+
+			<div class="login-field">
+				<span class="mono-label">SECURITY_TOKEN</span>
+				<div class="technical-input-group">
+					<input
+						type="password"
+						bind:value={password}
+						placeholder="••••••••"
+						disabled={loading}
+						autocomplete="current-password"
+						required
+					/>
+				</div>
+			</div>
+
+			<button class="button-pill-outline login-submit" type="submit" disabled={loading}>
+				{#if loading}
+					<i class="fa-solid fa-spinner fa-spin me-2"></i>
+					INITIALIZING...
+				{:else}
+					ESTABLISH_SESSION
+				{/if}
+			</button>
+		</form>
 	</div>
 
-	<footer class="terminal-footer">
+	<footer class="login-footer">
 		<p class="mono-label opacity-30">
-			© 2026 RESEARCH OPERATIONS. ALL ACCESS LOGGED.
+			© 2026 RESEARCH OPERATIONS · ALL ACCESS LOGGED
 		</p>
 	</footer>
 </div>
 
 <style>
-	.access-terminal {
-		width: 100%;
-		max-width: 440px;
+	.login-form {
 		display: flex;
 		flex-direction: column;
-		gap: 48px;
-		animation: fade-in 0.8s ease-out;
-		padding: 40px;
+		gap: 1.5rem;
 	}
 
-	.terminal-header {
-		text-align: center;
-	}
-
-	.hero-display {
-		font-size: 56px;
-		margin-top: 8px;
-	}
-
-	.status-stream {
-		display: flex;
-		justify-content: center;
-	}
-
-	.status-node.danger {
-		background: var(--co-coral);
-		color: white;
-		padding: 12px 24px;
-		border-radius: var(--radius-pill);
-		font-size: 11px;
-	}
-
-	.terminal-form {
+	.login-field {
 		display: flex;
 		flex-direction: column;
-		gap: 32px;
-		background: var(--co-white);
-		padding: 48px;
-		border-radius: var(--radius-lg);
-		border: 1px solid var(--co-hairline);
-		box-shadow: 0 40px 100px rgba(0, 0, 0, 0.05);
+		gap: 0.6rem;
+		text-align: left;
 	}
 
-	.input-section {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.technical-input-group {
+	.login-field .technical-input-group {
 		background: var(--co-stone);
 		border: 1px solid var(--co-hairline);
 		border-radius: var(--radius-sm);
 		padding: 4px;
 	}
 
-	.technical-input-group input {
+	.login-field .technical-input-group input {
 		width: 100%;
 		background: none;
 		border: none;
-		padding: 12px 16px;
+		padding: 12px 14px;
 		font-family: var(--font-body);
 		font-size: 15px;
 		outline: none;
 		color: var(--co-ink);
 	}
 
-	.technical-input-group input:focus {
+	.login-field .technical-input-group input:focus {
 		color: var(--co-blue);
 	}
 
-	.w-full {
+	.login-submit {
 		width: 100%;
-	}
-	.mt-8 {
-		margin-top: 32px;
+		justify-content: center;
+		margin-top: 0.5rem;
+		padding-top: 12px;
+		padding-bottom: 12px;
 	}
 
-	.terminal-footer {
+	.login-footer {
 		text-align: center;
 	}
 
-	@media (max-width: 640px) {
-		.hero-display {
-			font-size: 40px;
-		}
-		.terminal-form {
-			padding: 32px;
-		}
+	.login-footer p {
+		margin: 0;
+		font-size: 11px;
 	}
 </style>

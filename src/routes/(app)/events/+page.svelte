@@ -133,8 +133,8 @@
 	}
 </script>
 
-<div class="page-container container">
-	<header class="page-header">
+<div class="page-shell">
+	<header class="page-header page-header--split">
 		<div class="header-left">
 			<span class="mono-label">Mission Ledger</span>
 			<h1 class="hero-display">Event Operations</h1>
@@ -143,45 +143,43 @@
 				and group-wide activities.
 			</p>
 		</div>
-
 		<div class="technical-filter-bar">
-			<div class="filter-pills">
-				<button
-					class="button-pill-outline"
-					onclick={() => (filterMode = "all")}
-					class:active={filterMode === "all"}
-				>
-					Global Ledger
-				</button>
-				<button
-					class="button-pill-outline"
-					onclick={() => (filterMode = "upcoming")}
-					class:active={filterMode === "upcoming"}
-				>
-					Upcoming
-				</button>
-				<button
-					class="button-pill-outline"
-					onclick={() => (filterMode = "past")}
-					class:active={filterMode === "past"}
-				>
-					Archives
-				</button>
-			</div>
-
-			<div class="technical-input-group search-box">
-				<i class="fa-solid fa-magnifying-glass opacity-50"></i>
-				<input
-					type="text"
-					placeholder="Search operations..."
-					bind:value={searchQuery}
-				/>
-			</div>
-
-			<button class="button-pill-outline" onclick={openAddModal}>
-				Create Record
+		<div class="filter-pills">
+			<button
+				class="button-pill-outline"
+				onclick={() => (filterMode = "all")}
+				class:active={filterMode === "all"}
+			>
+				Global Ledger
+			</button>
+			<button
+				class="button-pill-outline"
+				onclick={() => (filterMode = "upcoming")}
+				class:active={filterMode === "upcoming"}
+			>
+				Upcoming
+			</button>
+			<button
+				class="button-pill-outline"
+				onclick={() => (filterMode = "past")}
+				class:active={filterMode === "past"}
+			>
+				Archives
 			</button>
 		</div>
+
+		<div class="search-box">
+			<input
+				type="text"
+				placeholder="Search operations..."
+				bind:value={searchQuery}
+			/>
+		</div>
+
+		<button class="button-pill-outline" onclick={openAddModal}>
+			Create Record
+		</button>
+	</div>
 	</header>
 
 	{#if filteredEvents.length === 0}
@@ -410,57 +408,6 @@
 {/if}
 
 <style>
-	.page-container {
-		animation: fade-in 0.6s ease-out;
-	}
-
-	.hero-display {
-		font-size: 72px;
-		line-height: 1;
-		margin: 8px 0 24px;
-	}
-
-	.body-large {
-		font-size: 18px;
-		color: var(--co-slate-muted);
-		max-width: 600px;
-	}
-
-
-	.filter-pills {
-		display: flex;
-		gap: 8px;
-	}
-
-	.search-box {
-		background: var(--co-stone);
-		border-radius: var(--radius-sm);
-		padding: 10px 20px;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		border: 1px solid var(--co-hairline);
-		flex: 1;
-		min-width: 250px;
-	}
-
-	.search-box input {
-		background: none;
-		border: none;
-		outline: none;
-		font-family: var(--font-body);
-		font-size: 14px;
-		color: var(--co-ink);
-		width: 100%;
-	}
-
-	/* Status Stream */
-	.status-stream {
-		display: flex;
-		justify-content: center;
-		margin: 80px 0;
-	}
-
 	.action-icon-btn {
 		border-radius: 50%;
 		aspect-ratio: 1/1;
@@ -484,17 +431,6 @@
 		background-color: var(--bs-danger);
 		color: var(--co-white);
 	}
-
-	.status-node {
-		background: var(--co-black);
-		color: var(--co-white);
-		padding: 12px 24px;
-		border-radius: var(--radius-pill);
-		display: flex;
-		align-items: center;
-		font-size: 12px;
-	}
-
 
 	.node-media {
 		height: 150px;
@@ -536,16 +472,6 @@
 		font-size: 9px;
 		font-weight: 700;
 		letter-spacing: 0.05em;
-	}
-
-	.technical-filter-bar {
-		display: flex;
-		align-items: center;
-		gap: 24px;
-		padding: 24px 0;
-		border-bottom: 1px solid var(--co-hairline);
-		margin-bottom: 48px;
-		flex-wrap: wrap;
 	}
 
 	.node-status.upcoming {
@@ -685,9 +611,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.hero-display {
-			font-size: 48px;
-		}
 		.editorial-grid {
 			gap: 24px;
 		}

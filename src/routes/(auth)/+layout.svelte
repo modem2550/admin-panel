@@ -2,16 +2,17 @@
 	let { children } = $props();
 </script>
 
-<div class="auth-layout">
+<div class="auth-layout-bg">
 	{@render children()}
 </div>
 
 <style>
-	.auth-layout {
+	.auth-layout-bg {
+		min-height: 100vh;
+		background: var(--co-stone);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		min-height: 100vh;
-		background: var(--co-stone);
+		padding: 2rem;
 	}
 </style>

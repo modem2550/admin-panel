@@ -76,6 +76,10 @@
       "_client.js"
     ]
   },
+  "_session-cookies.server.js": {
+    "file": "chunks/session-cookies.server.js",
+    "name": "session-cookies.server"
+  },
   "_shared-server.js": {
     "file": "chunks/shared-server.js",
     "name": "shared-server"
@@ -90,6 +94,13 @@
   "_supabase.js": {
     "file": "chunks/supabase.js",
     "name": "supabase"
+  },
+  "_supabase.server.js": {
+    "file": "chunks/supabase.server.js",
+    "name": "supabase.server",
+    "imports": [
+      "_shared-server.js"
+    ]
   },
   "_toasts.js": {
     "file": "chunks/toasts.js",
@@ -152,8 +163,14 @@
     "src": "src/hooks.server.ts",
     "isEntry": true,
     "imports": [
-      "_supabase.js"
+      "_session-cookies.server.js"
     ]
+  },
+  "src/routes/(app)/+layout.server.ts": {
+    "file": "entries/pages/(app)/_layout.server.ts.js",
+    "name": "entries/pages/(app)/_layout.server.ts",
+    "src": "src/routes/(app)/+layout.server.ts",
+    "isEntry": true
   },
   "src/routes/(app)/+layout.svelte": {
     "file": "entries/pages/(app)/_layout.svelte.js",
@@ -169,8 +186,14 @@
       "_toasts.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.Gp-bWU-A.css"
+      "_app/immutable/assets/_layout.BmDKnAmg.css"
     ]
+  },
+  "src/routes/(app)/+layout.ts": {
+    "file": "entries/pages/(app)/_layout.ts.js",
+    "name": "entries/pages/(app)/_layout.ts",
+    "src": "src/routes/(app)/+layout.ts",
+    "isEntry": true
   },
   "src/routes/(app)/assets/+page.svelte": {
     "file": "entries/pages/(app)/assets/_page.svelte.js",
@@ -183,7 +206,7 @@
       "_toasts.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.D2EYq14B.css"
+      "_app/immutable/assets/_page.DMLBh-Gv.css"
     ]
   },
   "src/routes/(app)/dashboard/+page.server.ts": {
@@ -198,10 +221,11 @@
     "src": "src/routes/(app)/dashboard/+page.svelte",
     "isEntry": true,
     "imports": [
+      "_index-server.js",
       "_dev.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.BshQbZ4o.css"
+      "_app/immutable/assets/_page.Bxu3AYL-.css"
     ]
   },
   "src/routes/(app)/dashboard/+page.ts": {
@@ -225,7 +249,7 @@
       "_toasts.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.CiRRYnxl.css"
+      "_app/immutable/assets/_page.CdtbvTn_.css"
     ]
   },
   "src/routes/(app)/events/+page.ts": {
@@ -249,7 +273,7 @@
       "_toasts.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.DEhbaTsW.css"
+      "_app/immutable/assets/_page.DmVWWcyv.css"
     ]
   },
   "src/routes/(app)/members/+page.ts": {
@@ -283,7 +307,7 @@
       "_toasts.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.0283KdPO.css"
+      "_app/immutable/assets/_page.DLkr90K3.css"
     ]
   },
   "src/routes/(app)/settings/+page.svelte": {
@@ -297,7 +321,7 @@
       "_supabase.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.DhyxqHYI.css"
+      "_app/immutable/assets/_page.DP7vmQ8D.css"
     ]
   },
   "src/routes/(auth)/+layout.svelte": {
@@ -309,7 +333,7 @@
       "_dev.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.CwYCX0Sl.css"
+      "_app/immutable/assets/_layout.h6PW9e0t.css"
     ]
   },
   "src/routes/(auth)/login/+page.svelte": {
@@ -323,7 +347,7 @@
       "_supabase.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.BkT0G204.css"
+      "_app/immutable/assets/_page.BlABz31S.css"
     ]
   },
   "src/routes/+layout.svelte": {
@@ -333,6 +357,9 @@
     "isEntry": true,
     "imports": [
       "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_layout.Cr0jyTHO.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -348,13 +375,23 @@
       "_supabase.js"
     ]
   },
+  "src/routes/.well-known/security.txt/+server.ts": {
+    "file": "entries/endpoints/.well-known/security.txt/_server.ts.js",
+    "name": "entries/endpoints/.well-known/security.txt/_server.ts",
+    "src": "src/routes/.well-known/security.txt/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_shared-server.js"
+    ]
+  },
   "src/routes/api/assets/scan/+server.ts": {
     "file": "entries/endpoints/api/assets/scan/_server.ts.js",
     "name": "entries/endpoints/api/assets/scan/_server.ts",
     "src": "src/routes/api/assets/scan/+server.ts",
     "isEntry": true,
     "imports": [
-      "_supabase.js"
+      "_bnk48.js",
+      "_supabase.server.js"
     ]
   },
   "src/routes/api/assets/scan/status/+server.ts": {
@@ -363,7 +400,7 @@
     "src": "src/routes/api/assets/scan/status/+server.ts",
     "isEntry": true,
     "imports": [
-      "_supabase.js"
+      "_supabase.server.js"
     ]
   },
   "src/routes/api/assets/scan/status/sku/+server.ts": {
@@ -372,25 +409,47 @@
     "src": "src/routes/api/assets/scan/status/sku/+server.ts",
     "isEntry": true,
     "imports": [
-      "_supabase.js"
+      "_supabase.server.js"
+    ]
+  },
+  "src/routes/api/auth/session/+server.ts": {
+    "file": "entries/endpoints/api/auth/session/_server.ts.js",
+    "name": "entries/endpoints/api/auth/session/_server.ts",
+    "src": "src/routes/api/auth/session/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_shared-server.js",
+      "_session-cookies.server.js"
     ]
   },
   "src/routes/api/check-assets/+server.ts": {
     "file": "entries/endpoints/api/check-assets/_server.ts.js",
     "name": "entries/endpoints/api/check-assets/_server.ts",
     "src": "src/routes/api/check-assets/+server.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_supabase.server.js"
+    ]
   },
   "src/routes/api/check-assets/latest/+server.ts": {
     "file": "entries/endpoints/api/check-assets/latest/_server.ts.js",
     "name": "entries/endpoints/api/check-assets/latest/_server.ts",
     "src": "src/routes/api/check-assets/latest/+server.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_supabase.server.js"
+    ]
   },
   "src/routes/p/[...path]/+server.ts": {
     "file": "entries/endpoints/p/_...path_/_server.ts.js",
     "name": "entries/endpoints/p/_...path_/_server.ts",
     "src": "src/routes/p/[...path]/+server.ts",
+    "isEntry": true
+  },
+  "src/routes/robots.txt/+server.ts": {
+    "file": "entries/endpoints/robots.txt/_server.ts.js",
+    "name": "entries/endpoints/robots.txt/_server.ts",
+    "src": "src/routes/robots.txt/+server.ts",
     "isEntry": true
   }
 }

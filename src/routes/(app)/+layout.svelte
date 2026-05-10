@@ -25,16 +25,8 @@
 	});
 
 	onMount(() => {
-		const init = async () => {
-			const {
-				data: { session },
-			} = await supabase.auth.getSession();
-			if (!session) {
-				goto("/login");
-			}
-		};
-
-		init();
+		// Auth: ใช้ +layout.server.ts (cookie → locals.session) — ห้ามพึ่ง getSession()
+		// เพราะ persistSession: false ทำให้ client มักได้ null แล้วโดนไล่ไป /login โดยผิด (มักเจอบนจอเล็ก)
 
 		// Theme Management
 		const storageKey = "cohere-theme-preference";
@@ -76,8 +68,9 @@
 
 		const {
 			data: { subscription },
-		} = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-			if (_event === "SIGNED_OUT" || !session) {
+		} = supabase.auth.onAuthStateChange((event) => {
+			// เฉพาะ sign out จริง — อย่า redirect เมื่อ session=null จาก INITIAL_SESSION ฯลฯ
+			if (event === "SIGNED_OUT") {
 				goto("/login");
 			}
 		});
@@ -241,7 +234,7 @@
 {/if}
 
 <div class="app-layout">
-	<main class="main-content">
+	<main class="main-content container">
 		{@render children()}
 	</main>
 </div>
@@ -473,10 +466,9 @@
 
 	.main-content {
 		flex: 1;
-		padding: 60px 40px;
-		max-width: 1440px;
-		margin: 0 auto;
 		width: 100%;
+		margin: 0 auto;
+		padding: clamp(2rem, 4vw, 3.25rem) 0;
 	}
 
 	/* Mobile Nav Styles */

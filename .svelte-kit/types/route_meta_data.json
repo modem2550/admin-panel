@@ -1,7 +1,13 @@
 {
 	"/(auth)": [],
-	"/(app)": [],
+	"/(app)": [
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
+	],
 	"/": [],
+	"/.well-known/security.txt": [
+		"src/routes/.well-known/security.txt/+server.ts"
+	],
 	"/api/assets/scan": [
 		"src/routes/api/assets/scan/+server.ts"
 	],
@@ -11,29 +17,49 @@
 	"/api/assets/scan/status/sku": [
 		"src/routes/api/assets/scan/status/sku/+server.ts"
 	],
+	"/api/auth/session": [
+		"src/routes/api/auth/session/+server.ts"
+	],
 	"/api/check-assets": [
 		"src/routes/api/check-assets/+server.ts"
 	],
 	"/api/check-assets/latest": [
 		"src/routes/api/check-assets/latest/+server.ts"
 	],
-	"/(app)/assets": [],
+	"/(app)/assets": [
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
+	],
 	"/(app)/dashboard": [
 		"src/routes/(app)/dashboard/+page.ts",
-		"src/routes/(app)/dashboard/+page.server.ts"
+		"src/routes/(app)/dashboard/+page.server.ts",
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/events": [
-		"src/routes/(app)/events/+page.ts"
+		"src/routes/(app)/events/+page.ts",
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(auth)/login": [],
 	"/(app)/members": [
-		"src/routes/(app)/members/+page.ts"
+		"src/routes/(app)/members/+page.ts",
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/playback": [
-		"src/routes/(app)/playback/+page.server.ts"
+		"src/routes/(app)/playback/+page.server.ts",
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
 	],
 	"/p/[...path]": [
 		"src/routes/p/[...path]/+server.ts"
 	],
-	"/(app)/settings": []
+	"/robots.txt": [
+		"src/routes/robots.txt/+server.ts"
+	],
+	"/(app)/settings": [
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
+	]
 }

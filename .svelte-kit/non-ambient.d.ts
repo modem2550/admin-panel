@@ -29,7 +29,7 @@ declare module "$app/types" {
 	type MatcherParam<M> = M extends (param : string) => param is (infer U extends string) ? U : string;
 
 	export interface AppTypes {
-		RouteId(): "/(auth)" | "/(app)" | "/" | "/api" | "/api/assets" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/check-assets" | "/api/check-assets/latest" | "/api/proxy" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/(app)/playback" | "/p" | "/p/[...path]" | "/(app)/settings";
+		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/proxy" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/(app)/playback" | "/p" | "/p/[...path]" | "/robots.txt" | "/(app)/settings";
 		RouteParams(): {
 			"/p/[...path]": { path: string }
 		};
@@ -37,11 +37,15 @@ declare module "$app/types" {
 			"/(auth)": Record<string, never>;
 			"/(app)": Record<string, never>;
 			"/": { path?: string };
+			"/.well-known": Record<string, never>;
+			"/.well-known/security.txt": Record<string, never>;
 			"/api": Record<string, never>;
 			"/api/assets": Record<string, never>;
 			"/api/assets/scan": Record<string, never>;
 			"/api/assets/scan/status": Record<string, never>;
 			"/api/assets/scan/status/sku": Record<string, never>;
+			"/api/auth": Record<string, never>;
+			"/api/auth/session": Record<string, never>;
 			"/api/check-assets": Record<string, never>;
 			"/api/check-assets/latest": Record<string, never>;
 			"/api/proxy": Record<string, never>;
@@ -53,10 +57,11 @@ declare module "$app/types" {
 			"/(app)/playback": Record<string, never>;
 			"/p": { path?: string };
 			"/p/[...path]": { path: string };
+			"/robots.txt": Record<string, never>;
 			"/(app)/settings": Record<string, never>
 		};
-		Pathname(): "/" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/check-assets" | "/api/check-assets/latest" | "/assets" | "/dashboard" | "/events" | "/login" | "/members" | "/playback" | `/p/${string}` & {} | "/settings";
+		Pathname(): "/" | "/.well-known/security.txt" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/assets" | "/dashboard" | "/events" | "/login" | "/members" | "/playback" | `/p/${string}` & {} | "/robots.txt" | "/settings";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/.assetsignore" | "/favicon.svg" | string & {};
+		Asset(): "/.assetsignore" | "/favicon.ico" | "/favicon.svg" | string & {};
 	}
 }

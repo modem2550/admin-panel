@@ -1,115 +1,137 @@
-// src/routes/api/check-assets/latest/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { supabaseAdmin } from '$lib/supabase.server';
+import { getCDNDiscoveryUrls } from '$lib/bnk48';
+import https from 'node:https';
 
-async function checkExists(targetUrl: string): Promise<boolean> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    try {
-        const resp = await fetch(targetUrl, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(timeout);
-        return resp.ok;
-    } catch {
-        clearTimeout(timeout);
-        // FIX: network error/timeout ≠ "ไม่มีรูป"
-        // ใน binary search ถ้า throw ต้องถือว่า "ไม่รู้" ไม่ใช่ "ไม่มี"
-        // คืน null แทน boolean เพื่อแยก 3 กรณี
-        return false; // caller จัดการ via wrapper ด้านล่าง
-    }
+async function checkExists(urlStr: string): Promise<boolean> {
+    return new Promise((resolve) => {
+        const req = https.request(urlStr, {
+            method: 'HEAD',
+            timeout: 3000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': '*/*'
+            }
+        }, (res) => {
+            resolve(res.statusCode === 200);
+        });
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+        req.on('error', () => resolve(false));
+        req.end();
+    });
 }
 
-// คืน: true = มี, false = ไม่มี, null = network error (ไม่นับ)
-async function probe(targetUrl: string): Promise<boolean | null> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    try {
-        const resp = await fetch(targetUrl, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(timeout);
-        return resp.ok;
-    } catch {
-        clearTimeout(timeout);
-        return null; // timeout/error — ไม่รู้ผล
-    }
-}
+// Simple in-memory cache to prevent expensive searches on every request
+const cache = new Map<string, { data: any; expires: number }>();
+const CACHE_TTL = 1000 * 60 * 15; // 15 minutes
 
 export const GET: RequestHandler = async ({ url }) => {
     const type = url.searchParams.get('type') || 'product';
-    let latest: { id: string; url: string } | null = null;
 
-    function makeUrl(id: number): string {
-        const padded = id.toString().padStart(4, '0');
-        return type === 'product'
-            ? `https://img.bnk48cdn.net/shop/product/${padded}/sku-1.jpg`
-            : `https://img.bnk48cdn.net/shop/product-group/${padded}.jpg`;
+    // Check cache
+    const cached = cache.get(type);
+    if (cached && cached.expires > Date.now()) {
+        return json(cached.data);
     }
 
-    // Step-up approach with grace period for gaps
-    let current = 0;
-    let step = 1000;
-    const maxId = type === 'product' ? 25000 : 5000;
+    console.log(`[API/Latest] Searching latest ${type}...`);
+    const startTime = Date.now();
 
-    // Coarse search
-    while (current + step <= maxId) {
-        const target = current + step;
-        let exists = await probe(makeUrl(target));
+    // ── Strategy 1: ดึง MAX(id) จาก DB (เร็วมาก ~50ms) ──────────────────────
+    const { data: maxRow, error: dbErr } = await supabaseAdmin
+        .from('cdn_assets')
+        .select('id, url')
+        .eq('type', type)
+        .order('id', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-        // Retry once if timeout
-        if (exists === null) exists = await probe(makeUrl(target));
+    if (!dbErr && maxRow) {
+        console.log(`[API/Latest] Found latest ${type}: ${maxRow.id} from DB (Took ${Date.now() - startTime}ms)`);
 
-        if (exists === true) {
-            current = target;
-            latest = { id: target.toString().padStart(4, '0'), url: makeUrl(target) };
+        const result = {
+            id: maxRow.id.toString(),
+            url: maxRow.url || buildFallbackUrl(type, maxRow.id)
+        };
+
+        cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
+        return json(result);
+    }
+
+    // ── Strategy 2: DB ว่าง → ใช้ binary search (เฉพาะครั้งแรกที่ยังไม่เคย scan) ──
+    console.log(`[API/Latest] DB empty for ${type}, falling back to binary search...`);
+
+    function getCandidateUrls(id: number): string[] {
+        return getCDNDiscoveryUrls(type as 'product' | 'group', id);
+    }
+
+    // ใช้ probe แบบเร็ว — ลองแค่ sku-1.jpg/png สำหรับ product หรือ .jpg/.png สำหรับ group
+    // ไม่ต้องลองทุก candidate URL (เร็วกว่าหลายร้อยเท่า)
+    async function quickProbe(id: number): Promise<boolean> {
+        const idStr = id.toString();
+        const quickUrls = type === 'group'
+            ? [
+                `https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`,
+                `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`
+            ]
+            : [
+                `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.jpg`,
+                `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.png`
+            ];
+
+        const results = await Promise.all(quickUrls.map(u => checkExists(u)));
+        return results.some(r => r === true);
+    }
+
+    let low = 0;
+    let high = type === 'product' ? 10000 : 3000;
+    let lastFoundId = 0;
+
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const exists = await quickProbe(mid);
+
+        if (exists) {
+            lastFoundId = mid;
+            low = mid + 1;
         } else {
-            // Only if we are sure it's 404 (exists === false) or after retries (exists === null)
-            // Gap check: check a bit further
-            const lookahead = target + 200;
-            let lookExists = await probe(makeUrl(lookahead));
-            if (lookExists === null) lookExists = await probe(makeUrl(lookahead));
-
-            if (lookExists === true) {
-                current = lookahead;
-                latest = { id: lookahead.toString().padStart(4, '0'), url: makeUrl(lookahead) };
-            } else {
-                if (step > 10) {
-                    step = Math.floor(step / 5);
-                } else {
-                    break;
-                }
-            }
+            high = mid - 1;
         }
     }
 
-    // Phase 2: Fine refinement (step 1)
-    let fine = current;
-    while (fine < current + 1500 && fine <= maxId) {
-        let exists = await probe(makeUrl(fine + 1));
-        if (exists === null) exists = await probe(makeUrl(fine + 1));
-
-        if (exists === true) {
-            fine++;
-            latest = { id: fine.toString().padStart(4, '0'), url: makeUrl(fine) };
+    // Trailing check — ดูเพิ่มอีก 3 ID
+    let checkId = lastFoundId + 1;
+    let gapLimit = 3;
+    while (gapLimit > 0 && checkId <= (type === 'product' ? 10000 : 3000)) {
+        if (await quickProbe(checkId)) {
+            lastFoundId = checkId;
+            gapLimit = 3;
         } else {
-            // Check just one more for tiny gaps
-            let nextExists = await probe(makeUrl(fine + 2));
-            if (nextExists === null) nextExists = await probe(makeUrl(fine + 2));
-
-            if (nextExists === true) {
-                fine += 2;
-                latest = { id: fine.toString().padStart(4, '0'), url: makeUrl(fine) };
-            } else {
-                break;
-            }
+            gapLimit--;
         }
+        checkId++;
     }
 
-    if (latest) {
-        const prefix = 'img';
-        const parsed = new URL(latest.url);
-        const path = parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname;
-        return json({
-            id: latest.id,
-            url: `/p/${prefix}/${path}`
-        });
+    if (lastFoundId > 0) {
+        console.log(`[API/Latest] Found latest ${type}: ${lastFoundId} via binary search (Took ${Date.now() - startTime}ms)`);
+
+        const result = {
+            id: lastFoundId.toString(),
+            url: buildFallbackUrl(type, lastFoundId)
+        };
+
+        cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
+        return json(result);
     }
-    return json({ id: '0000', url: '' });
+
+    console.log(`[API/Latest] No ${type} found (Took ${Date.now() - startTime}ms)`);
+    return json({ id: '0', url: '' });
 };
+
+function buildFallbackUrl(type: string, id: number): string {
+    const idStr = id.toString();
+    return type === 'product'
+        ? `/p/img/shop/product/${idStr}/sku-1.jpg`
+        : `/p/img/shop/product-group/${idStr}.jpg`;
+}

@@ -138,8 +138,8 @@
 	}
 </script>
 
-<div class="page-container container">
-	<header class="page-header">
+<div class="page-shell">
+	<header class="page-header page-header--split">
 		<div class="header-left">
 			<span class="mono-label">Personnel Directory</span>
 			<h1 class="hero-display">Collective Registry</h1>
@@ -154,11 +154,9 @@
 				Add Entry <i class="fa-solid fa-plus ms-2"></i>
 			</button>
 		</div>
-	</header>
-
-	<div class="technical-filter-bar">
+		<div class="technical-filter-bar">
 		<div class="filter-group flex-1">
-			<div class="technical-input-group search-box">
+			<div class="search-box">
 				<i class="fa-solid fa-magnifying-glass opacity-50"></i>
 				<input
 					type="text"
@@ -215,7 +213,6 @@
 				</select>
 			</div>
 		</div>
-
 		<div class="filter-group">
 			<div class="technical-select">
 				<select bind:value={filterStatus}>
@@ -226,6 +223,7 @@
 			</div>
 		</div>
 	</div>
+	</header>
 
 	<div class="row row-cols-1 row-cols-lg-2 g-4">
 		{#each filteredMembers as member}
@@ -416,84 +414,16 @@
 {/if}
 
 <style>
-	.page-container {
-		animation: fade-in 0.6s ease-out;
-	}
-
-	.hero-display {
-		font-size: 72px;
-		line-height: 1;
-		margin: 8px 0 24px;
-	}
-
-	.body-large {
-		font-size: 18px;
-		color: var(--co-slate-muted);
-		max-width: 600px;
-	}
-
-	.header-actions {
-		margin-top: 48px;
-	}
-
-	.technical-filter-bar {
-		display: flex;
-		align-items: center;
-		gap: 24px;
-		padding: 24px 0;
-		border-bottom: 1px solid var(--co-hairline);
-		margin-bottom: 48px;
-		flex-wrap: wrap;
-	}
-
 	.filter-group {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 	}
 
-	.search-box {
+	:global(.dark) .technical-filter-bar .technical-select select {
 		background: var(--co-stone);
-		border-radius: var(--radius-sm);
-		padding: 10px 20px;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		border: 1px solid var(--co-hairline);
-	}
-
-	.search-box input {
-		background: none;
-		border: none;
-		outline: none;
-		font-family: var(--font-body);
-		font-size: 14px;
 		color: var(--co-ink);
-		width: 100%;
 	}
-
-	.filter-pills {
-		display: flex;
-		gap: 8px;
-	}
-
-	.technical-select select {
-		padding: 12px 24px;
-		border-radius: var(--radius-pill);
-		border: 1px solid var(--co-hairline);
-		background: var(--co-stone);
-		font-family: var(--font-body);
-		font-size: 14px;
-		outline: none;
-		cursor: pointer;
-	}
-
-	:global(.dark) .technical-select select {
-		background: var(--co-bs-gray-100) !important;
-		color: var(--co-bs-gray-900) !important;
-	}
-
-	/* Editorial List (Column) */
 
 	.member-node {
 		display: flex;
@@ -722,12 +652,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.hero-display {
-			font-size: 48px;
-		}
-		.technical-filter-bar {
-			gap: 16px;
-		}
 		.form-row {
 			flex-direction: column;
 			gap: 32px;

@@ -1,36 +1,45 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabaseAdmin } from '$lib/supabase';
+import { supabaseAdmin } from '$lib/supabase.server';
+import { timingSafeSecretMatch } from '$lib/secret-verify.server';
+import { getCDNDiscoveryUrls } from '$lib/bnk48';
+import https from 'node:https';
 
 const SCAN_SECRET = import.meta.env.SCAN_SECRET;
-const UPPER_BOUND = { product: 6000, group: 1200 };
+const UPPER_BOUND = { product: 15000, group: 2000 };
 const BATCH_SIZE = 50;
 const TIMEOUT_MS = 2000;
 
-async function headExists(url: string): Promise<boolean> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try {
-        const resp = await fetch(url, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(timeout);
-        return resp.ok;
-    } catch {
-        clearTimeout(timeout);
-        return false;
-    }
+async function checkAnyExists(urls: string[]): Promise<string | null> {
+    // คืน URL จริงที่เจอตัวแรก หรือ null ถ้าไม่เจอ
+    const results = await Promise.all(urls.map(async (u) => {
+        return new Promise<string | null>((resolve) => {
+            const req = https.request(u, {
+                method: 'HEAD',
+                timeout: TIMEOUT_MS,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': '*/*'
+                }
+            }, (res) => {
+                resolve(res.statusCode === 200 ? u : null);
+            });
+            req.on('timeout', () => { req.destroy(); resolve(null); });
+            req.on('error', () => resolve(null));
+            req.end();
+        });
+    }));
+    return results.find(r => r !== null) ?? null;
 }
 
-function makeUrl(type: string, id: number): string {
-    const padded = id.toString().padStart(4, '0');
-    return type === 'product'
-        ? `https://img.bnk48cdn.net/shop/product/${padded}/sku-1.jpg`
-        : `https://img.bnk48cdn.net/shop/product-group/${padded}.jpg`;
+function getDiscoveryUrls(type: string, id: number): string[] {
+    return getCDNDiscoveryUrls(type as 'product' | 'group', id);
 }
+
 
 export const POST: RequestHandler = async ({ request }) => {
-    // Auth
     const secret = request.headers.get('x-scan-secret');
-    if (secret !== SCAN_SECRET) throw error(401, 'Unauthorized');
+    if (!timingSafeSecretMatch(secret, SCAN_SECRET)) throw error(401, 'Unauthorized');
 
     const body = await request.json().catch(() => ({}));
     const type = body.type === 'group' ? 'group' : 'product';
@@ -79,19 +88,23 @@ async function runScan(type: string, startId: number, endId: number, logId: numb
 
             const results = await Promise.all(
                 batch.map(async (id) => {
-                    const exists = await headExists(makeUrl(type, id));
-                    return exists ? id : null;
+                    const foundUrl = await checkAnyExists(getDiscoveryUrls(type, id));
+                    if (!foundUrl) return null;
+                    // แปลง CDN URL → proxied URL สำหรับเก็บใน DB
+                    const proxiedUrl = foundUrl.replace('https://img.bnk48cdn.net/', '/p/img/');
+                    return { id, proxiedUrl };
                 })
             );
 
-            const found = results.filter((id): id is number => id !== null);
+            const found = results.filter((r): r is { id: number; proxiedUrl: string } => r !== null);
             scannedCount += batch.length;
             foundCount += found.length;
 
             if (found.length > 0) {
-                const rows = found.map((id) => ({
+                const rows = found.map(({ id, proxiedUrl }) => ({
                     id,
                     type,
+                    url: proxiedUrl,
                     skus: [1],
                     discovered_at: new Date().toISOString(),
                     last_seen: new Date().toISOString(),

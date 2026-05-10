@@ -1,8 +1,8 @@
 import "../../../chunks/index-server.js";
 import { $ as getContext, B as escape_html, a as ensure_array_like, c as stringify, l as unsubscribe_stores, n as attr_class, s as store_get } from "../../../chunks/dev.js";
-import "../../../chunks/supabase.js";
 import "../../../chunks/client.js";
 import "../../../chunks/navigation.js";
+import "../../../chunks/supabase.js";
 import { t as toasts } from "../../../chunks/toasts.js";
 //#region node_modules/@sveltejs/kit/src/runtime/app/stores.js
 /**
@@ -56,7 +56,7 @@ function _layout($$renderer, $$props) {
 		let { children } = $$props;
 		$$renderer.push(`<div class="announcement-bar svelte-1v2axqk"><div class="announcement-content svelte-1v2axqk"><span class="svelte-1v2axqk">New feature: BNK48 Media Explorer is now live.</span> <a href="/playback" class="svelte-1v2axqk">Explore now <i class="fa-solid fa-arrow-right"></i></a></div></div> <header class="global-nav svelte-1v2axqk"><div class="nav-left svelte-1v2axqk"><button class="mobile-menu-trigger svelte-1v2axqk" aria-label="Toggle Menu"><i${attr_class(`fa-solid ${stringify("fa-bars-staggered")}`)}></i></button> <a href="/dashboard" class="logo svelte-1v2axqk"><i class="fa-solid fa-cube svelte-1v2axqk"></i> <span class="logo-text svelte-1v2axqk">COHERE<span class="svelte-1v2axqk">ADMIN</span></span></a></div> <nav class="nav-center svelte-1v2axqk"><ul class="nav-links svelte-1v2axqk"><li><a href="/dashboard"${attr_class("svelte-1v2axqk", void 0, { "active": store_get($$store_subs ??= {}, "$page", page).url.pathname === "/dashboard" })}>Dashboard</a></li> <li><a href="/assets"${attr_class("svelte-1v2axqk", void 0, { "active": store_get($$store_subs ??= {}, "$page", page).url.pathname === "/assets" })}>Assets</a></li> <li><a href="/events"${attr_class("svelte-1v2axqk", void 0, { "active": store_get($$store_subs ??= {}, "$page", page).url.pathname === "/events" })}>Events</a></li> <li><a href="/members"${attr_class("svelte-1v2axqk", void 0, { "active": store_get($$store_subs ??= {}, "$page", page).url.pathname === "/members" })}>Members</a></li> <li><a href="/playback"${attr_class("svelte-1v2axqk", void 0, { "active": store_get($$store_subs ??= {}, "$page", page).url.pathname === "/playback" })}>Playback</a></li></ul></nav> <div class="nav-right svelte-1v2axqk"><button class="icon-btn theme-toggle svelte-1v2axqk" aria-label="Toggle Theme"><i class="fa-solid fa-circle-half-stroke"></i></button> <a href="/settings" class="icon-btn svelte-1v2axqk" aria-label="Settings"><i class="fa-solid fa-gear"></i></a> <button class="button-primary hide-mobile svelte-1v2axqk">Sign Out</button></div></header> `);
 		$$renderer.push("<!--[-1-->");
-		$$renderer.push(`<!--]--> <div class="app-layout svelte-1v2axqk"><main class="main-content svelte-1v2axqk">`);
+		$$renderer.push(`<!--]--> <div class="app-layout svelte-1v2axqk"><main class="main-content container svelte-1v2axqk">`);
 		children($$renderer);
 		$$renderer.push(`<!----></main></div> `);
 		Toast($$renderer, {});

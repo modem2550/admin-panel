@@ -7,10 +7,10 @@ function __memo(fn) {
 return {
 	appDir: "_app",
 	appPath: "_app",
-	assets: new Set([".assetsignore","favicon.svg"]),
+	assets: new Set([".assetsignore","favicon.ico","favicon.svg"]),
 	mimeTypes: {".svg":"image/svg+xml"},
 	_: {
-		client: {start:"_app/immutable/entry/start.BDNtW4mp.js",app:"_app/immutable/entry/app.DZPTKd7z.js",imports:["_app/immutable/entry/start.BDNtW4mp.js","_app/immutable/chunks/B6EpbKFq.js","_app/immutable/chunks/DBgZ8ocX.js","_app/immutable/chunks/BQ0_JU6i.js","_app/immutable/entry/app.DZPTKd7z.js","_app/immutable/chunks/DBgZ8ocX.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.DC4skCST.js",app:"_app/immutable/entry/app.KqvcWSqw.js",imports:["_app/immutable/entry/start.DC4skCST.js","_app/immutable/chunks/C4n5GNUl.js","_app/immutable/chunks/ClagBzh-.js","_app/immutable/chunks/Bta9-t93.js","_app/immutable/entry/app.KqvcWSqw.js","_app/immutable/chunks/ClagBzh-.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),
@@ -37,6 +37,13 @@ return {
 				endpoint: null
 			},
 			{
+				id: "/.well-known/security.txt",
+				pattern: /^\/\.well-known\/security\.txt\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/.well-known/security.txt/_server.ts.js'))
+			},
+			{
 				id: "/api/assets/scan",
 				pattern: /^\/api\/assets\/scan\/?$/,
 				params: [],
@@ -56,6 +63,13 @@ return {
 				params: [],
 				page: null,
 				endpoint: __memo(() => import('./entries/endpoints/api/assets/scan/status/sku/_server.ts.js'))
+			},
+			{
+				id: "/api/auth/session",
+				pattern: /^\/api\/auth\/session\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/auth/session/_server.ts.js'))
 			},
 			{
 				id: "/api/check-assets",
@@ -119,6 +133,13 @@ return {
 				params: [{"name":"path","optional":false,"rest":true,"chained":true}],
 				page: null,
 				endpoint: __memo(() => import('./entries/endpoints/p/_...path_/_server.ts.js'))
+			},
+			{
+				id: "/robots.txt",
+				pattern: /^\/robots\.txt\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/robots.txt/_server.ts.js'))
 			},
 			{
 				id: "/(app)/settings",

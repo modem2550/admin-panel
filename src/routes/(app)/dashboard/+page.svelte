@@ -1,11 +1,31 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import type { PageData } from "./$types";
 
 	let { data } = $props();
+
+	let latestProduct = $state<{ id: string; url: string } | null>(null);
+	let latestGroup = $state<{ id: string; url: string } | null>(null);
+	let loadingAssets = $state(true);
+
+	onMount(async () => {
+		try {
+			const [p, g] = await Promise.all([
+				fetch("/api/check-assets/latest?type=product").then((r) => r.json()),
+				fetch("/api/check-assets/latest?type=group").then((r) => r.json()),
+			]);
+			latestProduct = p;
+			latestGroup = g;
+		} catch (e) {
+			console.error("Failed to load dashboard assets", e);
+		} finally {
+			loadingAssets = false;
+		}
+	});
 </script>
 
-<div class="page-container">
-	<header class="dashboard-header">
+<div class="page-shell">
+	<header class="page-header dashboard-header">
 		<div class="header-split">
 			<div class="header-text">
 				<span class="mono-label">Operational Overview</span>
@@ -64,60 +84,63 @@
 		</div>
 
 		<div class="row">
-			{#if data.latestAssets.product && data.latestAssets.product.url}
-				<div
-					class="col col-md-3 d-flex justify-content-center flex-column gap-3"
-				>
-					<div class="preview-media">
-						<img
-							src={data.latestAssets.product.url}
-							alt="Latest Product"
-						/>
-					</div>
-					<div class="preview-info">
-						<span class="mono-label"
-							>PRD-{data.latestAssets.product.id
-								.toString()
-								.padStart(4, "0")}</span
-						>
-						<h3 class="technical-title">Latest Product Media</h3>
-					</div>
+			{#if loadingAssets}
+				<div class="col col-md-3">
+					<div class="skeleton-media mb-3"></div>
+					<div class="skeleton-text"></div>
 				</div>
-			{/if}
+				<div class="col col-md-3">
+					<div class="skeleton-media mb-3"></div>
+					<div class="skeleton-text"></div>
+				</div>
+			{:else}
+				{#if latestProduct && latestProduct.url}
+					<div
+						class="col col-md-3 d-flex justify-content-center flex-column gap-3"
+					>
+						<div class="preview-media">
+							<img
+								src={latestProduct.url}
+								alt="Latest Product"
+							/>
+						</div>
+						<div class="preview-info">
+							<span class="mono-label"
+								>PRD-{latestProduct.id
+									.toString()
+									.padStart(4, "0")}</span
+							>
+							<h3 class="technical-title">Latest Product Media</h3>
+						</div>
+					</div>
+				{/if}
 
-			{#if data.latestAssets.group && data.latestAssets.group.url}
-				<div
-					class="col col-md-3 d-flex justify-content-center flex-column gap-3"
-				>
-					<div class="preview-media">
-						<img
-							src={data.latestAssets.group.url}
-							alt="Latest Group"
-						/>
+				{#if latestGroup && latestGroup.url}
+					<div
+						class="col col-md-3 d-flex justify-content-center flex-column gap-3"
+					>
+						<div class="preview-media">
+							<img
+								src={latestGroup.url}
+								alt="Latest Group"
+							/>
+						</div>
+						<div class="preview-info">
+							<span class="mono-label"
+								>GRP-{latestGroup.id
+									.toString()
+									.padStart(4, "0")}</span
+							>
+							<h3 class="technical-title">Latest Collective Media</h3>
+						</div>
 					</div>
-					<div class="preview-info">
-						<span class="mono-label"
-							>GRP-{data.latestAssets.group.id
-								.toString()
-								.padStart(4, "0")}</span
-						>
-						<h3 class="technical-title">Latest Collective Media</h3>
-					</div>
-				</div>
+				{/if}
 			{/if}
 		</div>
 	</section>
 </div>
 
 <style>
-	.page-container {
-		animation: fade-in 0.6s ease-out;
-	}
-
-	.dashboard-header {
-		margin-bottom: 80px;
-	}
-
 	.header-split {
 		display: flex;
 		justify-content: space-between;
@@ -228,12 +251,6 @@
 		pointer-events: none;
 	}
 
-	.hero-display {
-		font-size: 72px;
-		line-height: 1;
-		margin: 8px 0 24px;
-	}
-
 	.stats-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -337,6 +354,47 @@
 		margin: 0;
 	}
 
+	.skeleton-media {
+		width: 100%;
+		aspect-ratio: 1;
+		background: var(--co-stone);
+		border-radius: var(--radius-lg);
+		position: relative;
+		overflow: hidden;
+	}
+
+	.skeleton-text {
+		width: 60%;
+		height: 20px;
+		background: var(--co-stone);
+		border-radius: 4px;
+		position: relative;
+		overflow: hidden;
+	}
+
+	.skeleton-media::after,
+	.skeleton-text::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			90deg,
+			transparent,
+			rgba(255, 255, 255, 0.05),
+			transparent
+		);
+		animation: skeleton-shimmer 1.5s infinite;
+	}
+
+	@keyframes skeleton-shimmer {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(100%);
+		}
+	}
+
 	@media (max-width: 900px) {
 		.header-split {
 			flex-direction: column;
@@ -350,9 +408,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.hero-display {
-			font-size: 48px;
-		}
 		.header-visual {
 			height: 180px;
 		}

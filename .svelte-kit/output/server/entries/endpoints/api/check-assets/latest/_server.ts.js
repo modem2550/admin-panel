@@ -1,89 +1,94 @@
+import { t as supabaseAdmin } from "../../../../../chunks/supabase.server.js";
 import { json } from "@sveltejs/kit";
+import https from "node:https";
 //#region src/routes/api/check-assets/latest/+server.ts
-async function probe(targetUrl) {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 5e3);
-	try {
-		const resp = await fetch(targetUrl, {
+async function checkExists(urlStr) {
+	return new Promise((resolve) => {
+		const req = https.request(urlStr, {
 			method: "HEAD",
-			signal: controller.signal
+			timeout: 3e3,
+			headers: {
+				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+				"Accept": "*/*"
+			}
+		}, (res) => {
+			resolve(res.statusCode === 200);
 		});
-		clearTimeout(timeout);
-		return resp.ok;
-	} catch {
-		clearTimeout(timeout);
-		return null;
-	}
+		req.on("timeout", () => {
+			req.destroy();
+			resolve(false);
+		});
+		req.on("error", () => resolve(false));
+		req.end();
+	});
 }
+var cache = /* @__PURE__ */ new Map();
+var CACHE_TTL = 1e3 * 60 * 15;
 var GET = async ({ url }) => {
 	const type = url.searchParams.get("type") || "product";
-	let latest = null;
-	function makeUrl(id) {
-		const padded = id.toString().padStart(4, "0");
-		return type === "product" ? `https://img.bnk48cdn.net/shop/product/${padded}/sku-1.jpg` : `https://img.bnk48cdn.net/shop/product-group/${padded}.jpg`;
-	}
-	let current = 0;
-	let step = 1e3;
-	const maxId = type === "product" ? 25e3 : 5e3;
-	while (current + step <= maxId) {
-		const target = current + step;
-		let exists = await probe(makeUrl(target));
-		if (exists === null) exists = await probe(makeUrl(target));
-		if (exists === true) {
-			current = target;
-			latest = {
-				id: target.toString().padStart(4, "0"),
-				url: makeUrl(target)
-			};
-		} else {
-			const lookahead = target + 200;
-			let lookExists = await probe(makeUrl(lookahead));
-			if (lookExists === null) lookExists = await probe(makeUrl(lookahead));
-			if (lookExists === true) {
-				current = lookahead;
-				latest = {
-					id: lookahead.toString().padStart(4, "0"),
-					url: makeUrl(lookahead)
-				};
-			} else if (step > 10) step = Math.floor(step / 5);
-			else break;
-		}
-	}
-	let fine = current;
-	while (fine < current + 1500 && fine <= maxId) {
-		let exists = await probe(makeUrl(fine + 1));
-		if (exists === null) exists = await probe(makeUrl(fine + 1));
-		if (exists === true) {
-			fine++;
-			latest = {
-				id: fine.toString().padStart(4, "0"),
-				url: makeUrl(fine)
-			};
-		} else {
-			let nextExists = await probe(makeUrl(fine + 2));
-			if (nextExists === null) nextExists = await probe(makeUrl(fine + 2));
-			if (nextExists === true) {
-				fine += 2;
-				latest = {
-					id: fine.toString().padStart(4, "0"),
-					url: makeUrl(fine)
-				};
-			} else break;
-		}
-	}
-	if (latest) {
-		const prefix = "img";
-		const parsed = new URL(latest.url);
-		const path = parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
-		return json({
-			id: latest.id,
-			url: `/p/${prefix}/${path}`
+	const cached = cache.get(type);
+	if (cached && cached.expires > Date.now()) return json(cached.data);
+	console.log(`[API/Latest] Searching latest ${type}...`);
+	const startTime = Date.now();
+	const { data: maxRow, error: dbErr } = await supabaseAdmin.from("cdn_assets").select("id, url").eq("type", type).order("id", { ascending: false }).limit(1).maybeSingle();
+	if (!dbErr && maxRow) {
+		console.log(`[API/Latest] Found latest ${type}: ${maxRow.id} from DB (Took ${Date.now() - startTime}ms)`);
+		const result = {
+			id: maxRow.id.toString(),
+			url: maxRow.url || buildFallbackUrl(type, maxRow.id)
+		};
+		cache.set(type, {
+			data: result,
+			expires: Date.now() + CACHE_TTL
 		});
+		return json(result);
 	}
+	console.log(`[API/Latest] DB empty for ${type}, falling back to binary search...`);
+	async function quickProbe(id) {
+		const idStr = id.toString();
+		const quickUrls = type === "group" ? [`https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`, `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`] : [`https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.jpg`, `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.png`];
+		return (await Promise.all(quickUrls.map((u) => checkExists(u)))).some((r) => r === true);
+	}
+	let low = 0;
+	let high = type === "product" ? 1e4 : 3e3;
+	let lastFoundId = 0;
+	while (low <= high) {
+		const mid = Math.floor((low + high) / 2);
+		if (await quickProbe(mid)) {
+			lastFoundId = mid;
+			low = mid + 1;
+		} else high = mid - 1;
+	}
+	let checkId = lastFoundId + 1;
+	let gapLimit = 3;
+	while (gapLimit > 0 && checkId <= (type === "product" ? 1e4 : 3e3)) {
+		if (await quickProbe(checkId)) {
+			lastFoundId = checkId;
+			gapLimit = 3;
+		} else gapLimit--;
+		checkId++;
+	}
+	if (lastFoundId > 0) {
+		console.log(`[API/Latest] Found latest ${type}: ${lastFoundId} via binary search (Took ${Date.now() - startTime}ms)`);
+		const result = {
+			id: lastFoundId.toString(),
+			url: buildFallbackUrl(type, lastFoundId)
+		};
+		cache.set(type, {
+			data: result,
+			expires: Date.now() + CACHE_TTL
+		});
+		return json(result);
+	}
+	console.log(`[API/Latest] No ${type} found (Took ${Date.now() - startTime}ms)`);
 	return json({
-		id: "0000",
+		id: "0",
 		url: ""
 	});
 };
+function buildFallbackUrl(type, id) {
+	const idStr = id.toString();
+	return type === "product" ? `/p/img/shop/product/${idStr}/sku-1.jpg` : `/p/img/shop/product-group/${idStr}.jpg`;
+}
 //#endregion
 export { GET };

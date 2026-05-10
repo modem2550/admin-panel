@@ -1,7 +1,7 @@
 import { B as escape_html, a as ensure_array_like, c as stringify, i as derived, n as attr_class, z as attr } from "../../../../chunks/dev.js";
+import { d as proxyUrl } from "../../../../chunks/bnk48.js";
 import "../../../../chunks/supabase.js";
 import "../../../../chunks/toasts.js";
-import { u as proxyUrl } from "../../../../chunks/bnk48.js";
 //#region src/routes/(app)/members/+page.svelte
 function _page($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
@@ -23,8 +23,8 @@ function _page($$renderer, $$props) {
 			const matchesTeam = filterTeam === "All" || m.team === filterTeam;
 			return matchesSearch && matchesBrand && matchesStatus && matchesGen && matchesTeam;
 		}));
-		$$renderer.push(`<div class="page-container container svelte-1z0yobh"><header class="page-header"><div class="header-left"><span class="mono-label">Personnel Directory</span> <h1 class="hero-display svelte-1z0yobh">Collective Registry</h1> <p class="body-large svelte-1z0yobh">Operational management of member records, generation indexing,
-				and active status tracking.</p></div> <div class="header-actions svelte-1z0yobh"><button class="button-pill-outline">Add Entry <i class="fa-solid fa-plus ms-2"></i></button></div></header> <div class="technical-filter-bar svelte-1z0yobh"><div class="filter-group flex-1 svelte-1z0yobh"><div class="technical-input-group search-box svelte-1z0yobh"><i class="fa-solid fa-magnifying-glass opacity-50"></i> <input type="text" placeholder="Search entries..."${attr("value", searchQuery)} class="svelte-1z0yobh"/></div></div> <div class="filter-group svelte-1z0yobh"><div class="filter-pills svelte-1z0yobh"><button${attr_class("button-pill-outline", void 0, { "active": filterBrand === "All" })}>All</button> <button${attr_class("button-pill-outline", void 0, { "active": filterBrand === "BNK48" })}>BNK48</button> <button${attr_class("button-pill-outline", void 0, { "active": filterBrand === "CGM48" })}>CGM48</button></div></div> <div class="filter-group svelte-1z0yobh"><div class="technical-select svelte-1z0yobh">`);
+		$$renderer.push(`<div class="page-shell"><header class="page-header page-header--split"><div class="header-left"><span class="mono-label">Personnel Directory</span> <h1 class="hero-display">Collective Registry</h1> <p class="body-large">Operational management of member records, generation indexing,
+				and active status tracking.</p></div> <div class="header-actions"><button class="button-pill-outline">Add Entry <i class="fa-solid fa-plus ms-2"></i></button></div> <div class="technical-filter-bar svelte-1z0yobh"><div class="filter-group flex-1 svelte-1z0yobh"><div class="search-box"><i class="fa-solid fa-magnifying-glass opacity-50"></i> <input type="text" placeholder="Search entries..."${attr("value", searchQuery)}/></div></div> <div class="filter-group svelte-1z0yobh"><div class="filter-pills"><button${attr_class("button-pill-outline", void 0, { "active": filterBrand === "All" })}>All</button> <button${attr_class("button-pill-outline", void 0, { "active": filterBrand === "BNK48" })}>BNK48</button> <button${attr_class("button-pill-outline", void 0, { "active": filterBrand === "CGM48" })}>CGM48</button></div></div> <div class="filter-group svelte-1z0yobh"><div class="technical-select svelte-1z0yobh">`);
 		$$renderer.select({
 			value: filterGen,
 			class: ""
@@ -75,7 +75,7 @@ function _page($$renderer, $$props) {
 				$$renderer.push(`Graduated`);
 			});
 		}, "svelte-1z0yobh");
-		$$renderer.push(`</div></div></div> <div class="row row-cols-1 row-cols-lg-2 g-4"><!--[-->`);
+		$$renderer.push(`</div></div></div></header> <div class="row row-cols-1 row-cols-lg-2 g-4"><!--[-->`);
 		const each_array_2 = ensure_array_like(filteredMembers());
 		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
 			let member = each_array_2[$$index_2];

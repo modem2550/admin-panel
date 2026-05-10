@@ -1,7 +1,7 @@
 import { B as escape_html, a as ensure_array_like, c as stringify, i as derived, n as attr_class, z as attr } from "../../../../chunks/dev.js";
+import { d as proxyUrl } from "../../../../chunks/bnk48.js";
 import "../../../../chunks/supabase.js";
 import "../../../../chunks/toasts.js";
-import { u as proxyUrl } from "../../../../chunks/bnk48.js";
 //#region src/routes/(app)/events/+page.svelte
 function _page($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
@@ -19,11 +19,11 @@ function _page($$renderer, $$props) {
 			}
 			return e.title.toLowerCase().includes(searchQuery.toLowerCase()) || e.location && e.location.toLowerCase().includes(searchQuery.toLowerCase());
 		}).sort((a, b) => b.date.localeCompare(a.date)));
-		$$renderer.push(`<div class="page-container container svelte-3s0wz7"><header class="page-header"><div class="header-left"><span class="mono-label">Mission Ledger</span> <h1 class="hero-display svelte-3s0wz7">Event Operations</h1> <p class="body-large svelte-3s0wz7">Technical indexing of public appearances, broadcast schedules,
-				and group-wide activities.</p></div> <div class="technical-filter-bar svelte-3s0wz7"><div class="filter-pills svelte-3s0wz7"><button${attr_class("button-pill-outline", void 0, { "active": filterMode === "all" })}>Global Ledger</button> <button${attr_class("button-pill-outline", void 0, { "active": filterMode === "upcoming" })}>Upcoming</button> <button${attr_class("button-pill-outline", void 0, { "active": filterMode === "past" })}>Archives</button></div> <div class="technical-input-group search-box svelte-3s0wz7"><i class="fa-solid fa-magnifying-glass opacity-50"></i> <input type="text" placeholder="Search operations..."${attr("value", searchQuery)} class="svelte-3s0wz7"/></div> <button class="button-pill-outline">Create Record</button></div></header> `);
+		$$renderer.push(`<div class="page-shell"><header class="page-header page-header--split"><div class="header-left"><span class="mono-label">Mission Ledger</span> <h1 class="hero-display">Event Operations</h1> <p class="body-large">Technical indexing of public appearances, broadcast schedules,
+				and group-wide activities.</p></div> <div class="technical-filter-bar"><div class="filter-pills"><button${attr_class("button-pill-outline", void 0, { "active": filterMode === "all" })}>Global Ledger</button> <button${attr_class("button-pill-outline", void 0, { "active": filterMode === "upcoming" })}>Upcoming</button> <button${attr_class("button-pill-outline", void 0, { "active": filterMode === "past" })}>Archives</button></div> <div class="search-box"><input type="text" placeholder="Search operations..."${attr("value", searchQuery)}/></div> <button class="button-pill-outline">Create Record</button></div></header> `);
 		if (filteredEvents().length === 0) {
 			$$renderer.push("<!--[0-->");
-			$$renderer.push(`<div class="status-stream svelte-3s0wz7"><div class="status-node svelte-3s0wz7"><i class="fa-solid fa-calendar-xmark me-2 opacity-50"></i> <span class="mono-label">NO_RECORDS_MATCH_QUERY</span></div></div>`);
+			$$renderer.push(`<div class="status-stream"><div class="status-node"><i class="fa-solid fa-calendar-xmark me-2 opacity-50"></i> <span class="mono-label">NO_RECORDS_MATCH_QUERY</span></div></div>`);
 		} else {
 			$$renderer.push("<!--[-1-->");
 			$$renderer.push(`<div class="row row-cols-1 row-cols-lg-2 g-4 editorial-grid svelte-3s0wz7"><!--[-->`);
