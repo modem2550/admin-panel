@@ -1,10 +1,18 @@
 <script lang="ts">
-	import { untrack, onMount } from "svelte";
+	import { untrack, onMount, tick } from "svelte";
 	import { toasts } from "$lib/toasts";
+	import {
+		getRoundOnlyThumbnailCandidates,
+		getSatSunSwingThumbnailCandidates,
+		isKnownProductAssetRange,
+		isProductRoundOnlyZone,
+		isProductSatSunSwingZone,
+	} from "$lib/bnk48";
 
-	let itemsPerPage = 120;
+	let itemsPerPage = 250;
 	let assetType = $state<"product" | "group">("product");
 	let sortOrder = $state<"asc" | "desc">("desc");
+
 	interface Asset {
 		id: string;
 		url: string;
@@ -15,21 +23,7 @@
 	let scanningStatus = $state("");
 	let currentCursor = $state<number | null>(null);
 
-	// FIX: plain (non-reactive) flag ที่ set ทันทีแบบ sync ก่อน await
-	// ใช้แทนการ check `loading` ($state) ซึ่ง Svelte 5 ยังไม่ commit ก่อน effect รอบถัดไปจะ run
 	let _fetchInFlight = false;
-
-	// เช็คว่าไฟล์รูปมีอยู่จริงไหม (HEAD request)
-	async function assetExists(url: string): Promise<boolean> {
-		try {
-			const res = await fetch(url, { method: "HEAD" });
-			return res.ok;
-		} catch {
-			return false;
-		}
-	}
-
-	// Server จัดการ SKU ให้แล้ว (ผ่าน API)
 
 	async function loadNextBatch() {
 		if (_fetchInFlight) return;
@@ -38,16 +32,45 @@
 
 		let start: number;
 		if (sortOrder === "asc") {
-			start = currentCursor ?? 0;
+			start = currentCursor ?? 1;
 		} else {
-			// สำหรับ desc: start คือจุดสูงสุดที่ยังไม่ได้โหลด
-			start = currentCursor ?? 0;
+			if (currentCursor === null) {
+				try {
+					const apiResp = await fetch(
+						`/api/check-assets/latest?type=${assetType}`,
+					);
+					if (apiResp.ok) {
+						const latest = await apiResp.json();
+						if (
+							latest?.id &&
+							latest.id !== "0" &&
+							latest.id !== "0000"
+						) {
+							currentCursor = parseInt(latest.id, 10);
+						}
+					}
+				} catch {
+					/* fall through */
+				}
+				if (currentCursor === null) {
+					_fetchInFlight = false;
+					loading = false;
+					scanningStatus =
+						"โหมดใหม่สุดต้องรู้ ID ล่าสุดก่อน — กด Find Latest หรือสลับลำดับ";
+					toasts.add(
+						"ไม่ทราบ ID ล่าสุดสำหรับโหมดนี้ กด Find Latest",
+						"warning",
+					);
+					return;
+				}
+			}
+			start = currentCursor;
 		}
 
 		const rangeEnd =
 			sortOrder === "asc"
 				? start + itemsPerPage - 1
-				: Math.max(0, start - itemsPerPage + 1);
+				: Math.max(1, start - itemsPerPage + 1);
 		scanningStatus =
 			sortOrder === "asc"
 				? `กำลังโหลด ID ${start}–${start + itemsPerPage - 1} ...`
@@ -68,13 +91,12 @@
 				if (sortOrder === "asc") {
 					currentCursor = start + itemsPerPage;
 				} else {
-					// หา ID ที่เล็กที่สุดในรอบนี้ แล้วลบ 1 เพื่อใช้เป็นจุดเริ่มรอบถัดไป
 					const smallestNewId = Math.min(
 						...newAssets.map((a) => parseInt(a.id)),
 					);
 					currentCursor = smallestNewId - 1;
 				}
-				scanningStatus = ""; // Clear status when done
+				scanningStatus = "";
 			}
 		} catch (error) {
 			console.error(error);
@@ -87,7 +109,6 @@
 		}
 	}
 
-	// อัลกอริทึมค้นหา ID ล่าสุด (ลอง API ก่อน ถ้าไม่ได้ใช้ Adaptive Step)
 	async function findLatestAdaptive() {
 		if (_fetchInFlight) return;
 		_fetchInFlight = true;
@@ -96,7 +117,6 @@
 		scanningStatus = "กำลังหา ID ล่าสุด...";
 
 		try {
-			// ใช้ Server API แบบ Binary Search (เร็วที่สุดและแก้ปัญหา Timeout แล้ว)
 			const apiResp = await fetch(
 				`/api/check-assets/latest?type=${assetType}`,
 			);
@@ -112,12 +132,11 @@
 					scanningStatus = `พบ ID ล่าสุด = ${latestId}`;
 					if (sortOrder !== "desc") sortOrder = "desc";
 					currentCursor = latestId;
-					_fetchInFlight = false; // release ก่อน loadNextBatch
+					_fetchInFlight = false;
 					await loadNextBatch();
 					return;
 				}
 			}
-
 			scanningStatus = "ไม่พบ asset เลย หรือเกิดข้อผิดพลาดจาก Server";
 		} catch (err) {
 			console.error(err);
@@ -132,12 +151,10 @@
 	function resetAndLoad() {
 		assets = [];
 		if (sortOrder === "asc") {
-			// Start from the beginning to catch new low-ID assets
-			currentCursor = 0;
+			currentCursor = 1;
 			loadNextBatch();
 		} else {
 			currentCursor = null;
-			// ถ้าเลือก "ใหม่สุดก่อน" ให้สแกนหาตัวล่าสุดอัตโนมัติ
 			findLatestAdaptive();
 		}
 	}
@@ -145,7 +162,12 @@
 	function clearResults() {
 		assets = [];
 		scanningStatus = "ล้างรายการแล้ว";
-		currentCursor = sortOrder === "asc" ? 0 : null;
+		currentCursor = sortOrder === "asc" ? 1 : null;
+	}
+
+	function assetResolvedOrApiUrl(asset: Asset): string {
+		if (assetType !== "product") return asset.url;
+		return resolvedThumbByProductId.get(asset.id) ?? asset.url;
 	}
 
 	function copyAllUrls() {
@@ -153,75 +175,367 @@
 			toasts.add("ไม่มีรายการให้คัดลอก", "warning");
 			return;
 		}
-		// URLs are already proxied from the API
-		const urls = assets.map((a) => a.url).join("\n");
+		const urls = assets.map((a) => assetResolvedOrApiUrl(a)).join("\n");
 		navigator.clipboard.writeText(urls);
 		toasts.add(`คัดลอก ${assets.length} Internal URI แล้ว`, "success");
 	}
 
-	// ใช้ onMount แทน $effect สำหรับ initial load
-	// เพื่อป้องกัน double-call ระหว่าง SSR hydration
-	let _mounted = false;
-
-	// Cache สำหรับเก็บ SKU ที่เคยโหลดแล้ว
+	let mounted = $state(false);
+	let skipResetOnce = $state(false);
 	let skuCache = new Map<string, string[]>();
+	let resolvedThumbByProductId = new Map<string, string>();
+
+	function normalizeAssetPath(src: string): string {
+		try {
+			const u = new URL(
+				src,
+				typeof window !== "undefined"
+					? window.location.href
+					: "http://localhost",
+			);
+			return u.pathname.replace(/\/$/, "");
+		} catch {
+			return src.split("?")[0].replace(/\/$/, "");
+		}
+	}
+
+	function pathsMatch(a: string, b: string): boolean {
+		const na = normalizeAssetPath(a);
+		const nb = normalizeAssetPath(b);
+		return na === nb || na.endsWith(nb) || nb.endsWith(na);
+	}
+
+	function findCandidateIndex(
+		candidates: string[],
+		resolvedSrc: string,
+	): number {
+		const path = normalizeAssetPath(resolvedSrc);
+		for (let i = 0; i < candidates.length; i++) {
+			if (pathsMatch(path, candidates[i])) return i;
+		}
+		return 0;
+	}
+
+	function recordResolvedProductThumb(assetId: string, imgSrc: string) {
+		if (assetType !== "product") return;
+		const path = normalizeAssetPath(imgSrc);
+		if (!path.includes("/shop/product/")) return;
+		resolvedThumbByProductId.set(assetId, path);
+	}
+
+	function productThumbCandidates(assetId: string): string[] | null {
+		const id = parseInt(assetId, 10);
+		if (!Number.isFinite(id)) return null;
+		if (isProductSatSunSwingZone(id))
+			return getSatSunSwingThumbnailCandidates(assetId);
+		if (isProductRoundOnlyZone(id))
+			return getRoundOnlyThumbnailCandidates(assetId);
+		return null;
+	}
+
+	function buildSkuUrlsFromBase(baseUrl: string, skus: number[]): string[] {
+		const out: string[] = [];
+		const seen = new Set<string>();
+		const baseMatch = baseUrl.match(
+			/(image-|cherprang-1-|cherprang-1|CGM48-Debut-|bnk48-|cgm48-|Janken-2023-0|CGM48-Sansei-Kawaii-|tshirt-|Round|sku-?)(\d+)(\.\w+)$/i,
+		);
+		if (!baseMatch) return out;
+
+		const [, prefix, , ext] = baseMatch;
+		const push = (u: string) => {
+			if (seen.has(u)) return;
+			seen.add(u);
+			out.push(u);
+		};
+
+		for (const sku of skus) {
+			if (sku === 1) continue;
+			const candidates: string[] = [];
+
+			if (/^sku-?$/i.test(prefix)) {
+				candidates.push(
+					baseUrl.replace(/(sku-?)(\d+)(\.\w+)$/i, `sku-${sku}$3`),
+				);
+				candidates.push(
+					baseUrl.replace(/(sku-?)(\d+)(\.\w+)$/i, `sku${sku}$3`),
+				);
+			} else {
+				candidates.push(
+					baseUrl.replace(
+						/(image-|cherprang-1-|cherprang-1|CGM48-Debut-|bnk48-|cgm48-|Janken-2023-0|CGM48-Sansei-Kawaii-|tshirt-|Round|sku-?)(\d+)(\.\w+)$/i,
+						`${prefix}${sku}$3`,
+					),
+				);
+			}
+
+			if (ext.toLowerCase() === ".jpg") {
+				candidates.push(
+					...candidates.map((u) => u.replace(/\.jpg$/i, ".png")),
+				);
+			} else if (ext.toLowerCase() === ".png") {
+				candidates.push(
+					...candidates.map((u) => u.replace(/\.png$/i, ".jpg")),
+				);
+			}
+
+			for (const candidate of candidates) push(candidate);
+		}
+
+		return out;
+	}
+
+	function isSkuVariantUrl(url: string): boolean {
+		try {
+			const p = normalizeAssetPath(url).toLowerCase();
+			return /\/sku-?\d+\.(jpg|png|webp)$/i.test(p);
+		} catch {
+			return false;
+		}
+	}
+
+	function extractSkuNumber(url: string): number | null {
+		const p = normalizeAssetPath(url).toLowerCase();
+		const m = p.match(
+			/(?:image-|cherprang-1-|cherprang-1|CGM48-Debut-|bnk48-|cgm48-|Janken-2023-0|CGM48-Sansei-Kawaii-|tshirt-|Round|sku-?)(\d+)\.(?:jpg|png|webp)$/i,
+		);
+		if (!m) return null;
+		const n = Number.parseInt(m[1], 10);
+		return Number.isFinite(n) ? n : null;
+	}
+
+	/** Keep only one URL per SKU number (2,3,4,...) */
+	function compactSkuUrls(urls: string[]): string[] {
+		const out: string[] = [];
+		const seenSku = new Set<number>();
+		for (const u of urls) {
+			if (!isSkuVariantUrl(u)) continue;
+			const skuNo = extractSkuNumber(u);
+			if (skuNo === null || skuNo <= 1) continue;
+			if (seenSku.has(skuNo)) continue;
+			seenSku.add(skuNo);
+			out.push(u);
+		}
+		return out;
+	}
+
+	// ── Modal / Carousel state ────────────────────────────────────────────────
+	let selectedAsset = $state<Asset | null>(null);
+	let modalSkus = $state<string[]>([]);
+	let modalLoadingSkus = $state(false);
+	let modalMainUrl = $state("");
+	let modalSwingIdx = $state(0);
+
+	/** Index ปัจจุบันของ carousel */
+	let carouselIdx = $state(0);
+	let carouselTrackEl = $state<HTMLDivElement | null>(null);
+	let carouselScrollRaf = 0;
+
+	let discoveredUrls = $state<string[]>([]);
+
+	/**
+	 * รวม primary URL + discovered URLs เป็น slides
+	 * จะเริ่มจาก 1 (รูปหลัก) แล้วค่อยๆ เพิ่มถ้าโหลดรูปอื่นเจอ
+	 */
+	let carouselSlides = $derived.by((): string[] => {
+		if (!selectedAsset) return [];
+		const primary = modalPrimaryUrl(selectedAsset);
+
+		// เอาเฉพาะที่โหลดสำเร็จแล้ว และไม่ซ้ำกับ primary
+		const extras = discoveredUrls.filter((u) => !pathsMatch(u, primary));
+		const slides = [primary, ...extras];
+
+		// เรียงลำดับจากน้อยไปมาก (ตามเลข SKU/Round)
+		slides.sort((a, b) => {
+			const numA = extractSkuNumber(a) ?? 1;
+			const numB = extractSkuNumber(b) ?? 1;
+			return numA - numB;
+		});
+
+		return slides;
+	});
+
+	let preloadedSlideUrls = $state(new Set<string>());
+
+	function preloadCarouselSlides(urls: string[]) {
+		for (const slideUrl of urls) {
+			if (!slideUrl || preloadedSlideUrls.has(slideUrl)) continue;
+			preloadedSlideUrls.add(slideUrl);
+			const img = new Image();
+			img.decoding = "async";
+			img.onload = () => {
+				// ถ้าโหลดสำเร็จ ให้เพิ่มเข้า discovered
+				if (!discoveredUrls.includes(slideUrl)) {
+					discoveredUrls = [...discoveredUrls, slideUrl];
+				}
+			};
+			img.src = slideUrl;
+		}
+	}
+
+	$effect(() => {
+		if (!selectedAsset) return;
+		// โหลดทั้งรูปหลักและรูปที่คาดการณ์ไว้
+		const candidates = [modalPrimaryUrl(selectedAsset), ...modalSkus];
+		preloadCarouselSlides(candidates);
+	});
+
+	async function syncCarouselScrollPosition() {
+		await tick();
+		if (!carouselTrackEl || carouselSlides.length === 0) return;
+		const w = carouselTrackEl.clientWidth;
+		if (w <= 0) return;
+		carouselTrackEl.scrollLeft = carouselIdx * w;
+	}
+
+	function handleCarouselScroll() {
+		cancelAnimationFrame(carouselScrollRaf);
+		carouselScrollRaf = requestAnimationFrame(() => {
+			if (!carouselTrackEl || carouselSlides.length === 0) return;
+			const w = carouselTrackEl.clientWidth;
+			if (w <= 0) return;
+			const idx = Math.round(carouselTrackEl.scrollLeft / w);
+			const next = Math.max(0, Math.min(carouselSlides.length - 1, idx));
+			if (next !== carouselIdx) {
+				carouselIdx = next;
+				if (carouselSlides[next]) modalMainUrl = carouselSlides[next];
+			}
+		});
+	}
+
+	function scrollCarouselToIndex(
+		i: number,
+		behavior: ScrollBehavior = "smooth",
+	) {
+		void tick().then(() => {
+			if (!carouselTrackEl) return;
+			const w = carouselTrackEl.clientWidth;
+			carouselTrackEl.scrollTo({ left: i * w, behavior });
+		});
+	}
+
+	function goCarousel(direction: "prev" | "next") {
+		const len = carouselSlides.length;
+		if (len === 0) return;
+		const next =
+			direction === "prev"
+				? Math.max(0, carouselIdx - 1)
+				: Math.min(len - 1, carouselIdx + 1);
+		carouselIdx = next;
+		if (carouselSlides[next]) modalMainUrl = carouselSlides[next];
+		scrollCarouselToIndex(next, "smooth");
+	}
 
 	async function openGallery(asset: Asset) {
 		selectedAsset = asset;
-		modalMainUrl = asset.url;
+		carouselIdx = 0;
+		discoveredUrls = [];
+		preloadedSlideUrls = new Set();
+
+		const c =
+			assetType === "product" ? productThumbCandidates(asset.id) : null;
+		const resolved = resolvedThumbByProductId.get(asset.id);
+
+		if (assetType === "product" && resolved) {
+			modalMainUrl = resolved;
+			modalSwingIdx = c ? findCandidateIndex(c, resolved) : 0;
+		} else if (assetType === "product" && c) {
+			modalSwingIdx = 0;
+			modalMainUrl = c[0] ?? asset.url;
+		} else {
+			modalSwingIdx = 0;
+			modalMainUrl = asset.url;
+		}
+
 		modalSkus = [];
 		if (assetType !== "product") {
+			await syncCarouselScrollPosition();
 			return;
 		}
 
 		modalLoadingSkus = true;
 		try {
-			// เช็ค Cache ก่อน
 			if (skuCache.has(asset.id)) {
-				modalSkus = skuCache.get(asset.id)!;
-				modalLoadingSkus = false;
-				return;
-			}
+				modalSkus = compactSkuUrls(skuCache.get(asset.id)!);
+			} else {
+				const baseUrl = modalPrimaryUrl(asset) || asset.url;
 
-			// ดึง skus array จาก DB ผ่าน sku endpoint
-			const resp = await fetch(
-				`/api/assets/scan/status/sku?id=${asset.id}&type=product`,
-			);
-			if (resp.ok) {
-				const data = await resp.json();
-				if (
-					data?.skus &&
-					Array.isArray(data.skus) &&
-					data.skus.length > 1
-				) {
-					// skus เป็น array ของตัวเลข เช่น [1, 2, 3]
-					// ต้องแปลงเป็น URL โดยดู format จาก asset.url ของ sku-1 แล้วแทนที่เลข
-					const baseUrl = asset.url; // เช่น /p/img/shop/product/1009/sku-1.jpg
+				const resp = await fetch(
+					`/api/assets/scan/status/sku?id=${asset.id}&type=product`,
+				);
+				if (resp.ok) {
+					const data = await resp.json();
 					const skuUrls: string[] = [];
-					for (const sku of data.skus) {
-						if (sku === 1) continue; // sku-1 คือ thumbnail อยู่แล้ว
-						// แทนที่ตัวเลขท้าย URL เช่น sku-1.jpg → sku-2.jpg
-						const skuUrl = baseUrl.replace(
-							/(sku-)(\d+)(\.\w+)$/,
-							`$1${sku}$3`,
-						);
-						if (skuUrl !== baseUrl) {
-							skuUrls.push(skuUrl);
-						}
+					const seen = new Set<string>();
+
+					const pushSkuUrl = (u: string, force = false) => {
+						if (!force && !isSkuVariantUrl(u)) return;
+						if (
+							pathsMatch(u, modalMainUrl) ||
+							pathsMatch(u, asset.url)
+						)
+							return;
+						if (seen.has(u)) return;
+						seen.add(u);
+						skuUrls.push(u);
+					};
+
+					if (data?.urls && Array.isArray(data.urls)) {
+						for (const u of data.urls) pushSkuUrl(u, true);
 					}
-					modalSkus = skuUrls;
+
+					const explicitSkus: number[] =
+						data?.skus && Array.isArray(data.skus)
+							? data.skus.filter((n: unknown) =>
+									Number.isFinite(n as number),
+								)
+							: [];
+
+					const guessSkus = explicitSkus.some((n) => n > 1)
+						? explicitSkus
+						: [2, 3, 4, 5, 6, 7, 8];
+					for (const skuUrl of buildSkuUrlsFromBase(
+						baseUrl,
+						guessSkus,
+					))
+						pushSkuUrl(skuUrl);
+
+					modalSkus = compactSkuUrls(skuUrls);
+					skuCache.set(asset.id, modalSkus);
+				} else {
+					modalSkus = compactSkuUrls(
+						buildSkuUrlsFromBase(
+							baseUrl,
+							[2, 3, 4, 5, 6, 7, 8],
+						).filter(
+							(u) =>
+								!pathsMatch(u, modalMainUrl) &&
+								!pathsMatch(u, asset.url),
+						),
+					);
 					skuCache.set(asset.id, modalSkus);
 				}
 			}
 		} catch (err) {
 			console.error("Failed to load SKUs:", err);
+			const baseUrl = modalPrimaryUrl(asset) || asset.url;
+			modalSkus = compactSkuUrls(
+				buildSkuUrlsFromBase(baseUrl, [2, 3, 4, 5, 6, 7, 8]).filter(
+					(u) =>
+						!pathsMatch(u, modalMainUrl) &&
+						!pathsMatch(u, asset.url),
+				),
+			);
+			skuCache.set(asset.id, modalSkus);
 		} finally {
 			modalLoadingSkus = false;
 		}
+		await syncCarouselScrollPosition();
 	}
 
 	function closeGallery() {
 		selectedAsset = null;
+		carouselIdx = 0;
+		modalSkus = [];
 	}
 
 	function navigateGallery(direction: "prev" | "next") {
@@ -230,44 +544,144 @@
 			(a) => a.id === selectedAsset!.id,
 		);
 		if (currentIndex === -1) return;
-
-		let nextIndex = currentIndex + (direction === "next" ? 1 : -1);
+		const nextIndex = currentIndex + (direction === "next" ? 1 : -1);
 		if (nextIndex >= 0 && nextIndex < assets.length) {
 			openGallery(assets[nextIndex]);
 		}
 	}
 
+	// keyboard navigation
+	function handleKeydown(e: KeyboardEvent) {
+		if (!selectedAsset) return;
+		if (e.key === "Escape") closeGallery();
+		if (e.key === "ArrowLeft") {
+			// shift+left = prev asset, left alone = prev slide
+			if (e.shiftKey) navigateGallery("prev");
+			else goCarousel("prev");
+		}
+		if (e.key === "ArrowRight") {
+			if (e.shiftKey) navigateGallery("next");
+			else goCarousel("next");
+		}
+	}
+
 	onMount(() => {
-		_mounted = true;
-
-		// อ่านค่าจาก URL params
-		const params = new URLSearchParams(window.location.search);
-		const typeParam = params.get("type");
-		const jumpParam = params.get("jump");
-
-		if (typeParam === "product" || typeParam === "group") {
-			assetType = typeParam;
-		}
-
-		if (jumpParam) {
-			jumpToId = jumpParam;
-			// ถ้ามี jump ให้ทำงาน jumpTo เลย
-			assets = [];
-			currentCursor = parseInt(jumpParam);
-			loadNextBatch();
-			scanningStatus = `🚀 กระโดดไปที่ ID ${jumpParam} ...`;
-		} else {
-			resetAndLoad();
-		}
+		window.addEventListener("keydown", handleKeydown);
+		return () => window.removeEventListener("keydown", handleKeydown);
 	});
 
-	$effect(() => {
-		const _type = assetType;
-		const _order = sortOrder;
-		// ไม่ทำงานตอน mount ครั้งแรก (onMount จัดการแล้ว)
-		if (!_mounted) return;
-		untrack(() => resetAndLoad());
-	});
+	function assetThumbSrc(asset: Asset): string {
+		if (assetType !== "product") return asset.url;
+		const c = productThumbCandidates(asset.id);
+		if (c) return c[0] ?? asset.url;
+		return asset.url;
+	}
+
+	function modalBaseUrl(asset: Asset): string {
+		if (assetType !== "product") return asset.url;
+		const c = productThumbCandidates(asset.id);
+		if (c) return c[0] ?? asset.url;
+		return asset.url;
+	}
+
+	function modalPrimaryUrl(asset: Asset): string {
+		if (assetType !== "product") return asset.url;
+		const resolved = resolvedThumbByProductId.get(asset.id);
+		if (resolved) return resolved;
+		return modalBaseUrl(asset);
+	}
+
+	function handleAssetThumbError(e: Event, asset: Asset) {
+		const img = e.currentTarget as HTMLImageElement;
+		const candidates =
+			assetType === "product" ? productThumbCandidates(asset.id) : null;
+		const normalizedSrc = normalizeAssetPath(img.src).toLowerCase();
+		const isSku1Source =
+			normalizedSrc.endsWith("/sku-1.jpg") ||
+			normalizedSrc.endsWith("/sku-1.png");
+
+		if (
+			assetType === "product" &&
+			isSku1Source &&
+			!isKnownProductAssetRange(asset.id)
+		) {
+			const card = img.closest(".editorial-card") as HTMLElement | null;
+			if (card) card.style.display = "none";
+			else img.style.display = "none";
+			return;
+		}
+
+		if (candidates) {
+			let idx = parseInt(img.dataset.swingIdx ?? "0", 10);
+			idx += 1;
+			if (idx < candidates.length) {
+				img.dataset.swingIdx = String(idx);
+				img.src = candidates[idx];
+				return;
+			}
+			img.dataset.swingIdx = "done";
+			img.style.display = "none";
+			img.closest(".editorial-card")?.setAttribute("data-broken", "true");
+			return;
+		}
+
+		if (img.dataset.retried === "done") {
+			img.style.display = "none";
+			img.closest(".editorial-card")?.setAttribute("data-broken", "true");
+			return;
+		}
+
+		const src = img.src;
+
+		if (src.includes("SAT-Round")) {
+			img.src = src.replace("SAT-Round", "SUN-Round");
+			img.dataset.retried = "1";
+			return;
+		}
+		if (src.includes("SUN-Round") && img.dataset.retried === "1") {
+			const roundMatch = src.match(/Round(\d+)/);
+			if (roundMatch) {
+				const nextRound = parseInt(roundMatch[1], 10) + 1;
+				if (nextRound <= 6) {
+					img.src = src.replace(
+						/SAT-Round\d+|SUN-Round\d+/,
+						`SAT-Round${nextRound}`,
+					);
+					img.dataset.retried = "2";
+					return;
+				}
+			}
+		}
+
+		if (src.endsWith(".jpg")) {
+			img.src = src.replace(".jpg", ".png");
+			img.dataset.retried = "done";
+			return;
+		}
+		if (src.endsWith(".png")) {
+			img.src = src.replace(".png", ".jpg");
+			img.dataset.retried = "done";
+			return;
+		}
+
+		img.dataset.retried = "done";
+		img.style.display = "none";
+		img.closest(".editorial-card")?.setAttribute("data-broken", "true");
+	}
+
+	function handleModalSlideError(e: Event, slideUrl: string) {
+		const img = e.currentTarget as HTMLImageElement;
+		// ถ้าพัง ให้เอาออกจาก discovered (ถ้ามี)
+		discoveredUrls = discoveredUrls.filter((u) => u !== slideUrl);
+		img.style.opacity = "0.25";
+	}
+
+	function handleModalMainLoad(e: Event) {
+		const asset = selectedAsset;
+		if (!asset || assetType !== "product") return;
+		const img = e.currentTarget as HTMLImageElement;
+		recordResolvedProductThumb(asset.id, img.src);
+	}
 
 	let jumpToId = $state("");
 
@@ -286,10 +700,100 @@
 	const loadMoreLabel = () =>
 		sortOrder === "asc" ? "โหลดเพิ่ม (รุ่นเก่า)" : "โหลดรุ่นเก่าต่อ";
 
-	let selectedAsset = $state<Asset | null>(null);
-	let modalSkus = $state<string[]>([]);
-	let modalLoadingSkus = $state(false);
-	let modalMainUrl = $state("");
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		const typeParam = params.get("type");
+		const jumpParam = params.get("jump");
+
+		if (typeParam === "product" || typeParam === "group") {
+			assetType = typeParam;
+		}
+
+		if (jumpParam) {
+			skipResetOnce = true;
+			jumpToId = jumpParam;
+			assets = [];
+			currentCursor = parseInt(jumpParam, 10);
+			loadNextBatch();
+			scanningStatus = `🚀 กระโดดไปที่ ID ${jumpParam} ...`;
+		}
+
+		mounted = true;
+	});
+
+	$effect(() => {
+		const _type = assetType;
+		const _order = sortOrder;
+		if (!mounted) return;
+		if (skipResetOnce) {
+			skipResetOnce = false;
+			return;
+		}
+		untrack(() => resetAndLoad());
+	});
+
+	/** URL ที่จะ copy — ตาม slide ที่ดูอยู่ */
+	function currentCopyUrl(): string {
+		return carouselSlides[carouselIdx] ?? modalMainUrl;
+	}
+
+	const BUFFER = 50; // render เกิน viewport ไป 50 items ทั้งบนและล่าง
+	let visibleStart = $state(0);
+	let visibleEnd = $state(100);
+
+	let gridEl: HTMLElement | null = null;
+	let resizeObserver: ResizeObserver | null = null;
+	let scrollHandler: (() => void) | null = null;
+
+	function updateVisibleRange() {
+		if (!gridEl) return;
+		const cards = gridEl.querySelectorAll(".editorial-card");
+		if (cards.length === 0) return;
+
+		const viewTop = window.scrollY - BUFFER * 300;
+		const viewBottom = window.scrollY + window.innerHeight + BUFFER * 300;
+
+		let start = 0;
+		let end = assets.length;
+
+		for (let i = 0; i < cards.length; i++) {
+			const rect = (cards[i] as HTMLElement).getBoundingClientRect();
+			const absTop = rect.top + window.scrollY;
+			if (absTop < viewTop && i > start) start = i;
+			if (absTop > viewBottom) {
+				end = i;
+				break;
+			}
+		}
+
+		visibleStart = Math.max(0, start - BUFFER);
+		visibleEnd = Math.min(assets.length, end + BUFFER);
+	}
+
+	onMount(() => {
+		scrollHandler = () => requestAnimationFrame(updateVisibleRange);
+		window.addEventListener("scroll", scrollHandler, { passive: true });
+
+		resizeObserver = new ResizeObserver(updateVisibleRange);
+		if (gridEl) resizeObserver.observe(gridEl);
+
+		return () => {
+			if (scrollHandler)
+				window.removeEventListener("scroll", scrollHandler);
+			resizeObserver?.disconnect();
+		};
+	});
+
+	// reset range เมื่อ assets เปลี่ยน
+	$effect(() => {
+		assets;
+		visibleStart = 0;
+		visibleEnd = Math.min(100, assets.length);
+		tick().then(updateVisibleRange);
+	});
+
+	// items ที่จะ render จริง
+	let visibleAssets = $derived(assets.slice(visibleStart, visibleEnd));
 </script>
 
 <div class="page-shell">
@@ -333,7 +837,15 @@
 					type="number"
 					placeholder="Jump to Node ID"
 					bind:value={jumpToId}
+					onkeydown={(e) => e.key === "Enter" && jumpTo()}
 				/>
+				<button
+					class="jump-trigger"
+					onclick={jumpTo}
+					aria-label="Jump to ID"
+				>
+					<i class="fa-solid fa-arrow-right"></i>
+				</button>
 			</div>
 
 			<button
@@ -360,7 +872,10 @@
 		</div>
 	{/if}
 
-	<div class="asset-grid">
+	<div class="asset-grid" bind:this={gridEl}>
+		{#if visibleStart > 0}
+			<div style="grid-column: 1/-1; height: {visibleStart * 2}px"></div>
+		{/if}
 		{#each assets as asset (asset.id)}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<div
@@ -371,17 +886,16 @@
 			>
 				<div class="media-wrap">
 					<img
-						src={asset.url}
+						src={assetThumbSrc(asset)}
 						alt={asset.id}
 						loading="lazy"
-						onerror={(e) => {
+						onload={(e) => {
 							const img = e.currentTarget as HTMLImageElement;
-							img.style.opacity = "0.15";
-							img.closest(".editorial-card")?.setAttribute(
-								"data-broken",
-								"true",
-							);
+							if (parseFloat(img.style.opacity || "1") < 0.5)
+								return;
+							recordResolvedProductThumb(asset.id, img.src);
 						}}
+						onerror={(e) => handleAssetThumbError(e, asset)}
 					/>
 					<div class="node-id">#{asset.id}</div>
 				</div>
@@ -390,6 +904,13 @@
 				</div>
 			</div>
 		{/each}
+		{#if visibleEnd < assets.length}
+			<div
+				style="grid-column: 1/-1; height: {(assets.length -
+					visibleEnd) *
+					2}px"
+			></div>
+		{/if}
 	</div>
 
 	<div class="pagination-footer">
@@ -403,20 +924,21 @@
 	</div>
 </div>
 
+<!-- ══════════════════════════════════════════════
+     POPUP — IG-style carousel
+══════════════════════════════════════════════ -->
 {#if selectedAsset}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div class="gallery-overlay" onclick={closeGallery} role="presentation">
-		<button
-			class="close-trigger"
-			onclick={closeGallery}
-			aria-label="Close window"
-		>
+		<!-- Close -->
+		<button class="close-trigger" onclick={closeGallery} aria-label="Close">
 			<i class="fa-solid fa-xmark"></i>
 		</button>
 
-		<div class="navigation-controls">
+		<!-- Prev / Next asset (Shift+Arrow) -->
+		<div class="asset-nav">
 			<button
-				class="nav-trigger"
+				class="asset-nav-btn"
 				onclick={(e) => {
 					e.stopPropagation();
 					navigateGallery("prev");
@@ -424,12 +946,12 @@
 				disabled={assets.findIndex(
 					(a) => a.id === selectedAsset!.id,
 				) === 0}
-				aria-label="Previous Asset"
+				aria-label="Previous asset"
 			>
-				<i class="fa-solid fa-arrow-left"></i>
+				<i class="fa-solid fa-angle-left"></i>
 			</button>
 			<button
-				class="nav-trigger"
+				class="asset-nav-btn"
 				onclick={(e) => {
 					e.stopPropagation();
 					navigateGallery("next");
@@ -438,67 +960,116 @@
 					(a) => a.id === selectedAsset!.id,
 				) ===
 					assets.length - 1}
-				aria-label="Next Asset"
+				aria-label="Next asset"
 			>
-				<i class="fa-solid fa-arrow-right"></i>
+				<i class="fa-solid fa-angle-right"></i>
 			</button>
 		</div>
 
+		<!-- Modal card -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<div
 			class="gallery-module"
 			onclick={(e) => e.stopPropagation()}
 			role="presentation"
 		>
 			<div class="viewer-core">
-				<div class="">
-					<img
-						src={modalMainUrl}
-						alt="Gallery view"
-						class="viewer-img"
-					/>
-					{#if modalSkus.length > 0 || modalLoadingSkus}
-						<div class="inventory-strip">
-							<button
-								class="inventory-thumb {modalMainUrl ===
-								selectedAsset.url
-									? 'active'
-									: ''}"
-								onclick={() =>
-									(modalMainUrl = selectedAsset!.url)}
-							>
-								<img src={selectedAsset.url} alt="Base" />
-							</button>
-							{#each modalSkus as skuUrl}
+				<!-- ── LEFT: Carousel ─────────────────── -->
+				<div class="viewer-stage">
+					<!-- Slide track: horizontal scroll + snap -->
+					<div
+						class="carousel-track"
+						bind:this={carouselTrackEl}
+						onscroll={handleCarouselScroll}
+					>
+						{#each carouselSlides as slideUrl, i}
+							<div class="carousel-slide">
+								<img
+									src={slideUrl}
+									alt="slide {i + 1}"
+									class="viewer-img"
+									loading="eager"
+									onload={i === 0
+										? handleModalMainLoad
+										: undefined}
+									onerror={(e) =>
+										handleModalSlideError(e, slideUrl)}
+								/>
+							</div>
+						{/each}
+						{#if modalLoadingSkus && carouselSlides.length === 0}
+							<div class="carousel-slide carousel-slide--loading">
+								<i class="fa-solid fa-spinner fa-spin"></i>
+							</div>
+						{/if}
+					</div>
+
+					<!-- IG prev/next slide arrows -->
+					{#if carouselSlides.length > 1}
+						<button
+							class="slide-arrow slide-arrow--prev"
+							onclick={() => goCarousel("prev")}
+							disabled={carouselIdx === 0}
+							aria-label="Previous image"
+						>
+							<i class="fa-solid fa-chevron-left"></i>
+						</button>
+						<button
+							class="slide-arrow slide-arrow--next"
+							onclick={() => goCarousel("next")}
+							disabled={carouselIdx >= carouselSlides.length - 1}
+							aria-label="Next image"
+						>
+							<i class="fa-solid fa-chevron-right"></i>
+						</button>
+					{/if}
+
+					<!-- IG dots -->
+					{#if carouselSlides.length > 1 || modalLoadingSkus}
+						<div class="ig-dots-bar">
+							{#each carouselSlides as _, i}
 								<button
-									class="inventory-thumb {modalMainUrl ===
-									skuUrl
-										? 'active'
-										: ''}"
-									onclick={() => (modalMainUrl = skuUrl)}
-								>
-									<img src={skuUrl} alt="Variant" />
-								</button>
+									class="ig-dot"
+									class:active={carouselIdx === i}
+									onclick={() => {
+										carouselIdx = i;
+										if (carouselSlides[i])
+											modalMainUrl = carouselSlides[i];
+										scrollCarouselToIndex(i, "smooth");
+									}}
+									aria-label="Go to image {i + 1}"
+								></button>
 							{/each}
 							{#if modalLoadingSkus}
-								<div class="inventory-loader">
+								<span class="ig-dot-spinner">
 									<i class="fa-solid fa-spinner fa-spin"></i>
-								</div>
+								</span>
 							{/if}
 						</div>
 					{/if}
+
+					<!-- Slide counter (top-right) -->
+					{#if carouselSlides.length > 1}
+						<div class="slide-counter">
+							{carouselIdx + 1} / {carouselSlides.length}
+						</div>
+					{/if}
 				</div>
+
+				<!-- ── RIGHT: Metadata ────────────────── -->
 				<div class="viewer-meta">
-					<div class="meta-left">
+					<div class="meta-header">
 						<span class="mono-label"
 							>{assetType.toUpperCase()}_NODE</span
 						>
-						<h3 class="technical-title">ID: {selectedAsset.id}</h3>
+						<h3 class="technical-title">#{selectedAsset.id}</h3>
 					</div>
-					<div class="meta-right">
+
+					<div class="meta-actions">
 						<button
 							class="button-pill-outline"
 							onclick={() => {
-								navigator.clipboard.writeText(modalMainUrl);
+								navigator.clipboard.writeText(currentCopyUrl());
 								toasts.add(
 									"Copied URL to clipboard",
 									"success",
@@ -509,14 +1080,20 @@
 						</button>
 						<button
 							class="button-pill-outline"
-							onclick={() => {
-								window.open(modalMainUrl, "_blank");
-							}}
+							onclick={() =>
+								window.open(currentCopyUrl(), "_blank")}
 						>
 							View Full Asset <i class="fa-solid fa-expand ms-2"
 							></i>
 						</button>
 					</div>
+
+					{#if carouselSlides.length > 1}
+						<p class="meta-hint">
+							<i class="fa-solid fa-images me-1"></i>
+							{carouselSlides.length} variants — ใช้ลูกศรหรือจุดเพื่อเลื่อน
+						</p>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -524,6 +1101,32 @@
 {/if}
 
 <style>
+	.jump-box {
+		max-width: 200px;
+		gap: 10px !important;
+	}
+
+	.jump-trigger {
+		background: var(--co-near-black);
+		color: #fff;
+		border: none;
+		border-radius: 6px;
+		width: 28px;
+		height: 28px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+		flex-shrink: 0;
+	}
+
+	.jump-trigger:hover {
+		background: var(--co-blue);
+		transform: translateX(2px);
+	}
+
+	/* ── Asset Grid ──────────────────────────────── */
 	@media (max-width: 768px) {
 		.filter-pills {
 			justify-content: space-between;
@@ -533,10 +1136,9 @@
 		}
 	}
 
-	/* Asset Grid */
 	.asset-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 		gap: 24px;
 	}
 
@@ -547,8 +1149,22 @@
 		}
 	}
 
+	@media (max-width: 488px) {
+		.filter-pills {
+			width: 100%;
+		}
+
+		.technical-select {
+			width: 100%;
+		}
+
+		.technical-select select {
+			width: 100%;
+		}
+	}
+
 	.editorial-card {
-		aspect-ratio: 1/1;
+		aspect-ratio: 1 / 1;
 		background: var(--co-stone);
 		border-radius: var(--radius-lg);
 		position: relative;
@@ -617,81 +1233,90 @@
 		justify-content: center;
 	}
 
-	/* Gallery Overlay */
+	/* ── Overlay backdrop ────────────────────────── */
 	.gallery-overlay {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(20px);
+		background: rgba(0, 0, 0, 0.78);
+		backdrop-filter: blur(18px);
+		-webkit-backdrop-filter: blur(18px);
 		z-index: 3000;
 		display: flex;
-		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: 40px;
+		padding: 24px;
 	}
 
 	.close-trigger {
 		position: absolute;
-		top: 40px;
-		right: 40px;
-		background: none;
-		border: none;
-		color: white;
-		font-size: 32px;
-		cursor: pointer;
-		opacity: 0.6;
-		transition: opacity 0.2s;
-	}
-
-	.close-trigger:hover {
-		opacity: 1;
-	}
-
-	.navigation-controls {
-		position: absolute;
-		width: 100%;
-		padding: 0 40px;
-		display: flex;
-		justify-content: space-between;
-		pointer-events: none;
-	}
-
-	.nav-trigger {
-		width: 56px;
-		height: 56px;
+		top: 20px;
+		right: 20px;
+		width: 38px;
+		height: 38px;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.1);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		color: white;
+		background: rgba(255, 255, 255, 0.12);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: #fff;
+		font-size: 16px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.2s;
+		z-index: 10;
+	}
+	.close-trigger:hover {
+		background: rgba(255, 255, 255, 0.25);
+	}
+
+	/* ── Prev / Next asset buttons ───────────────── */
+	.asset-nav {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 12px;
+		pointer-events: none;
+		z-index: 5;
+	}
+
+	.asset-nav-btn {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.9);
+		border: none;
+		color: #111;
+		font-size: 15px;
 		cursor: pointer;
 		pointer-events: auto;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 20px;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 		transition: all 0.2s;
 	}
-
-	.nav-trigger:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.2);
-		transform: scale(1.1);
+	.asset-nav-btn:hover:not(:disabled) {
+		background: #fff;
+		transform: scale(1.06);
 	}
-
-	.nav-trigger:disabled {
-		opacity: 0.2;
+	.asset-nav-btn:disabled {
+		opacity: 0.15;
 		cursor: default;
 	}
 
+	/* ── Gallery Module ──────────────────────────── */
 	.gallery-module {
-		display: flex;
-		flex-direction: column;
-		animation: scale-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+		width: calc(100% - 128px);
+		max-width: 980px;
+		animation: modal-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 	}
 
-	@keyframes scale-up {
+	@keyframes modal-in {
 		from {
-			transform: scale(0.9);
+			transform: scale(0.93);
 			opacity: 0;
 		}
 		to {
@@ -700,113 +1325,244 @@
 		}
 	}
 
+	/* ── Viewer core: desktop side-by-side ───────── */
 	.viewer-core {
-		width: 100%;
-		background: var(--co-black);
-		border-radius: var(--radius-lg);
-		overflow: hidden;
 		display: flex;
+		flex-direction: row;
+		background: #000;
+		border-radius: 14px;
+		overflow: hidden;
+		box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+		max-height: 88vh;
+	}
+
+	/* ── Carousel stage (left panel) ─────────────── */
+	.viewer-stage {
+		position: relative;
+		flex: 0 0 60%;
+		overflow: hidden;
+		background: #0a0a0a;
+		display: flex;
+		align-items: center;
 		justify-content: center;
-		box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+		min-height: 340px;
+	}
+
+	/* Slide track — horizontal scroll (swipe / drag) */
+	.carousel-track {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		width: 100%;
+		height: 100%;
+		overflow-x: scroll;
+		overflow-y: hidden;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+	}
+
+	.carousel-slide {
+		flex: 0 0 100%;
+		min-width: 100%;
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		scroll-snap-align: start;
+		scroll-snap-stop: always;
+		overflow-x: scroll;
+		overflow-y: hidden;
+		box-sizing: border-box;
+	}
+
+	.carousel-slide--loading {
+		color: rgba(255, 255, 255, 0.4);
+		font-size: 28px;
 	}
 
 	.viewer-img {
-		max-height: 70vh;
+		display: block;
+		width: 100%;
+		max-height: 72vh;
 		object-fit: contain;
+		user-select: none;
+		-webkit-user-drag: none;
 	}
 
-	@media (max-width: 900px) {
+	/* ── In-slide left/right arrows (IG style) ───── */
+	.slide-arrow {
+		position: absolute;
+		top: 50%;
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.88);
+		border: none;
+		color: #111;
+		font-size: 12px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+		transition: all 0.18s;
+		z-index: 4;
+	}
+	.slide-arrow--prev {
+		left: 10px;
+	}
+	.slide-arrow--next {
+		right: 10px;
+	}
+	.slide-arrow:hover:not(:disabled) {
+		background: #fff;
+	}
+	.slide-arrow:disabled {
+		opacity: 0.2;
+		cursor: default;
+	}
+
+	/* ── IG dots bar ─────────────────────────────── */
+	.ig-dots-bar {
+		position: absolute;
+		bottom: 12px;
+		left: 0;
+		right: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
+		z-index: 4;
+	}
+
+	.ig-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.4);
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		flex-shrink: 0;
+	}
+	.ig-dot.active {
+		background: #fff;
+		transform: scale(1.3);
+	}
+	.ig-dot:hover:not(.active) {
+		background: rgba(255, 255, 255, 0.7);
+	}
+
+	.ig-dot-spinner {
+		font-size: 9px;
+		color: rgba(255, 255, 255, 0.55);
+		display: flex;
+		align-items: center;
+	}
+
+	/* ── Slide counter (top-right of stage) ──────── */
+	.slide-counter {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(4px);
+		color: #fff;
+		font-size: 11px;
+		font-family: var(--font-mono, monospace);
+		font-weight: 600;
+		padding: 3px 9px;
+		border-radius: 20px;
+		z-index: 4;
+		pointer-events: none;
+	}
+
+	/* ── Metadata panel (right panel) ────────────── */
+	.viewer-meta {
+		flex: 1;
+		min-width: 0;
+		background: var(--co-white, #fff);
+		padding: 36px 32px;
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+		overflow-y: auto;
+	}
+
+	.meta-header .mono-label {
+		opacity: 0.45;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+	}
+	.meta-header .technical-title {
+		font-size: 24px;
+		font-weight: 700;
+		margin-top: 4px;
+		color: var(--bs-black, #111);
+	}
+
+	.meta-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin-top: auto;
+	}
+
+	.meta-hint {
+		font-size: 12px;
+		color: var(--co-muted, #888);
+		margin: 0;
+	}
+
+	.carousel-track::-webkit-scrollbar {
+		display: none;
+	}
+
+	/* สำหรับ Firefox */
+	.carousel-track {
+		-ms-overflow-style: none; /* IE and Edge */
+		scrollbar-width: none; /* Firefox */
+	}
+
+	/* ── Responsive: mobile bottom-sheet ─────────── */
+	@media (max-width: 768px) {
+		.gallery-overlay {
+			padding: 0;
+		}
+
+		.gallery-module {
+			overflow-y: auto;
+		}
+
 		.viewer-core {
 			flex-direction: column;
 		}
-		.viewer-img {
-			padding: 20px;
-		}
-	}
 
-	.inventory-strip {
-		display: flex;
-		gap: 12px;
-		justify-content: center;
-		padding: 12px;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: var(--radius-md);
-	}
-
-	.inventory-thumb {
-		width: 64px;
-		height: 64px;
-		border-radius: var(--radius-sm);
-		overflow: hidden;
-		border: 2px solid transparent;
-		background: none;
-		padding: 0;
-		cursor: pointer;
-		transition: all 0.2s;
-		opacity: 0.5;
-	}
-
-	.inventory-thumb.active {
-		border-color: var(--co-white);
-		opacity: 1;
-		transform: scale(1.1);
-	}
-
-	.inventory-thumb img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.inventory-loader {
-		display: flex;
-		align-items: center;
-		padding: 0 12px;
-		color: white;
-	}
-
-	.viewer-meta {
-		background: var(--co-white);
-		padding: 40px;
-		display: flex;
-		flex-direction: column;
-		gap: 24px;
-		min-width: 320px;
-	}
-
-	@media (max-width: 900px) {
-		.viewer-meta {
-			min-width: 0;
-			padding: 32px;
-		}
-	}
-
-	.meta-left .technical-title {
-		font-size: 28px;
-		margin-top: 8px;
-		color: var(--co-black);
-	}
-
-	.meta-right {
-		display: flex;
-		gap: 16px;
-	}
-
-	@media (max-width: 768px) {
-		.gallery-overlay {
-			padding: 20px;
-		}
-		.viewer-meta {
-			flex-direction: column;
-			gap: 24px;
-			align-items: flex-start;
-			padding: 24px;
-		}
-		.meta-right {
+		.viewer-stage {
+			flex: 0 0 auto;
 			width: 100%;
+			aspect-ratio: 1 / 1;
+			min-height: 0;
 		}
-		.meta-right button {
+
+		.viewer-meta {
+			padding: 24px 20px 32px;
+		}
+
+		.meta-actions button {
 			flex: 1;
+			min-width: 140px;
+		}
+
+		.close-trigger {
+			top: 14px;
+			right: 14px;
+			background: rgba(0, 0, 0, 0.45);
+			border-color: transparent;
 		}
 	}
 </style>

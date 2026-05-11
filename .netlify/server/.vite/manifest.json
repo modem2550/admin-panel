@@ -409,6 +409,7 @@
     "src": "src/routes/api/assets/scan/status/sku/+server.ts",
     "isEntry": true,
     "imports": [
+      "_bnk48.js",
       "_supabase.server.js"
     ]
   },
@@ -428,6 +429,7 @@
     "src": "src/routes/api/check-assets/+server.ts",
     "isEntry": true,
     "imports": [
+      "_bnk48.js",
       "_supabase.server.js"
     ]
   },
@@ -437,6 +439,7 @@
     "src": "src/routes/api/check-assets/latest/+server.ts",
     "isEntry": true,
     "imports": [
+      "_bnk48.js",
       "_supabase.server.js"
     ]
   },

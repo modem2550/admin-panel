@@ -1,19 +1,20 @@
 import { t as supabaseAdmin } from "../../../../../../../chunks/supabase.server.js";
+import { u as getCDNDiscoveryUrls } from "../../../../../../../chunks/bnk48.js";
 import { error, json } from "@sveltejs/kit";
 import https from "node:https";
 //#region src/routes/api/assets/scan/status/sku/+server.ts
 var TIMEOUT_MS = 3e3;
-var MAX_SKU = 10;
 async function headExists(urlStr) {
 	return new Promise((resolve) => {
 		const req = https.request(urlStr, {
-			method: "HEAD",
+			method: "GET",
 			timeout: TIMEOUT_MS,
 			headers: {
 				"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 				"Accept": "*/*"
 			}
 		}, (res) => {
+			res.destroy();
 			resolve(res.statusCode === 200);
 		});
 		req.on("timeout", () => {
@@ -30,23 +31,38 @@ var GET = async ({ url }) => {
 	if (!idParam) throw error(400, "Missing id");
 	const id = parseInt(idParam);
 	if (isNaN(id)) throw error(400, "Invalid id");
-	const { data: existing, error: dbErr } = await supabaseAdmin.from("cdn_assets").select("skus").eq("id", id).eq("type", type).maybeSingle();
+	const { data: existing, error: dbErr } = await supabaseAdmin.from("cdn_assets").select("skus, extra_urls").eq("id", id).eq("type", type).maybeSingle();
 	if (dbErr) throw error(500, "DB error");
-	if (existing?.skus && existing.skus.length > 1) return json({ skus: existing.skus });
-	const idStr = id.toString();
-	const foundSkus = [1, ...(await Promise.all(Array.from({ length: MAX_SKU - 1 }, async (_, i) => {
-		const sku = i + 2;
-		const jpgUrl = `https://img.bnk48cdn.net/shop/product/${idStr}/sku-${sku}.jpg`;
-		const pngUrl = `https://img.bnk48cdn.net/shop/product/${idStr}/sku-${sku}.png`;
-		if (await headExists(jpgUrl)) return sku;
-		if (await headExists(pngUrl)) return sku;
+	if (existing?.extra_urls && existing.extra_urls.length > 0) return json({
+		urls: existing.extra_urls,
+		skus: existing.skus || []
+	});
+	const candidates = getCDNDiscoveryUrls(type, id);
+	const validUrls = [];
+	const validSkus = [1];
+	const checkResults = await Promise.all(candidates.map(async (url) => {
+		if (await headExists(url)) return url;
 		return null;
-	}))).filter((s) => s !== null)];
+	}));
+	for (const url of checkResults) if (url) {
+		const proxyUrl = url.replace("https://img.bnk48cdn.net/", "/p/img/");
+		validUrls.push(proxyUrl);
+		const match = url.match(/(\d+)\.\w+$/);
+		if (match) {
+			const num = parseInt(match[1]);
+			if (!validSkus.includes(num)) validSkus.push(num);
+		}
+	}
+	const foundSkus = validSkus.sort((a, b) => a - b);
 	supabaseAdmin.from("cdn_assets").update({
 		skus: foundSkus,
+		extra_urls: validUrls,
 		last_seen: (/* @__PURE__ */ new Date()).toISOString()
 	}).eq("id", id).eq("type", type).then(() => {});
-	return json({ skus: foundSkus });
+	return json({
+		skus: foundSkus,
+		urls: validUrls
+	});
 };
 //#endregion
 export { GET };

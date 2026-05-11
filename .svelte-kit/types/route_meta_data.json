@@ -26,6 +26,9 @@
 	"/api/check-assets/latest": [
 		"src/routes/api/check-assets/latest/+server.ts"
 	],
+	"/api/image/[...path]": [
+		"src/routes/api/image/[...path]/+server.ts"
+	],
 	"/(app)/assets": [
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"

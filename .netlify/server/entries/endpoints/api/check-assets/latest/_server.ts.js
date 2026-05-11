@@ -1,17 +1,19 @@
 import { t as supabaseAdmin } from "../../../../../chunks/supabase.server.js";
+import { d as getDefaultAssetUrl } from "../../../../../chunks/bnk48.js";
 import { json } from "@sveltejs/kit";
 import https from "node:https";
 //#region src/routes/api/check-assets/latest/+server.ts
 async function checkExists(urlStr) {
 	return new Promise((resolve) => {
 		const req = https.request(urlStr, {
-			method: "HEAD",
+			method: "GET",
 			timeout: 3e3,
 			headers: {
 				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 				"Accept": "*/*"
 			}
 		}, (res) => {
+			res.destroy();
 			resolve(res.statusCode === 200);
 		});
 		req.on("timeout", () => {
@@ -35,7 +37,7 @@ var GET = async ({ url }) => {
 		console.log(`[API/Latest] Found latest ${type}: ${maxRow.id} from DB (Took ${Date.now() - startTime}ms)`);
 		const result = {
 			id: maxRow.id.toString(),
-			url: maxRow.url || buildFallbackUrl(type, maxRow.id)
+			url: maxRow.url || getDefaultAssetUrl(type, maxRow.id)
 		};
 		cache.set(type, {
 			data: result,
@@ -46,7 +48,13 @@ var GET = async ({ url }) => {
 	console.log(`[API/Latest] DB empty for ${type}, falling back to binary search...`);
 	async function quickProbe(id) {
 		const idStr = id.toString();
-		const quickUrls = type === "group" ? [`https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`, `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`] : [`https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.jpg`, `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.png`];
+		let quickUrls;
+		if (type === "group") quickUrls = [`https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`, `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`];
+		else {
+			quickUrls = [`https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.jpg`, `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.png`];
+			const fallbackUrl = `https://img.bnk48cdn.net/${getDefaultAssetUrl("product", id).replace("/p/img/", "")}`;
+			if (!quickUrls.includes(fallbackUrl)) quickUrls.push(fallbackUrl);
+		}
 		return (await Promise.all(quickUrls.map((u) => checkExists(u)))).some((r) => r === true);
 	}
 	let low = 0;
@@ -72,7 +80,7 @@ var GET = async ({ url }) => {
 		console.log(`[API/Latest] Found latest ${type}: ${lastFoundId} via binary search (Took ${Date.now() - startTime}ms)`);
 		const result = {
 			id: lastFoundId.toString(),
-			url: buildFallbackUrl(type, lastFoundId)
+			url: getDefaultAssetUrl(type, lastFoundId)
 		};
 		cache.set(type, {
 			data: result,
@@ -86,9 +94,5 @@ var GET = async ({ url }) => {
 		url: ""
 	});
 };
-function buildFallbackUrl(type, id) {
-	const idStr = id.toString();
-	return type === "product" ? `/p/img/shop/product/${idStr}/sku-1.jpg` : `/p/img/shop/product-group/${idStr}.jpg`;
-}
 //#endregion
 export { GET };

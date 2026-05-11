@@ -1,19 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/supabase.server';
-import { getCDNDiscoveryUrls } from '$lib/bnk48';
+import { getCDNDiscoveryUrls, getDefaultAssetUrl } from '$lib/bnk48';
 import https from 'node:https';
 
 async function checkExists(urlStr: string): Promise<boolean> {
     return new Promise((resolve) => {
         const req = https.request(urlStr, {
-            method: 'HEAD',
+            method: 'GET',
             timeout: 3000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Accept': '*/*'
             }
         }, (res) => {
+            res.destroy();
             resolve(res.statusCode === 200);
         });
         req.on('timeout', () => { req.destroy(); resolve(false); });
@@ -52,7 +53,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
         const result = {
             id: maxRow.id.toString(),
-            url: maxRow.url || buildFallbackUrl(type, maxRow.id)
+            url: maxRow.url || getDefaultAssetUrl(type as 'product' | 'group', maxRow.id)
         };
 
         cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
@@ -66,19 +67,30 @@ export const GET: RequestHandler = async ({ url }) => {
         return getCDNDiscoveryUrls(type as 'product' | 'group', id);
     }
 
-    // ใช้ probe แบบเร็ว — ลองแค่ sku-1.jpg/png สำหรับ product หรือ .jpg/.png สำหรับ group
+    // ใช้ probe แบบเร็ว — ลองแค่ sku-1.jpg/png และ format เฉพาะของ ID นั้นๆ
     // ไม่ต้องลองทุก candidate URL (เร็วกว่าหลายร้อยเท่า)
     async function quickProbe(id: number): Promise<boolean> {
         const idStr = id.toString();
-        const quickUrls = type === 'group'
-            ? [
+        let quickUrls: string[];
+        
+        if (type === 'group') {
+            quickUrls = [
                 `https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`,
                 `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`
-            ]
-            : [
+            ];
+        } else {
+            quickUrls = [
                 `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.jpg`,
                 `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.png`
             ];
+            
+            // Add the specific fallback format for this ID range
+            const fallbackPath = getDefaultAssetUrl('product', id).replace('/p/img/', '');
+            const fallbackUrl = `https://img.bnk48cdn.net/${fallbackPath}`;
+            if (!quickUrls.includes(fallbackUrl)) {
+                quickUrls.push(fallbackUrl);
+            }
+        }
 
         const results = await Promise.all(quickUrls.map(u => checkExists(u)));
         return results.some(r => r === true);
@@ -118,7 +130,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
         const result = {
             id: lastFoundId.toString(),
-            url: buildFallbackUrl(type, lastFoundId)
+            url: getDefaultAssetUrl(type as 'product' | 'group', lastFoundId)
         };
 
         cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
@@ -128,10 +140,3 @@ export const GET: RequestHandler = async ({ url }) => {
     console.log(`[API/Latest] No ${type} found (Took ${Date.now() - startTime}ms)`);
     return json({ id: '0', url: '' });
 };
-
-function buildFallbackUrl(type: string, id: number): string {
-    const idStr = id.toString();
-    return type === 'product'
-        ? `/p/img/shop/product/${idStr}/sku-1.jpg`
-        : `/p/img/shop/product-group/${idStr}.jpg`;
-}

@@ -2,22 +2,26 @@ import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import dns from 'node:dns';
 
-// Force IPv4 first to prevent UND_ERR_CONNECT_TIMEOUT in Node environments with broken IPv6
 dns.setDefaultResultOrder('ipv4first');
 
 import { dev } from '$app/environment';
 import { buildContentSecurityPolicy } from '$lib/csp.server';
 import {
-	clearSessionCookies,
-	readSessionTokens,
-	sessionCookieNames,
-	sessionCookieOpts
+    clearSessionCookies,
+    readSessionTokens,
+    sessionCookieNames,
+    sessionCookieOpts
 } from '$lib/session-cookies.server';
 import { validatePublicEnvOnce } from '$lib/validate-env.server';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+// ✅ สร้างครั้งเดียว reuse ทุก request
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+});
 
 let didValidateEnv = false;
 
@@ -53,7 +57,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 		auth: { persistSession: false, autoRefreshToken: false }
 	});
-	event.locals.supabase = supabase;
+	event.locals.supabase = supabaseClient;
 
 	const { access, refresh, names } = readSessionTokens(event.cookies, cookieSecure);
 

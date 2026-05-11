@@ -1,17 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/supabase.server';
+import { getDefaultAssetUrl } from '$lib/bnk48';
 
 const MAX_COUNT = 250;
 const ALLOWED_TYPES = new Set(['product', 'group']);
 const ALLOWED_ORDERS = new Set(['asc', 'desc']);
-
-function buildDefaultUrl(type: string, id: number): string {
-    const idStr = id.toString();
-    return type === 'product'
-        ? `/p/img/shop/product/${idStr}/sku-1.jpg`
-        : `/p/img/shop/product-group/${idStr}.jpg`;
-}
 
 export const GET: RequestHandler = async ({ url }) => {
     const startRaw = parseInt(url.searchParams.get('start') || '0');
@@ -25,14 +19,14 @@ export const GET: RequestHandler = async ({ url }) => {
     if (isNaN(countRaw) || countRaw < 1) throw error(400, 'Invalid count parameter');
 
     const count = Math.min(countRaw, MAX_COUNT);
-    const rangeStart = order === 'asc' ? startRaw : Math.max(0, startRaw - count + 1);
-    const rangeEnd = order === 'asc' ? startRaw + count - 1 : startRaw;
+    const rangeStart = order === 'asc' ? Math.max(1, startRaw) : Math.max(1, startRaw - count + 1);
+    const rangeEnd = order === 'asc' ? rangeStart + count - 1 : Math.max(1, startRaw);
 
     // Strategy 1: ลองดึงจาก DB ก่อน
     try {
         const { data: rows, error: dbErr } = await supabaseAdmin
             .from('cdn_assets')
-            .select('id, url, skus')
+            .select('id, url, skus, extra_urls')
             .eq('type', type)
             .gte('id', rangeStart)
             .lte('id', rangeEnd)
@@ -42,9 +36,20 @@ export const GET: RequestHandler = async ({ url }) => {
         if (!dbErr && rows && rows.length > 0) {
             const assets = rows.map((row: any) => {
                 const idStr = row.id.toString();
+                // Use validated extra_urls[0] if available, otherwise row.url, otherwise fallback to generator
+                let actualUrl = row.extra_urls?.[0] || row.url;
+                if (!actualUrl || actualUrl === '') {
+                    actualUrl = getDefaultAssetUrl(type as 'product' | 'group', row.id);
+                }
+                
+                // Make sure url is proxied
+                if (actualUrl.startsWith('https://img.bnk48cdn.net/')) {
+                    actualUrl = actualUrl.replace('https://img.bnk48cdn.net/', '/p/img/');
+                }
+
                 return {
                     id: idStr,
-                    url: row.url || buildDefaultUrl(type, row.id),
+                    url: actualUrl,
                     extra_skus: [] as string[]
                 };
             });
@@ -64,7 +69,7 @@ export const GET: RequestHandler = async ({ url }) => {
         for (let id = rangeStart; id <= rangeEnd && assets.length < count; id++) {
             assets.push({
                 id: id.toString(),
-                url: buildDefaultUrl(type, id),
+                url: getDefaultAssetUrl(type as 'product' | 'group', id),
                 extra_skus: []
             });
         }
@@ -72,7 +77,7 @@ export const GET: RequestHandler = async ({ url }) => {
         for (let id = rangeEnd; id >= rangeStart && assets.length < count; id--) {
             assets.push({
                 id: id.toString(),
-                url: buildDefaultUrl(type, id),
+                url: getDefaultAssetUrl(type as 'product' | 'group', id),
                 extra_skus: []
             });
         }
