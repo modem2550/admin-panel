@@ -29,7 +29,7 @@ declare module "$app/types" {
 	type MatcherParam<M> = M extends (param : string) => param is (infer U extends string) ? U : string;
 
 	export interface AppTypes {
-		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/image" | "/api/image/[...path]" | "/api/proxy" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/(app)/playback" | "/p" | "/p/[...path]" | "/robots.txt" | "/(app)/settings";
+		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/download" | "/api/download/mp4" | "/api/image" | "/api/image/[...path]" | "/api/proxy" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/downloader" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/p" | "/p/[...path]" | "/robots.txt" | "/(app)/settings";
 		RouteParams(): {
 			"/api/image/[...path]": { path: string };
 			"/p/[...path]": { path: string }
@@ -49,21 +49,23 @@ declare module "$app/types" {
 			"/api/auth/session": Record<string, never>;
 			"/api/check-assets": Record<string, never>;
 			"/api/check-assets/latest": Record<string, never>;
+			"/api/download": Record<string, never>;
+			"/api/download/mp4": Record<string, never>;
 			"/api/image": { path?: string };
 			"/api/image/[...path]": { path: string };
 			"/api/proxy": Record<string, never>;
 			"/(app)/assets": Record<string, never>;
 			"/(app)/dashboard": Record<string, never>;
+			"/(app)/downloader": Record<string, never>;
 			"/(app)/events": Record<string, never>;
 			"/(auth)/login": Record<string, never>;
 			"/(app)/members": Record<string, never>;
-			"/(app)/playback": Record<string, never>;
 			"/p": { path?: string };
 			"/p/[...path]": { path: string };
 			"/robots.txt": Record<string, never>;
 			"/(app)/settings": Record<string, never>
 		};
-		Pathname(): "/" | "/.well-known/security.txt" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | `/api/image/${string}` & {} | "/assets" | "/dashboard" | "/events" | "/login" | "/members" | "/playback" | `/p/${string}` & {} | "/robots.txt" | "/settings";
+		Pathname(): "/" | "/.well-known/security.txt" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/download/mp4" | `/api/image/${string}` & {} | "/assets" | "/dashboard" | "/downloader" | "/events" | "/login" | "/members" | `/p/${string}` & {} | "/robots.txt" | "/settings";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/.assetsignore" | "/favicon.ico" | "/favicon.svg" | string & {};
 	}

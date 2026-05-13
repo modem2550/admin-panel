@@ -12,6 +12,9 @@
     let showTimelineModal = $state(false);
     let fetchingVodId = $state<string | null>(null);
     let playVideo = $state(false);
+    let downloadProgress = $state<number | null>(null);
+    let downloadingJobId = $state<string | null>(null);
+    let downloadingUrl = $state<string | null>(null);
 
     function closeModals() {
         showVodModal = false;
@@ -75,6 +78,67 @@
         toasts.add("Link copied to clipboard", "success");
     }
 
+    function handleDownloadMp4(url: string, fileName: string, info?: any) {
+        if (downloadingJobId) {
+            toasts.add("A download is already in progress", "warning");
+            return;
+        }
+
+        // BNK48 API often returns duration in milliseconds
+        let rawDuration = info?.duration || info?.videoDuration || info?.video_duration || 0;
+        if (rawDuration > 100000) { // Likely milliseconds
+            rawDuration = rawDuration / 1000;
+        }
+        
+        const duration = Math.floor(rawDuration);
+        const startUrl = `/api/download/mp4?action=start&url=${encodeURIComponent(url)}&name=${encodeURIComponent(fileName)}&duration=${duration}`;
+        
+        toasts.add(`Starting compression for ${fileName}...`, "info");
+        downloadProgress = 0;
+        downloadingUrl = url;
+
+        fetch(startUrl)
+            .then(res => res.json())
+            .then(data => {
+                const jobId = data.jobId;
+                downloadingJobId = jobId;
+                pollDownloadStatus(jobId);
+            })
+            .catch(err => {
+                toasts.add("Failed to start download job", "error");
+                downloadProgress = null;
+            });
+    }
+
+    async function pollDownloadStatus(jobId: string) {
+        try {
+            const res = await fetch(`/api/download/mp4?action=status&jobId=${jobId}`);
+            const data = await res.json();
+
+            if (data.status === 'processing') {
+                downloadProgress = data.progress;
+                setTimeout(() => pollDownloadStatus(jobId), 2000);
+            } else if (data.status === 'completed') {
+                downloadProgress = 100;
+                toasts.add("Compression complete! Starting download...", "success");
+                window.location.href = `/api/download/mp4?action=download&jobId=${jobId}`;
+                setTimeout(() => {
+                    downloadProgress = null;
+                    downloadingJobId = null;
+                    downloadingUrl = null;
+                }, 3000);
+            } else if (data.status === 'failed') {
+                toasts.add(`Download failed: ${data.error}`, "error");
+                downloadProgress = null;
+                downloadingJobId = null;
+                downloadingUrl = null;
+            }
+        } catch (err) {
+            console.error("Polling error", err);
+            setTimeout(() => pollDownloadStatus(jobId), 5000);
+        }
+    }
+
     $effect(() => {
         if (form?.directVod) {
             selectedVod = form.directVod as VODResult;
@@ -88,17 +152,18 @@
 </script>
 
 <div class="page-shell">
-    <header class="page-header">
-        <div class="header-left">
-            <span class="mono-label">Technical Intelligence</span>
-            <h1 class="hero-display">Playback</h1>
+    <div class="co-page-hero">
+        <div class="co-page-hero__main">
+            <span class="mono-label">Technical intelligence</span>
+            <h1 class="hero-display">Downloader</h1>
             <p class="body-large">
                 Automated extraction and indexing of member broadcast
                 infrastructure and media resources.
             </p>
         </div>
+    </div>
 
-        <form
+    <form
             method="POST"
             action="?/search"
             use:enhance={() => {
@@ -115,13 +180,13 @@
                 <input
                     type="text"
                     name="name"
-                    placeholder="Member alias or App URI endpoint..."
+                    placeholder="Member alias or app URI endpoint…"
                     required
                     autocomplete="off"
                 />
                 <button
                     type="submit"
-                    class="button-pill-outline"
+                    class="button-primary"
                     disabled={isLoading}
                 >
                     {#if isLoading}
@@ -131,8 +196,7 @@
                     {/if}
                 </button>
             </div>
-        </form>
-    </header>
+    </form>
 
     {#if form?.error}
         <div class="banner-error" role="alert">
@@ -259,36 +323,31 @@
                     </div>
                 </div>
 
-                <div class="technical-links">
-                    <div class="link-item">
-                        <label class="mono-label" for="vod-endpoint"
-                            >Endpoint URL</label
-                        >
-                        <div class="input-group-technical">
-                            <input
-                                id="vod-endpoint"
-                                readonly
-                                value={selectedVod.resourceUrl}
-                            />
-                            <button
-                                onclick={() =>
-                                    copyToClipboard(selectedVod!.resourceUrl)}
-                                aria-label="Copy URL"
-                            >
-                                <i class="fa-solid fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="modal-actions-co">
                     <a
                         href={selectedVod.resourceUrl}
                         target="_blank"
-                        class="button-pill-outline"
+                        class="button-secondary"
+                        rel="noreferrer"
                     >
-                        Initialize Stream
+                        Open stream
                     </a>
+                    <button
+                        onclick={() =>
+                            handleDownloadMp4(
+                                selectedVod!.resourceUrl,
+                                selectedVod!.fileName,
+                                selectedVod!.info
+                            )}
+                        class="button-primary"
+                        disabled={!!downloadingJobId}
+                    >
+                        {#if downloadingUrl === selectedVod.resourceUrl}
+                             <i class="fa-solid fa-spinner fa-spin"></i> {downloadProgress}%
+                        {:else}
+                            <i class="fa-solid fa-download"></i> Download MP4
+                        {/if}
+                    </button>
                 </div>
             </div>
         </div>
@@ -378,10 +437,27 @@
                         <a
                             href={selectedTimeline.resourceUrl}
                             target="_blank"
-                            class="button-pill-outline"
+                            class="button-secondary"
+                            rel="noreferrer"
                         >
-                            Run Payload
+                            Open stream
                         </a>
+                        <button
+                            onclick={() =>
+                                handleDownloadMp4(
+                                    selectedTimeline!.resourceUrl!,
+                                    selectedTimeline!.fileName,
+                                    selectedTimeline!.info
+                                )}
+                            class="button-primary"
+                            disabled={!!downloadingJobId}
+                        >
+                            {#if downloadingUrl === selectedTimeline.resourceUrl}
+                                <i class="fa-solid fa-spinner fa-spin"></i> {downloadProgress}%
+                            {:else}
+                                <i class="fa-solid fa-download"></i> Download MP4
+                            {/if}
+                        </button>
                     </div>
                 {/if}
 
@@ -435,213 +511,3 @@
         </div>
     </div>
 {/if}
-
-<style>
-    .technical-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 10px;
-        margin-bottom: 100px;
-    }
-
-    .media-card-co {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .media-card-co .card-media {
-        width: 100%;
-        aspect-ratio: 16/9;
-        border-radius: var(--radius-md);
-        overflow: hidden;
-        position: relative;
-        background: var(--co-stone);
-    }
-
-    .media-card-co .card-media img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    .media-card-co:hover .card-media img {
-        transform: scale(1.05);
-    }
-
-    .play-trigger {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.3);
-        border: none;
-        color: white;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s;
-        cursor: pointer;
-    }
-
-    .media-card-co:hover .play-trigger {
-        opacity: 1;
-    }
-
-    .technical-title {
-        font-size: 18px;
-        font-weight: 500;
-        margin: 8px 0 0;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    /* Modal Styling */
-    .technical-details {
-        display: flex;
-        flex-direction: column;
-        gap: 40px;
-    }
-
-    .detail-row {
-        display: flex;
-        gap: 32px;
-        transition: all 0.3s ease;
-    }
-
-    .detail-row.is-playing {
-        flex-direction: column;
-    }
-
-    .media-preview {
-        width: 240px;
-        flex-shrink: 0;
-        border-radius: var(--radius-md);
-        overflow: hidden;
-        border: 1px solid var(--co-hairline);
-        position: relative;
-        background: var(--co-stone);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .media-preview.is-playing {
-        width: 100%;
-        max-width: 600px;
-        aspect-ratio: 16/9;
-    }
-
-    .media-preview img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .preview-video {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        background: black;
-    }
-
-    .play-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.3);
-        border: none;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 40px;
-        cursor: pointer;
-        transition: all 0.2s;
-        backdrop-filter: blur(2px);
-    }
-
-    .play-overlay:hover {
-        background: rgba(0, 0, 0, 0.5);
-        font-size: 48px;
-    }
-
-    .play-overlay i {
-        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
-    }
-
-    .image-inventory {
-        padding-top: 40px;
-        border-top: 1px solid var(--co-hairline);
-    }
-
-    .inventory-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 16px;
-    }
-
-    .inventory-item {
-        aspect-ratio: 1/1;
-        border-radius: var(--radius-sm);
-        overflow: hidden;
-        position: relative;
-        background: var(--co-stone);
-        border: 1px solid var(--co-hairline);
-    }
-
-    .inventory-item img,
-    .inventory-video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    .inventory-item:hover img,
-    .inventory-item:hover .inventory-video {
-        transform: scale(1.1);
-    }
-
-    .item-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-
-    .inventory-item:hover .item-overlay {
-        opacity: 1;
-    }
-
-    .item-overlay button,
-    .item-overlay a {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: white;
-        border: none;
-        color: black;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        cursor: pointer;
-        text-decoration: none;
-        transition: transform 0.2s;
-    }
-
-    .item-overlay button:hover,
-    .item-overlay a:hover {
-        transform: scale(1.2);
-    }
-
-</style>

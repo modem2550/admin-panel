@@ -87,7 +87,7 @@
 	</header>
 
 	{#if error}
-		<div class="status-stream" style="margin-top: -0.5rem;">
+		<div class="status-stream">
 			<div class="status-node status-node--danger">
 				<i class="fa-solid fa-triangle-exclamation me-2"></i>
 				<span class="mono-label">{error.toUpperCase()}</span>
@@ -131,12 +131,12 @@
 				</div>
 			</div>
 
-			<button class="button-pill-outline login-submit" type="submit" disabled={loading}>
+			<button class="button-primary login-submit" type="submit" disabled={loading}>
 				{#if loading}
 					<i class="fa-solid fa-spinner fa-spin me-2"></i>
-					INITIALIZING...
+					Signing in…
 				{:else}
-					ESTABLISH_SESSION
+					Sign in
 				{/if}
 			</button>
 		</form>
@@ -148,57 +148,3 @@
 		</p>
 	</footer>
 </div>
-
-<style>
-	.login-form {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-	}
-
-	.login-field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-		text-align: left;
-	}
-
-	.login-field .technical-input-group {
-		background: var(--co-stone);
-		border: 1px solid var(--co-hairline);
-		border-radius: var(--radius-sm);
-		padding: 4px;
-	}
-
-	.login-field .technical-input-group input {
-		width: 100%;
-		background: none;
-		border: none;
-		padding: 12px 14px;
-		font-family: var(--font-body);
-		font-size: 15px;
-		outline: none;
-		color: var(--co-ink);
-	}
-
-	.login-field .technical-input-group input:focus {
-		color: var(--co-blue);
-	}
-
-	.login-submit {
-		width: 100%;
-		justify-content: center;
-		margin-top: 0.5rem;
-		padding-top: 12px;
-		padding-bottom: 12px;
-	}
-
-	.login-footer {
-		text-align: center;
-	}
-
-	.login-footer p {
-		margin: 0;
-		font-size: 11px;
-	}
-</style>

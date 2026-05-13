@@ -45,7 +45,7 @@ var GET = async ({ url }) => {
 		return null;
 	}));
 	for (const url of checkResults) if (url) {
-		const proxyUrl = url.replace("https://img.bnk48cdn.net/", "/p/img/");
+		const proxyUrl = url.replace("https://img.bnk48cdn.net/shop/", "/api/image/");
 		validUrls.push(proxyUrl);
 		const match = url.match(/(\d+)\.\w+$/);
 		if (match) {

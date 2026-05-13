@@ -2,7 +2,7 @@ import "../../../chunks/dev.js";
 //#region src/routes/(auth)/+layout.svelte
 function _layout($$renderer, $$props) {
 	let { children } = $$props;
-	$$renderer.push(`<div class="auth-layout-bg svelte-5bky5h">`);
+	$$renderer.push(`<div class="auth-layout-bg">`);
 	children($$renderer);
 	$$renderer.push(`<!----></div>`);
 }

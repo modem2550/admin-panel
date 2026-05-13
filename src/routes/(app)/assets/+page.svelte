@@ -1,21 +1,23 @@
 <script lang="ts">
 	import { untrack, onMount, tick } from "svelte";
 	import { toasts } from "$lib/toasts";
-	import {
-		getRoundOnlyThumbnailCandidates,
-		getSatSunSwingThumbnailCandidates,
-		isKnownProductAssetRange,
-		isProductRoundOnlyZone,
-		isProductSatSunSwingZone,
-	} from "$lib/bnk48";
 
 	let itemsPerPage = 250;
-	let assetType = $state<"product" | "group">("product");
+	let assetType = $state<"product" | "group" | "theater">("product");
 	let sortOrder = $state<"asc" | "desc">("desc");
 
 	interface Asset {
 		id: string;
 		url: string;
+		title?: string;
+		description?: string;
+		/** Shop product gallery from public API `imageFileUrlList` (proxied paths). */
+		imageFileUrlList?: string[];
+		date?: string;
+		time?: string;
+		placeName?: string;
+		memberIdList?: number[];
+		memberNames?: string[];
 	}
 
 	let assets = $state<Asset[]>([]);
@@ -180,6 +182,22 @@
 		toasts.add(`คัดลอก ${assets.length} Internal URI แล้ว`, "success");
 	}
 
+	function formatTheaterDateTime(date?: string, time?: string): string {
+		if (!date) return time ?? "";
+		const parsed = new Date(date);
+		const dateText = Number.isNaN(parsed.getTime())
+			? date
+			: parsed
+					.toLocaleDateString("en-GB", {
+						day: "2-digit",
+						month: "short",
+						year: "numeric",
+						timeZone: "Asia/Bangkok",
+					})
+					.toUpperCase();
+		return time ? `${dateText} ${time}` : dateText;
+	}
+
 	let mounted = $state(false);
 	let skipResetOnce = $state(false);
 	let skuCache = new Map<string, string[]>();
@@ -226,10 +244,25 @@
 	function productThumbCandidates(assetId: string): string[] | null {
 		const id = parseInt(assetId, 10);
 		if (!Number.isFinite(id)) return null;
-		if (isProductSatSunSwingZone(id))
-			return getSatSunSwingThumbnailCandidates(assetId);
-		if (isProductRoundOnlyZone(id))
-			return getRoundOnlyThumbnailCandidates(assetId);
+		const base = `/api/image/product/${assetId}`;
+		if (id >= 422 && id <= 750) {
+			const out: string[] = [`${base}/sku-1.jpg`, `${base}/sku-1.png`];
+			for (let r = 1; r <= 6; r++) {
+				out.push(
+					`${base}/SAT-Round${r}.png`,
+					`${base}/SAT-Round${r}.jpg`,
+					`${base}/SUN-Round${r}.png`,
+					`${base}/SUN-Round${r}.jpg`,
+				);
+			}
+			return out;
+		}
+		if (id >= 850 && id <= 914) {
+			const out: string[] = [`${base}/sku-1.jpg`, `${base}/sku-1.png`];
+			for (let r = 1; r <= 6; r++)
+				out.push(`${base}/Round${r}.png`, `${base}/Round${r}.jpg`);
+			return out;
+		}
 		return null;
 	}
 
@@ -338,6 +371,11 @@
 	 */
 	let carouselSlides = $derived.by((): string[] => {
 		if (!selectedAsset) return [];
+		const shopList = selectedAsset.imageFileUrlList;
+		if (shopList && shopList.length > 0) {
+			return shopList.filter(Boolean);
+		}
+
 		const primary = modalPrimaryUrl(selectedAsset);
 
 		// เอาเฉพาะที่โหลดสำเร็จแล้ว และไม่ซ้ำกับ primary
@@ -374,8 +412,11 @@
 
 	$effect(() => {
 		if (!selectedAsset) return;
-		// โหลดทั้งรูปหลักและรูปที่คาดการณ์ไว้
-		const candidates = [modalPrimaryUrl(selectedAsset), ...modalSkus];
+		const shopList = selectedAsset.imageFileUrlList;
+		const candidates =
+			shopList && shopList.length > 0
+				? shopList
+				: [modalPrimaryUrl(selectedAsset), ...modalSkus];
 		preloadCarouselSlides(candidates);
 	});
 
@@ -430,6 +471,19 @@
 		carouselIdx = 0;
 		discoveredUrls = [];
 		preloadedSlideUrls = new Set();
+
+		if (
+			assetType === "product" &&
+			asset.imageFileUrlList &&
+			asset.imageFileUrlList.length > 0
+		) {
+			modalMainUrl = asset.imageFileUrlList[0];
+			modalSkus = [];
+			modalSwingIdx = 0;
+			modalLoadingSkus = false;
+			await syncCarouselScrollPosition();
+			return;
+		}
 
 		const c =
 			assetType === "product" ? productThumbCandidates(asset.id) : null;
@@ -572,6 +626,8 @@
 
 	function assetThumbSrc(asset: Asset): string {
 		if (assetType !== "product") return asset.url;
+		if (asset.imageFileUrlList?.length)
+			return asset.imageFileUrlList[0] ?? asset.url;
 		const c = productThumbCandidates(asset.id);
 		if (c) return c[0] ?? asset.url;
 		return asset.url;
@@ -579,6 +635,8 @@
 
 	function modalBaseUrl(asset: Asset): string {
 		if (assetType !== "product") return asset.url;
+		if (asset.imageFileUrlList?.length)
+			return asset.imageFileUrlList[0] ?? asset.url;
 		const c = productThumbCandidates(asset.id);
 		if (c) return c[0] ?? asset.url;
 		return asset.url;
@@ -586,6 +644,8 @@
 
 	function modalPrimaryUrl(asset: Asset): string {
 		if (assetType !== "product") return asset.url;
+		if (asset.imageFileUrlList?.length)
+			return asset.imageFileUrlList[0] ?? asset.url;
 		const resolved = resolvedThumbByProductId.get(asset.id);
 		if (resolved) return resolved;
 		return modalBaseUrl(asset);
@@ -593,6 +653,11 @@
 
 	function handleAssetThumbError(e: Event, asset: Asset) {
 		const img = e.currentTarget as HTMLImageElement;
+		if (assetType === "product" && asset.imageFileUrlList?.length) {
+			img.hidden = true;
+			img.closest(".editorial-card")?.setAttribute("data-broken", "true");
+			return;
+		}
 		const candidates =
 			assetType === "product" ? productThumbCandidates(asset.id) : null;
 		const normalizedSrc = normalizeAssetPath(img.src).toLowerCase();
@@ -600,14 +665,10 @@
 			normalizedSrc.endsWith("/sku-1.jpg") ||
 			normalizedSrc.endsWith("/sku-1.png");
 
-		if (
-			assetType === "product" &&
-			isSku1Source &&
-			!isKnownProductAssetRange(asset.id)
-		) {
+		if (assetType === "product" && isSku1Source) {
 			const card = img.closest(".editorial-card") as HTMLElement | null;
-			if (card) card.style.display = "none";
-			else img.style.display = "none";
+			if (card) card.hidden = true;
+			else img.hidden = true;
 			return;
 		}
 
@@ -620,13 +681,13 @@
 				return;
 			}
 			img.dataset.swingIdx = "done";
-			img.style.display = "none";
+			img.hidden = true;
 			img.closest(".editorial-card")?.setAttribute("data-broken", "true");
 			return;
 		}
 
 		if (img.dataset.retried === "done") {
-			img.style.display = "none";
+			img.hidden = true;
 			img.closest(".editorial-card")?.setAttribute("data-broken", "true");
 			return;
 		}
@@ -665,7 +726,7 @@
 		}
 
 		img.dataset.retried = "done";
-		img.style.display = "none";
+		img.hidden = true;
 		img.closest(".editorial-card")?.setAttribute("data-broken", "true");
 	}
 
@@ -673,7 +734,7 @@
 		const img = e.currentTarget as HTMLImageElement;
 		// ถ้าพัง ให้เอาออกจาก discovered (ถ้ามี)
 		discoveredUrls = discoveredUrls.filter((u) => u !== slideUrl);
-		img.style.opacity = "0.25";
+		img.hidden = true;
 	}
 
 	function handleModalMainLoad(e: Event) {
@@ -705,7 +766,11 @@
 		const typeParam = params.get("type");
 		const jumpParam = params.get("jump");
 
-		if (typeParam === "product" || typeParam === "group") {
+		if (
+			typeParam === "product" ||
+			typeParam === "group" ||
+			typeParam === "theater"
+		) {
 			assetType = typeParam;
 		}
 
@@ -797,66 +862,69 @@
 </script>
 
 <div class="page-shell">
-	<header class="page-header page-header--split">
-		<div class="header-left">
-			<span class="mono-label">Visual Infrastructure</span>
-			<h1 class="hero-display">Asset Registry</h1>
+	<div class="co-page-hero">
+		<div class="co-page-hero__main">
+			<span class="mono-label">Visual infrastructure</span>
+			<h1 class="hero-display">Asset registry</h1>
 			<p class="body-large">
 				Technical repository for indexing and discovering official
 				imagery assets and product media.
 			</p>
 		</div>
+	</div>
 
-		<div class="technical-filter-bar">
-			<div class="filter-pills">
-				<button
-					class="button-pill-outline"
-					onclick={() => (assetType = "product")}
-					class:active={assetType === "product"}
-				>
-					Products
-				</button>
-				<button
-					class="button-pill-outline"
-					onclick={() => (assetType = "group")}
-					class:active={assetType === "group"}
-				>
-					Collectives
-				</button>
-			</div>
-
-			<div class="technical-select">
-				<select bind:value={sortOrder}>
-					<option value="desc">Latest Archives</option>
-					<option value="asc">Historical First</option>
-				</select>
-			</div>
-
-			<div class="search-box jump-box">
-				<input
-					type="number"
-					placeholder="Jump to Node ID"
-					bind:value={jumpToId}
-					onkeydown={(e) => e.key === "Enter" && jumpTo()}
-				/>
-				<button
-					class="jump-trigger"
-					onclick={jumpTo}
-					aria-label="Jump to ID"
-				>
-					<i class="fa-solid fa-arrow-right"></i>
-				</button>
-			</div>
-
+	<div class="technical-filter-bar">
+		<div class="filter-pills">
 			<button
-				class="button-pill-outline"
-				onclick={findLatestAdaptive}
-				disabled={loading}
+				type="button"
+				class="button-pill-outline taxonomy-chip"
+				onclick={() => (assetType = "product")}
+				class:active={assetType === "product"}
 			>
-				Find Latest
+				Products
+			</button>
+			<button
+				type="button"
+				class="button-pill-outline taxonomy-chip"
+				onclick={() => (assetType = "group")}
+				class:active={assetType === "group"}
+			>
+				Collectives
+			</button>
+			<button
+				type="button"
+				class="button-pill-outline taxonomy-chip"
+				onclick={() => (assetType = "theater")}
+				class:active={assetType === "theater"}
+			>
+				Theater
 			</button>
 		</div>
-	</header>
+
+		<div class="technical-select">
+			<select bind:value={sortOrder}>
+				<option value="desc">Latest archives</option>
+				<option value="asc">Historical first</option>
+			</select>
+		</div>
+
+		<div class="search-box jump-box">
+			<input
+				type="number"
+				placeholder="Jump to node ID"
+				bind:value={jumpToId}
+				onkeydown={(e) => e.key === "Enter" && jumpTo()}
+			/>
+			<button
+				type="button"
+				class="jump-trigger"
+				onclick={jumpTo}
+				aria-label="Jump to ID"
+			>
+				<i class="fa-solid fa-arrow-right"></i>
+			</button>
+		</div>
+	</div>
 
 	{#if loading || (scanningStatus && !scanningStatus.includes("เสร็จ"))}
 		<div class="status-stream">
@@ -874,7 +942,13 @@
 
 	<div class="asset-grid" bind:this={gridEl}>
 		{#if visibleStart > 0}
-			<div style="grid-column: 1/-1; height: {visibleStart * 2}px"></div>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="100%"
+				height={visibleStart * 2}
+				aria-hidden="true"
+				role="presentation"
+			></svg>
 		{/if}
 		{#each assets as asset (asset.id)}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -887,11 +961,13 @@
 				<div class="media-wrap">
 					<img
 						src={assetThumbSrc(asset)}
-						alt={asset.id}
+						alt={asset.title ?? asset.id}
 						loading="lazy"
 						onload={(e) => {
 							const img = e.currentTarget as HTMLImageElement;
-							if (parseFloat(img.style.opacity || "1") < 0.5)
+							if (
+								parseFloat(getComputedStyle(img).opacity) < 0.5
+							)
 								return;
 							recordResolvedProductThumb(asset.id, img.src);
 						}}
@@ -905,11 +981,13 @@
 			</div>
 		{/each}
 		{#if visibleEnd < assets.length}
-			<div
-				style="grid-column: 1/-1; height: {(assets.length -
-					visibleEnd) *
-					2}px"
-			></div>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="100%"
+				height={(assets.length - visibleEnd) * 2}
+				aria-hidden="true"
+				role="presentation"
+			></svg>
 		{/if}
 	</div>
 
@@ -1060,10 +1138,38 @@
 				<div class="viewer-meta">
 					<div class="meta-header">
 						<span class="mono-label"
-							>{assetType.toUpperCase()}_NODE</span
+							>{assetType.toUpperCase()} Type</span
 						>
-						<h3 class="technical-title">#{selectedAsset.id}</h3>
+						<h3 class="technical-title">{selectedAsset.title ?? `THEATER #${selectedAsset.id}`}</h3>
 					</div>
+
+					{#if assetType === "theater"}
+						<div class="theater-popup-meta">
+							<p>
+								<strong>Date/Time:</strong>
+								{formatTheaterDateTime(
+									selectedAsset.date,
+									selectedAsset.time,
+								)}
+							</p>
+							<p>
+								<strong>Place:</strong>
+								{selectedAsset.placeName ?? "-"}
+							</p>
+							<p>
+								<strong>Members:</strong>
+								{(selectedAsset.memberNames ?? []).join(" / ") || "-"}
+							</p>
+						</div>
+					{/if}
+
+					{#if assetType === "product" && (selectedAsset.title || selectedAsset.description)}
+						<div class="product-popup-meta">
+							{#if selectedAsset.description}
+								<pre class="product-popup-desc">{selectedAsset.description}</pre>
+							{/if}
+						</div>
+					{/if}
 
 					<div class="meta-actions">
 						<button
@@ -1099,470 +1205,3 @@
 		</div>
 	</div>
 {/if}
-
-<style>
-	.jump-box {
-		max-width: 200px;
-		gap: 10px !important;
-	}
-
-	.jump-trigger {
-		background: var(--co-near-black);
-		color: #fff;
-		border: none;
-		border-radius: 6px;
-		width: 28px;
-		height: 28px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-		flex-shrink: 0;
-	}
-
-	.jump-trigger:hover {
-		background: var(--co-blue);
-		transform: translateX(2px);
-	}
-
-	/* ── Asset Grid ──────────────────────────────── */
-	@media (max-width: 768px) {
-		.filter-pills {
-			justify-content: space-between;
-		}
-		.filter-pills button {
-			flex: 1;
-		}
-	}
-
-	.asset-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: 24px;
-	}
-
-	@media (max-width: 640px) {
-		.asset-grid {
-			grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-			gap: 16px;
-		}
-	}
-
-	@media (max-width: 488px) {
-		.filter-pills {
-			width: 100%;
-		}
-
-		.technical-select {
-			width: 100%;
-		}
-
-		.technical-select select {
-			width: 100%;
-		}
-	}
-
-	.editorial-card {
-		aspect-ratio: 1 / 1;
-		background: var(--co-stone);
-		border-radius: var(--radius-lg);
-		position: relative;
-		overflow: hidden;
-		cursor: pointer;
-		transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-		border: 1px solid var(--co-hairline);
-	}
-
-	.editorial-card:hover {
-		border-color: var(--co-blue);
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-	}
-
-	.media-wrap {
-		width: 100%;
-		height: 100%;
-	}
-
-	.media-wrap img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-	}
-
-	.editorial-card:hover .media-wrap img {
-		transform: scale(1.08);
-	}
-
-	.node-id {
-		position: absolute;
-		top: 16px;
-		left: 16px;
-		background: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(8px);
-		color: #ffffff;
-		font-family: var(--font-mono);
-		font-size: 10px;
-		font-weight: 600;
-		padding: 4px 10px;
-		border-radius: 4px;
-		z-index: 2;
-	}
-
-	.card-overlay {
-		position: absolute;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.2);
-		opacity: 0;
-		transition: opacity 0.3s;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #ffffff;
-		font-size: 24px;
-	}
-
-	.editorial-card:hover .card-overlay {
-		opacity: 1;
-	}
-
-	.pagination-footer {
-		padding: 100px 0;
-		display: flex;
-		justify-content: center;
-	}
-
-	/* ── Overlay backdrop ────────────────────────── */
-	.gallery-overlay {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.78);
-		backdrop-filter: blur(18px);
-		-webkit-backdrop-filter: blur(18px);
-		z-index: 3000;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 24px;
-	}
-
-	.close-trigger {
-		position: absolute;
-		top: 20px;
-		right: 20px;
-		width: 38px;
-		height: 38px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.12);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		color: #fff;
-		font-size: 16px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: background 0.2s;
-		z-index: 10;
-	}
-	.close-trigger:hover {
-		background: rgba(255, 255, 255, 0.25);
-	}
-
-	/* ── Prev / Next asset buttons ───────────────── */
-	.asset-nav {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0 12px;
-		pointer-events: none;
-		z-index: 5;
-	}
-
-	.asset-nav-btn {
-		width: 36px;
-		height: 36px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.9);
-		border: none;
-		color: #111;
-		font-size: 15px;
-		cursor: pointer;
-		pointer-events: auto;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
-		transition: all 0.2s;
-	}
-	.asset-nav-btn:hover:not(:disabled) {
-		background: #fff;
-		transform: scale(1.06);
-	}
-	.asset-nav-btn:disabled {
-		opacity: 0.15;
-		cursor: default;
-	}
-
-	/* ── Gallery Module ──────────────────────────── */
-	.gallery-module {
-		width: calc(100% - 128px);
-		max-width: 980px;
-		animation: modal-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
-	}
-
-	@keyframes modal-in {
-		from {
-			transform: scale(0.93);
-			opacity: 0;
-		}
-		to {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-
-	/* ── Viewer core: desktop side-by-side ───────── */
-	.viewer-core {
-		display: flex;
-		flex-direction: row;
-		background: #000;
-		border-radius: 14px;
-		overflow: hidden;
-		box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
-		max-height: 88vh;
-	}
-
-	/* ── Carousel stage (left panel) ─────────────── */
-	.viewer-stage {
-		position: relative;
-		flex: 0 0 60%;
-		overflow: hidden;
-		background: #0a0a0a;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 340px;
-	}
-
-	/* Slide track — horizontal scroll (swipe / drag) */
-	.carousel-track {
-		display: flex;
-		flex-direction: row;
-		flex-wrap: nowrap;
-		width: 100%;
-		height: 100%;
-		overflow-x: scroll;
-		overflow-y: hidden;
-		scroll-snap-type: x mandatory;
-		scroll-behavior: smooth;
-		-webkit-overflow-scrolling: touch;
-		scrollbar-width: thin;
-	}
-
-	.carousel-slide {
-		flex: 0 0 100%;
-		min-width: 100%;
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		scroll-snap-align: start;
-		scroll-snap-stop: always;
-		overflow-x: scroll;
-		overflow-y: hidden;
-		box-sizing: border-box;
-	}
-
-	.carousel-slide--loading {
-		color: rgba(255, 255, 255, 0.4);
-		font-size: 28px;
-	}
-
-	.viewer-img {
-		display: block;
-		width: 100%;
-		max-height: 72vh;
-		object-fit: contain;
-		user-select: none;
-		-webkit-user-drag: none;
-	}
-
-	/* ── In-slide left/right arrows (IG style) ───── */
-	.slide-arrow {
-		position: absolute;
-		top: 50%;
-		width: 30px;
-		height: 30px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.88);
-		border: none;
-		color: #111;
-		font-size: 12px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
-		transition: all 0.18s;
-		z-index: 4;
-	}
-	.slide-arrow--prev {
-		left: 10px;
-	}
-	.slide-arrow--next {
-		right: 10px;
-	}
-	.slide-arrow:hover:not(:disabled) {
-		background: #fff;
-	}
-	.slide-arrow:disabled {
-		opacity: 0.2;
-		cursor: default;
-	}
-
-	/* ── IG dots bar ─────────────────────────────── */
-	.ig-dots-bar {
-		position: absolute;
-		bottom: 12px;
-		left: 0;
-		right: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 5px;
-		z-index: 4;
-	}
-
-	.ig-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.4);
-		border: none;
-		padding: 0;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		flex-shrink: 0;
-	}
-	.ig-dot.active {
-		background: #fff;
-		transform: scale(1.3);
-	}
-	.ig-dot:hover:not(.active) {
-		background: rgba(255, 255, 255, 0.7);
-	}
-
-	.ig-dot-spinner {
-		font-size: 9px;
-		color: rgba(255, 255, 255, 0.55);
-		display: flex;
-		align-items: center;
-	}
-
-	/* ── Slide counter (top-right of stage) ──────── */
-	.slide-counter {
-		position: absolute;
-		top: 12px;
-		right: 12px;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(4px);
-		color: #fff;
-		font-size: 11px;
-		font-family: var(--font-mono, monospace);
-		font-weight: 600;
-		padding: 3px 9px;
-		border-radius: 20px;
-		z-index: 4;
-		pointer-events: none;
-	}
-
-	/* ── Metadata panel (right panel) ────────────── */
-	.viewer-meta {
-		flex: 1;
-		min-width: 0;
-		background: var(--co-white, #fff);
-		padding: 36px 32px;
-		display: flex;
-		flex-direction: column;
-		gap: 20px;
-		overflow-y: auto;
-	}
-
-	.meta-header .mono-label {
-		opacity: 0.45;
-		font-size: 11px;
-		letter-spacing: 0.06em;
-	}
-	.meta-header .technical-title {
-		font-size: 24px;
-		font-weight: 700;
-		margin-top: 4px;
-		color: var(--bs-black, #111);
-	}
-
-	.meta-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		margin-top: auto;
-	}
-
-	.meta-hint {
-		font-size: 12px;
-		color: var(--co-muted, #888);
-		margin: 0;
-	}
-
-	.carousel-track::-webkit-scrollbar {
-		display: none;
-	}
-
-	/* สำหรับ Firefox */
-	.carousel-track {
-		-ms-overflow-style: none; /* IE and Edge */
-		scrollbar-width: none; /* Firefox */
-	}
-
-	/* ── Responsive: mobile bottom-sheet ─────────── */
-	@media (max-width: 768px) {
-		.gallery-overlay {
-			padding: 0;
-		}
-
-		.gallery-module {
-			overflow-y: auto;
-		}
-
-		.viewer-core {
-			flex-direction: column;
-		}
-
-		.viewer-stage {
-			flex: 0 0 auto;
-			width: 100%;
-			aspect-ratio: 1 / 1;
-			min-height: 0;
-		}
-
-		.viewer-meta {
-			padding: 24px 20px 32px;
-		}
-
-		.meta-actions button {
-			flex: 1;
-			min-width: 140px;
-		}
-
-		.close-trigger {
-			top: 14px;
-			right: 14px;
-			background: rgba(0, 0, 0, 0.45);
-			border-color: transparent;
-		}
-	}
-</style>

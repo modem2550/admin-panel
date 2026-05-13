@@ -15,11 +15,11 @@ function buildContentSecurityPolicy(isHttps) {
 	} catch {}
 	const parts = [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-		"font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+		"script-src 'self' 'unsafe-inline'",
+		"style-src 'self' 'unsafe-inline'",
+		"font-src 'self'",
 		"img-src 'self' data: https: blob:",
-		`connect-src 'self' ${supabaseHosts} https://cdn.jsdelivr.net`,
+		`connect-src 'self' ${supabaseHosts}`,
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
@@ -40,6 +40,10 @@ function validatePublicEnvOnce() {
 dns.setDefaultResultOrder("ipv4first");
 var supabaseUrl = "https://kqfnhyaktxgulhitdvqq.supabase.co";
 var supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxZm5oeWFrdHhndWxoaXRkdnFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NTIxMzQsImV4cCI6MjA4MzIyODEzNH0.pwtVfQJ2vmJCTLOYW8p8FH9M56qXBJL_rDCvfNWvvmA";
+var supabaseClient = createClient(supabaseUrl, supabaseAnonKey, { auth: {
+	persistSession: false,
+	autoRefreshToken: false
+} });
 var didValidateEnv = false;
 function applySecurityHeaders(response, isHttps) {
 	response.headers.set("Content-Security-Policy", buildContentSecurityPolicy(isHttps));
@@ -61,7 +65,7 @@ var handle = async ({ event, resolve }) => {
 		persistSession: false,
 		autoRefreshToken: false
 	} });
-	event.locals.supabase = supabase;
+	event.locals.supabase = supabaseClient;
 	const { access, refresh, names } = readSessionTokens(event.cookies, cookieSecure);
 	if (access && !refresh || !access && refresh) {
 		clearSessionCookies(event.cookies, cookieSecure);

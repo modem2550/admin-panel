@@ -26,8 +26,108 @@ async function checkExists(urlStr) {
 }
 var cache = /* @__PURE__ */ new Map();
 var CACHE_TTL = 1e3 * 60 * 15;
+async function theaterExists(id) {
+	try {
+		const perfResp = await fetch(`https://public.bnk48.io/performance/${id}`);
+		if (!perfResp.ok) return false;
+		const perf = await perfResp.json();
+		return Boolean(perf?.eventId) && perf.type === "theater";
+	} catch {
+		return false;
+	}
+}
+async function shopProductExists(id) {
+	try {
+		const resp = await fetch(`https://public.bnk48.io/shop/product/${id}`);
+		if (!resp.ok) return false;
+		return typeof (await resp.json())?.id === "number";
+	} catch {
+		return false;
+	}
+}
 var GET = async ({ url }) => {
 	const type = url.searchParams.get("type") || "product";
+	if (type === "theater") {
+		const cached = cache.get(type);
+		if (cached && cached.expires > Date.now()) return json(cached.data);
+		let low = 1;
+		let high = 5e3;
+		let lastFound = 0;
+		while (low <= high) {
+			const mid = Math.floor((low + high) / 2);
+			if (await theaterExists(mid)) {
+				lastFound = mid;
+				low = mid + 1;
+			} else high = mid - 1;
+		}
+		let probe = lastFound + 1;
+		let misses = 5;
+		while (misses > 0 && probe <= 8e3) {
+			if (await theaterExists(probe)) {
+				lastFound = probe;
+				misses = 5;
+			} else misses -= 1;
+			probe += 1;
+		}
+		const result = {
+			id: String(lastFound || 294),
+			url: ""
+		};
+		cache.set(type, {
+			data: result,
+			expires: Date.now() + CACHE_TTL
+		});
+		return json(result);
+	}
+	if (type === "product") {
+		const cached = cache.get(type);
+		if (cached && cached.expires > Date.now()) return json(cached.data);
+		console.log(`[API/Latest] Searching latest product via shop API...`);
+		const startTime = Date.now();
+		let low = 0;
+		let high = 15e3;
+		let lastFoundId = 0;
+		while (low <= high) {
+			const mid = Math.floor((low + high) / 2);
+			if (await shopProductExists(mid)) {
+				lastFoundId = mid;
+				low = mid + 1;
+			} else high = mid - 1;
+		}
+		let checkId = lastFoundId + 1;
+		let gapLimit = 3;
+		while (gapLimit > 0 && checkId <= 16e3) {
+			if (await shopProductExists(checkId)) {
+				lastFoundId = checkId;
+				gapLimit = 3;
+			} else gapLimit--;
+			checkId++;
+		}
+		if (lastFoundId > 0) {
+			let thumbUrl = "";
+			try {
+				const r = await fetch(`https://public.bnk48.io/shop/product/${lastFoundId}`);
+				if (r.ok) {
+					const p = await r.json();
+					if (typeof p.thumbnailImageUrl === "string") thumbUrl = p.thumbnailImageUrl.startsWith("https://img.bnk48cdn.net/") ? p.thumbnailImageUrl.replace("https://img.bnk48cdn.net/", "/p/img/") : p.thumbnailImageUrl;
+				}
+			} catch {}
+			console.log(`[API/Latest] Found latest product: ${lastFoundId} (Took ${Date.now() - startTime}ms)`);
+			const result = {
+				id: lastFoundId.toString(),
+				url: thumbUrl
+			};
+			cache.set(type, {
+				data: result,
+				expires: Date.now() + CACHE_TTL
+			});
+			return json(result);
+		}
+		return json({
+			id: "0",
+			url: ""
+		});
+	}
 	const cached = cache.get(type);
 	if (cached && cached.expires > Date.now()) return json(cached.data);
 	console.log(`[API/Latest] Searching latest ${type}...`);

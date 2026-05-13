@@ -21,10 +21,10 @@ export const dictionary = {
 		"/": [4],
 		"/(app)/assets": [5,[2]],
 		"/(app)/dashboard": [~6,[2]],
-		"/(app)/events": [7,[2]],
+		"/(app)/downloader": [7,[2]],
+		"/(app)/events": [8,[2]],
 		"/(auth)/login": [11,[3]],
-		"/(app)/members": [8,[2]],
-		"/(app)/playback": [~9,[2]],
+		"/(app)/members": [9,[2]],
 		"/(app)/settings": [10,[2]]
 	};
 

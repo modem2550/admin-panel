@@ -3,7 +3,74 @@ import { d as getDefaultAssetUrl } from "../../../../chunks/bnk48.js";
 import { error, json } from "@sveltejs/kit";
 //#region src/routes/api/check-assets/+server.ts
 var MAX_COUNT = 250;
-var ALLOWED_TYPES = new Set(["product", "group"]);
+var ALLOWED_TYPES = new Set([
+	"product",
+	"group",
+	"theater"
+]);
+function proxyCdnUrl(url) {
+	if (!url) return "";
+	if (url.startsWith("https://img.bnk48cdn.net/")) return url.replace("https://img.bnk48cdn.net/", "/p/img/");
+	return url;
+}
+async function fetchShopProduct(id) {
+	try {
+		const resp = await fetch(`https://public.bnk48.io/shop/product/${id}`);
+		if (!resp.ok) return null;
+		const p = await resp.json();
+		if (!p || typeof p.id !== "number") return null;
+		const thumb = proxyCdnUrl(typeof p.thumbnailImageUrl === "string" ? p.thumbnailImageUrl : "");
+		const images = (Array.isArray(p.imageFileUrlList) ? p.imageFileUrlList : []).filter((u) => typeof u === "string").map((u) => proxyCdnUrl(u)).filter(Boolean);
+		const primary = thumb || images[0] || "";
+		if (!primary) return null;
+		const imageFileUrlList = images.length > 0 ? images : [primary];
+		return {
+			id: String(p.id),
+			url: primary,
+			title: typeof p.title === "string" ? p.title : "",
+			description: typeof p.description === "string" ? p.description : "",
+			imageFileUrlList,
+			extra_skus: []
+		};
+	} catch {
+		return null;
+	}
+}
+var memberNameCache = /* @__PURE__ */ new Map();
+async function getMemberName(memberId) {
+	const cached = memberNameCache.get(memberId);
+	if (cached) return cached;
+	try {
+		const memberResp = await fetch(`https://public.bnk48.io/member/${memberId}/profile`);
+		if (!memberResp.ok) return `#${memberId}`;
+		const member = await memberResp.json();
+		const name = member.codeName || member.nickname || member.name || `#${memberId}`;
+		memberNameCache.set(memberId, name);
+		return name;
+	} catch {
+		return `#${memberId}`;
+	}
+}
+async function getTheaterAsset(id) {
+	const perfResp = await fetch(`https://public.bnk48.io/performance/${id}`);
+	if (!perfResp.ok) return null;
+	const perf = await perfResp.json();
+	if (!perf || perf.type !== "theater") return null;
+	const memberIds = Array.isArray(perf.memberIdList) ? perf.memberIdList : [];
+	const memberNames = await Promise.all(memberIds.map((memberId) => getMemberName(memberId)));
+	return {
+		id: String(perf.eventId ?? id),
+		url: (perf.imageFileUrl ?? "").replace("https://img.bnk48cdn.net/", "/p/img/"),
+		title: perf.title ?? `Theater ${id}`,
+		description: perf.description ?? "",
+		date: perf.date ?? "",
+		time: perf.time ?? "",
+		placeName: perf.placeName ?? "",
+		memberIdList: memberIds,
+		memberNames,
+		extra_skus: []
+	};
+}
 var ALLOWED_ORDERS = new Set(["asc", "desc"]);
 var GET = async ({ url }) => {
 	const startRaw = parseInt(url.searchParams.get("start") || "0");
@@ -14,9 +81,21 @@ var GET = async ({ url }) => {
 	if (!ALLOWED_ORDERS.has(order)) throw error(400, "Invalid order parameter");
 	if (isNaN(startRaw) || startRaw < 0) throw error(400, "Invalid start parameter");
 	if (isNaN(countRaw) || countRaw < 1) throw error(400, "Invalid count parameter");
-	const count = Math.min(countRaw, MAX_COUNT);
+	const count = Math.min(countRaw, type === "theater" ? 60 : MAX_COUNT);
 	const rangeStart = order === "asc" ? Math.max(1, startRaw) : Math.max(1, startRaw - count + 1);
 	const rangeEnd = order === "asc" ? rangeStart + count - 1 : Math.max(1, startRaw);
+	if (type === "theater") {
+		const ids = [];
+		if (order === "asc") for (let id = rangeStart; id <= rangeEnd; id++) ids.push(id);
+		else for (let id = rangeEnd; id >= rangeStart; id--) ids.push(id);
+		return json((await Promise.all(ids.map((id) => getTheaterAsset(id)))).filter((item) => item !== null), { headers: { "Cache-Control": "public, max-age=60" } });
+	}
+	if (type === "product") {
+		const ids = [];
+		if (order === "asc") for (let id = rangeStart; id <= rangeEnd; id++) ids.push(id);
+		else for (let id = rangeEnd; id >= rangeStart; id--) ids.push(id);
+		return json((await Promise.all(ids.map((id) => fetchShopProduct(id)))).filter((item) => item !== null), { headers: { "Cache-Control": "public, max-age=60" } });
+	}
 	try {
 		const { data: rows, error: dbErr } = await supabaseAdmin.from("cdn_assets").select("id, url, skus, extra_urls").eq("type", type).gte("id", rangeStart).lte("id", rangeEnd).order("id", { ascending: order === "asc" }).limit(count);
 		if (!dbErr && rows && rows.length > 0) return json(rows.map((row) => {

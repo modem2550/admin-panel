@@ -134,33 +134,43 @@
 </script>
 
 <div class="page-shell">
-	<header class="page-header page-header--split">
-		<div class="header-left">
-			<span class="mono-label">Mission Ledger</span>
-			<h1 class="hero-display">Event Operations</h1>
+	<div class="co-page-hero">
+		<div class="co-page-hero__main">
+			<span class="mono-label">Mission ledger</span>
+			<h1 class="hero-display">Event operations</h1>
 			<p class="body-large">
 				Technical indexing of public appearances, broadcast schedules,
 				and group-wide activities.
 			</p>
 		</div>
-		<div class="technical-filter-bar">
+		<div class="co-page-hero__actions">
+			<button type="button" class="button-primary" onclick={openAddModal}>
+				Create event <i class="fa-solid fa-plus ms-2"></i>
+			</button>
+		</div>
+	</div>
+
+	<div class="technical-filter-bar">
 		<div class="filter-pills">
 			<button
-				class="button-pill-outline"
+				type="button"
+				class="button-pill-outline taxonomy-chip"
 				onclick={() => (filterMode = "all")}
 				class:active={filterMode === "all"}
 			>
-				Global Ledger
+				Global ledger
 			</button>
 			<button
-				class="button-pill-outline"
+				type="button"
+				class="button-pill-outline taxonomy-chip"
 				onclick={() => (filterMode = "upcoming")}
 				class:active={filterMode === "upcoming"}
 			>
 				Upcoming
 			</button>
 			<button
-				class="button-pill-outline"
+				type="button"
+				class="button-pill-outline taxonomy-chip"
 				onclick={() => (filterMode = "past")}
 				class:active={filterMode === "past"}
 			>
@@ -169,54 +179,46 @@
 		</div>
 
 		<div class="search-box">
+			<i class="fa-solid fa-magnifying-glass opacity-50" aria-hidden="true"></i>
 			<input
-				type="text"
+				type="search"
 				placeholder="Search operations..."
 				bind:value={searchQuery}
 			/>
 		</div>
-
-		<button class="button-pill-outline" onclick={openAddModal}>
-			Create Record
-		</button>
 	</div>
-	</header>
 
 	{#if filteredEvents.length === 0}
 		<div class="status-stream">
 			<div class="status-node">
 				<i class="fa-solid fa-calendar-xmark me-2 opacity-50"></i>
-				<span class="mono-label">NO_RECORDS_MATCH_QUERY</span>
+				<span class="mono-label">No records match query</span>
 			</div>
 		</div>
 	{:else}
-		<div class="row row-cols-1 row-cols-lg-2 g-4 editorial-grid">
+		<ul class="research-stack">
 			{#each filteredEvents as event (event.id)}
-				<div class="col d-flex justify-content-center">
-					<div class="node-media">
+				<li class="research-row">
+					<div class="research-row__thumb">
 						{#if event.image_url}
 							<img src={proxyUrl(event.image_url)} alt="" loading="lazy" />
 						{:else}
-							<div class="media-placeholder">
+							<div class="research-thumb-placeholder">
 								<i class="fa-solid fa-cube"></i>
 							</div>
 						{/if}
-						<div
-							class="node-status {new Date(event.date) >=
-							new Date(today)
-								? 'upcoming'
-								: 'archived'}"
+						<span
+							class="research-row__chip {new Date(event.date) >= new Date(today)
+								? 'research-row__chip--live'
+								: 'research-row__chip--muted'}"
 						>
-							{new Date(event.date) >= new Date(today)
-								? "UPCOMING"
-								: "PAST"}
-						</div>
+							{new Date(event.date) >= new Date(today) ? "Live" : "Archive"}
+						</span>
 					</div>
-
-					<div class="mx-3 node-details">
-						<div class="node-meta">
-							<span class="mono-label">
-								DATE: {new Date(event.date)
+					<div class="research-row__body">
+						<div class="research-row__meta">
+							<span>
+								{new Date(event.date)
 									.toLocaleDateString("en-US", {
 										year: "numeric",
 										month: "2-digit",
@@ -225,48 +227,44 @@
 									.replace(/\//g, ".")}
 							</span>
 							{#if event.location}
-								<span class="separator">/</span>
-								<span class="mono-label"
-									>LOC: {event.location.toUpperCase()}</span
-								>
+								<span class="sep">/</span>
+								<span>{event.location}</span>
 							{/if}
 						</div>
-						<h3 class="node-title">{event.title}</h3>
-
-						<div class="node-ops">
-							<div class="ops-left">
+						<h3 class="research-row__title">{event.title}</h3>
+					</div>
+					<div class="research-row__aside">
+						<div class="research-row__ops">
+							<button
+								type="button"
+								class="action-icon-btn"
+								onclick={() => openEditModal(event)}
+								aria-label="Edit record"
+							>
+								<i class="fa-solid fa-pen-to-square"></i>
+							</button>
+							<button
+								type="button"
+								class="action-icon-btn danger"
+								onclick={() => deleteEvent(event.id)}
+								aria-label="Delete record"
+							>
+								<i class="fa-solid fa-trash"></i>
+							</button>
+							{#if event.link}
 								<button
-									class="action-icon-btn"
-									onclick={() => openEditModal(event)}
-									aria-label="Edit record"
+									type="button"
+									onclick={() => window.open(proxyUrl(event.link), "_blank")}
+									class="button-pill-outline btn-small"
 								>
-									<i class="fa-solid fa-pen-to-square"></i>
+									URI <i class="fa-solid fa-arrow-up-right-from-square ms-2"></i>
 								</button>
-								<button
-									class="action-icon-btn danger"
-									onclick={() => deleteEvent(event.id)}
-									aria-label="Delete record"
-								>
-									<i class="fa-solid fa-trash"></i>
-								</button>
-							</div>
-							<div class="ops-right">
-								{#if event.link}
-									<button
-										onclick={() => window.open(proxyUrl(event.link), '_blank')}
-										class="button-pill-outline btn-small"
-									>
-										Access URI <i
-											class="fa-solid fa-arrow-up-right-from-square ms-2"
-										></i>
-									</button>
-								{/if}
-							</div>
+							{/if}
 						</div>
 					</div>
-				</div>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{/if}
 </div>
 
@@ -391,232 +389,16 @@
 				<footer class="form-footer">
 					<button
 						type="button"
-						class="button-pill-outline"
+						class="button-secondary"
 						onclick={() => (showModal = false)}
 					>
 						Discard
 					</button>
 					<button type="submit" class="button-primary">
-						{editingEvent
-							? "Commit Changes"
-							: "Initialize Operation"}
+						{editingEvent ? "Save changes" : "Create event"}
 					</button>
 				</footer>
 			</form>
 		</div>
 	</div>
 {/if}
-
-<style>
-	.action-icon-btn {
-		border-radius: 50%;
-		aspect-ratio: 1/1;
-		background-color: transparent;
-		width: 38px;
-		border: 1px solid var(--co-hairline);
-	}
-
-	.action-icon-btn:hover {
-		background-color: var(--co-ink);
-		color: var(--co-white);
-		cursor: pointer;
-	}
-
-	.action-icon-btn.danger {
-		color: var(--bs-danger);
-		border: 1px solid var(--bs-danger);
-	}
-
-	.action-icon-btn.danger:hover {
-		background-color: var(--bs-danger);
-		color: var(--co-white);
-	}
-
-	.node-media {
-		height: 150px;
-		width: 150px;
-		min-height: 150px;
-		min-width: 150px;
-		aspect-ratio: 1/1;
-		border-radius: var(--radius-md);
-		overflow: hidden;
-		position: relative;
-		background: var(--co-stone);
-		border: 1px solid var(--co-hairline);
-	}
-
-	.node-media img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-	}
-
-	.media-placeholder {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 48px;
-		color: var(--co-hairline);
-	}
-
-	.node-status {
-		position: absolute;
-		top: 12px;
-		right: 12px;
-		padding: 4px 10px;
-		border-radius: var(--radius-pill);
-		font-family: var(--font-mono);
-		font-size: 9px;
-		font-weight: 700;
-		letter-spacing: 0.05em;
-	}
-
-	.node-status.upcoming {
-		background: var(--co-coral);
-		color: var(--co-white);
-	}
-
-	.node-status.archived {
-		background: var(--co-slate-muted);
-		color: var(--co-white);
-	}
-
-	.node-details {
-		flex: 1;
-	}
-
-	.node-meta {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		color: var(--co-slate-muted);
-	}
-
-	.node-meta .separator {
-		opacity: 0.3;
-	}
-
-	.node-title {
-		font-size: 28px;
-		line-height: 1.2;
-		margin: 0;
-	}
-
-	.node-ops {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-top: 16px;
-		padding-top: 24px;
-		border-top: 1px solid var(--co-hairline);
-	}
-
-	.ops-left,
-	.ops-right {
-		display: flex;
-		gap: 12px;
-	}
-
-	.btn-small {
-		padding: 6px 16px;
-		font-size: 12px;
-	}
-
-	/* Record Form Card (Consistent with Members) */
-	.record-form-card {
-		width: 100%;
-		max-width: 600px;
-		background: var(--co-white);
-		border-radius: var(--radius-lg);
-		box-shadow: 0 40px 100px rgba(0, 0, 0, 0.2);
-		overflow: hidden;
-		animation: slide-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-	}
-
-	.form-header {
-		padding: 32px 40px;
-		border-bottom: 1px solid var(--co-hairline);
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		background: var(--co-stone);
-	}
-
-	.form-core {
-		padding: 40px;
-		display: flex;
-		flex-direction: column;
-		gap: 32px;
-	}
-
-	.form-section {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.form-row {
-		display: flex;
-		gap: 24px;
-	}
-
-	.input-field {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-
-	.input-field input {
-		padding: 14px 20px;
-		border-radius: var(--radius-sm);
-		border: 1px solid var(--co-hairline);
-		background: var(--co-stone);
-		font-family: var(--font-body);
-		font-size: 15px;
-		outline: none;
-		transition: border-color 0.2s;
-	}
-
-	.input-field input:focus {
-		border-color: var(--co-blue);
-	}
-
-	.with-preview {
-		flex-direction: row;
-		align-items: center;
-		gap: 16px;
-	}
-
-	.field-preview {
-		width: 48px;
-		height: 48px;
-		border-radius: var(--radius-xs);
-		object-fit: cover;
-		border: 1px solid var(--co-hairline);
-	}
-
-	.form-footer {
-		padding-top: 24px;
-		border-top: 1px solid var(--co-hairline);
-		display: flex;
-		justify-content: flex-end;
-		gap: 16px;
-	}
-
-	@media (max-width: 900px) {
-	}
-
-	@media (max-width: 768px) {
-		.editorial-grid {
-			gap: 24px;
-		}
-		.form-row {
-			flex-direction: column;
-			gap: 32px;
-		}
-	}
-</style>

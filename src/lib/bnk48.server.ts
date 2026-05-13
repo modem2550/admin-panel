@@ -17,7 +17,7 @@ function isTokenExpired(): boolean {
 	return Date.now() >= tokenExpiresAt - TOKEN_BUFFER_MS;
 }
 
-async function getToken(): Promise<string> {
+export async function getToken(): Promise<string> {
 	// ✅ ตรวจ expiry ด้วย ไม่ใช่แค่ null check
 	if (cachedToken && !isTokenExpired()) return cachedToken;
 	if (authPromise) return authPromise;

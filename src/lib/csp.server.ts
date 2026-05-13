@@ -14,11 +14,11 @@ export function buildContentSecurityPolicy(isHttps: boolean): string {
 
 	const parts = [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-		"font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+		"script-src 'self' 'unsafe-inline'",
+		"style-src 'self' 'unsafe-inline'",
+		"font-src 'self'",
 		"img-src 'self' data: https: blob:",
-		`connect-src 'self' ${supabaseHosts} https://cdn.jsdelivr.net`,
+		`connect-src 'self' ${supabaseHosts}`,
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",

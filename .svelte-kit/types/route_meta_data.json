@@ -26,6 +26,9 @@
 	"/api/check-assets/latest": [
 		"src/routes/api/check-assets/latest/+server.ts"
 	],
+	"/api/download/mp4": [
+		"src/routes/api/download/mp4/+server.ts"
+	],
 	"/api/image/[...path]": [
 		"src/routes/api/image/[...path]/+server.ts"
 	],
@@ -39,6 +42,11 @@
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
 	],
+	"/(app)/downloader": [
+		"src/routes/(app)/downloader/+page.server.ts",
+		"src/routes/(app)/+layout.ts",
+		"src/routes/(app)/+layout.server.ts"
+	],
 	"/(app)/events": [
 		"src/routes/(app)/events/+page.ts",
 		"src/routes/(app)/+layout.ts",
@@ -47,11 +55,6 @@
 	"/(auth)/login": [],
 	"/(app)/members": [
 		"src/routes/(app)/members/+page.ts",
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
-	],
-	"/(app)/playback": [
-		"src/routes/(app)/playback/+page.server.ts",
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
 	],

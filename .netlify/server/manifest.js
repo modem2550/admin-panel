@@ -10,7 +10,7 @@ return {
 	assets: new Set([".assetsignore","favicon.ico","favicon.svg"]),
 	mimeTypes: {".svg":"image/svg+xml"},
 	_: {
-		client: {start:"_app/immutable/entry/start.DroZVURx.js",app:"_app/immutable/entry/app.C6dh_5cS.js",imports:["_app/immutable/entry/start.DroZVURx.js","_app/immutable/chunks/DK2kPfN2.js","_app/immutable/chunks/ClagBzh-.js","_app/immutable/chunks/Bta9-t93.js","_app/immutable/entry/app.C6dh_5cS.js","_app/immutable/chunks/ClagBzh-.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.CL2P13ZJ.js",app:"_app/immutable/entry/app.KnJ0xldV.js",imports:["_app/immutable/entry/start.CL2P13ZJ.js","_app/immutable/chunks/Ds0zw2yl.js","_app/immutable/chunks/BN6mn_f7.js","_app/immutable/chunks/DBZPenr5.js","_app/immutable/entry/app.KnJ0xldV.js","_app/immutable/chunks/BN6mn_f7.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),
@@ -86,6 +86,20 @@ return {
 				endpoint: __memo(() => import('./entries/endpoints/api/check-assets/latest/_server.ts.js'))
 			},
 			{
+				id: "/api/download/mp4",
+				pattern: /^\/api\/download\/mp4\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/download/mp4/_server.ts.js'))
+			},
+			{
+				id: "/api/image/[...path]",
+				pattern: /^\/api\/image(?:\/([^]*))?\/?$/,
+				params: [{"name":"path","optional":false,"rest":true,"chained":true}],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/image/_...path_/_server.ts.js'))
+			},
+			{
 				id: "/(app)/assets",
 				pattern: /^\/assets\/?$/,
 				params: [],
@@ -100,10 +114,17 @@ return {
 				endpoint: null
 			},
 			{
+				id: "/(app)/downloader",
+				pattern: /^\/downloader\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 7 },
+				endpoint: null
+			},
+			{
 				id: "/(app)/events",
 				pattern: /^\/events\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 7 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 8 },
 				endpoint: null
 			},
 			{
@@ -116,13 +137,6 @@ return {
 			{
 				id: "/(app)/members",
 				pattern: /^\/members\/?$/,
-				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 8 },
-				endpoint: null
-			},
-			{
-				id: "/(app)/playback",
-				pattern: /^\/playback\/?$/,
 				params: [],
 				page: { layouts: [0,2,], errors: [1,,], leaf: 9 },
 				endpoint: null

@@ -11,15 +11,15 @@
 </script>
 
 <div class="page-shell">
-	<header class="page-header">
-		<div class="header-left">
-			<span class="mono-label">Environment Config</span>
-			<h1 class="hero-display">System Parameters</h1>
+	<div class="co-page-hero">
+		<div class="co-page-hero__main">
+			<span class="mono-label">Environment config</span>
+			<h1 class="hero-display">System parameters</h1>
 			<p class="body-large">
 				Configuration of administrative credentials, security protocols, and platform environment variables.
 			</p>
 		</div>
-	</header>
+	</div>
 
 	<div class="config-surface">
 		{#if user}
@@ -95,82 +95,3 @@
 		{/if}
 	</div>
 </div>
-
-<style>
-	.config-surface {
-		display: flex;
-		flex-direction: column;
-		gap: clamp(2rem, 4vw, 3rem);
-		margin-bottom: clamp(3rem, 8vw, 5rem);
-	}
-
-	.config-section {
-		gap: 1.5rem;
-	}
-
-	.config-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-		gap: 32px;
-	}
-
-	.config-item {
-		background: var(--co-stone);
-		padding: 32px;
-		border-radius: var(--radius-lg);
-		border: 1px solid var(--co-hairline);
-		display: flex;
-		flex-direction: column;
-		gap: 24px;
-		transition: all 0.3s;
-	}
-
-	.config-item:hover {
-		border-color: color-mix(in srgb, var(--co-blue) 45%, var(--co-hairline));
-		box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
-	}
-
-	:global(.dark) .config-item:hover {
-		box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-	}
-
-	.item-meta {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	.technical-value {
-		font-family: var(--font-display);
-		font-size: 20px;
-		font-weight: 500;
-		color: var(--co-ink);
-	}
-
-	.mono-text {
-		font-family: var(--font-mono);
-		font-size: 13px;
-		word-break: break-all;
-		color: var(--co-slate-muted);
-	}
-
-	.status-indicator {
-		font-family: var(--font-mono);
-		font-size: 10px;
-		font-weight: 700;
-		padding: 4px 10px;
-		border-radius: 4px;
-	}
-
-	.status-indicator.active {
-		background: #e6f6f0;
-		color: #008a5d;
-	}
-
-	@media (max-width: 768px) {
-		.co-section-head {
-			flex-direction: column;
-			align-items: flex-start;
-		}
-	}
-</style>
