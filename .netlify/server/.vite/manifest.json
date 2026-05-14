@@ -252,6 +252,9 @@
       "_client.js",
       "_dev.js",
       "_toasts.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.BaycQm9O.css"
     ]
   },
   "src/routes/(app)/events/+page.svelte": {
@@ -334,6 +337,9 @@
     "isEntry": true,
     "imports": [
       "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_layout.CEHW73tF.css"
     ]
   },
   "src/routes/+page.svelte": {

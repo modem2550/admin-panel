@@ -26,35 +26,30 @@ function _page($$renderer, $$props) {
 			$$renderer.push(`<div class="status-stream"><div class="status-node"><i class="fa-solid fa-calendar-xmark me-2 opacity-50"></i> <span class="mono-label">No records match query</span></div></div>`);
 		} else {
 			$$renderer.push("<!--[-1-->");
-			$$renderer.push(`<ul class="research-stack"><!--[-->`);
+			$$renderer.push(`<div class="data-table-wrap data-table-wrap--scroll"><table class="data-table data-table--zebra data-table--sticky"><thead><tr><th scope="col" class="data-table__thumb">Visual</th><th scope="col">State</th><th scope="col">Date</th><th scope="col">Location</th><th scope="col">Operation</th><th scope="col" class="data-table__actions">Actions</th></tr></thead><tbody><!--[-->`);
 			const each_array = ensure_array_like(filteredEvents());
 			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
 				let event = each_array[$$index];
-				$$renderer.push(`<li class="research-row"><div class="research-row__thumb">`);
+				$$renderer.push(`<tr><td class="data-table__thumb">`);
 				if (event.image_url) {
 					$$renderer.push("<!--[0-->");
 					$$renderer.push(`<img${attr("src", proxyUrl(event.image_url))} alt="" loading="lazy"/>`);
 				} else {
 					$$renderer.push("<!--[-1-->");
-					$$renderer.push(`<div class="research-thumb-placeholder"><i class="fa-solid fa-cube"></i></div>`);
+					$$renderer.push(`<div class="data-table__thumb-placeholder" aria-hidden="true"><i class="fa-solid fa-cube"></i></div>`);
 				}
-				$$renderer.push(`<!--]--> <span${attr_class(`research-row__chip ${stringify(new Date(event.date) >= new Date(today) ? "research-row__chip--live" : "research-row__chip--muted")}`)}>${escape_html(new Date(event.date) >= new Date(today) ? "Live" : "Archive")}</span></div> <div class="research-row__body"><div class="research-row__meta"><span>${escape_html(new Date(event.date).toLocaleDateString("en-US", {
+				$$renderer.push(`<!--]--></td><td><span${attr_class(`data-table__chip ${stringify(new Date(event.date) >= new Date(today) ? "data-table__chip--live" : "data-table__chip--muted")}`)}>${escape_html(new Date(event.date) >= new Date(today) ? "Live" : "Archive")}</span></td><td class="data-table__meta">${escape_html(new Date(event.date).toLocaleDateString("en-US", {
 					year: "numeric",
 					month: "2-digit",
 					day: "2-digit"
-				}).replace(/\//g, "."))}</span> `);
-				if (event.location) {
-					$$renderer.push("<!--[0-->");
-					$$renderer.push(`<span class="sep">/</span> <span>${escape_html(event.location)}</span>`);
-				} else $$renderer.push("<!--[-1-->");
-				$$renderer.push(`<!--]--></div> <h3 class="research-row__title">${escape_html(event.title)}</h3></div> <div class="research-row__aside"><div class="research-row__ops"><button type="button" class="action-icon-btn" aria-label="Edit record"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" class="action-icon-btn danger" aria-label="Delete record"><i class="fa-solid fa-trash"></i></button> `);
+				}).replace(/\//g, "."))}</td><td class="data-table__meta">${escape_html(event.location ?? "—")}</td><td><h3 class="data-table__title">${escape_html(event.title)}</h3></td><td class="data-table__actions"><div class="data-table__ops"><button type="button" class="action-icon-btn" aria-label="Edit record"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" class="action-icon-btn danger" aria-label="Delete record"><i class="fa-solid fa-trash"></i></button> `);
 				if (event.link) {
 					$$renderer.push("<!--[0-->");
 					$$renderer.push(`<button type="button" class="button-pill-outline btn-small">URI <i class="fa-solid fa-arrow-up-right-from-square ms-2"></i></button>`);
 				} else $$renderer.push("<!--[-1-->");
-				$$renderer.push(`<!--]--></div></div></li>`);
+				$$renderer.push(`<!--]--></div></td></tr>`);
 			}
-			$$renderer.push(`<!--]--></ul>`);
+			$$renderer.push(`<!--]--></tbody></table></div>`);
 		}
 		$$renderer.push(`<!--]--></div> `);
 		$$renderer.push("<!--[-1-->");

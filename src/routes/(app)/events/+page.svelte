@@ -147,6 +147,17 @@
 			<button type="button" class="button-primary" onclick={openAddModal}>
 				Create event <i class="fa-solid fa-plus ms-2"></i>
 			</button>
+			<div class="search-box">
+				<i
+					class="fa-solid fa-magnifying-glass opacity-50"
+					aria-hidden="true"
+				></i>
+				<input
+					type="search"
+					placeholder="Search operations..."
+					bind:value={searchQuery}
+				/>
+			</div>
 		</div>
 	</div>
 
@@ -177,15 +188,6 @@
 				Archives
 			</button>
 		</div>
-
-		<div class="search-box">
-			<i class="fa-solid fa-magnifying-glass opacity-50" aria-hidden="true"></i>
-			<input
-				type="search"
-				placeholder="Search operations..."
-				bind:value={searchQuery}
-			/>
-		</div>
 	</div>
 
 	{#if filteredEvents.length === 0}
@@ -196,28 +198,51 @@
 			</div>
 		</div>
 	{:else}
-		<ul class="research-stack">
-			{#each filteredEvents as event (event.id)}
-				<li class="research-row">
-					<div class="research-row__thumb">
-						{#if event.image_url}
-							<img src={proxyUrl(event.image_url)} alt="" loading="lazy" />
-						{:else}
-							<div class="research-thumb-placeholder">
-								<i class="fa-solid fa-cube"></i>
-							</div>
-						{/if}
-						<span
-							class="research-row__chip {new Date(event.date) >= new Date(today)
-								? 'research-row__chip--live'
-								: 'research-row__chip--muted'}"
-						>
-							{new Date(event.date) >= new Date(today) ? "Live" : "Archive"}
-						</span>
-					</div>
-					<div class="research-row__body">
-						<div class="research-row__meta">
-							<span>
+		<div class="data-table-wrap data-table-wrap--scroll">
+			<table class="data-table data-table--zebra data-table--sticky">
+				<thead>
+					<tr>
+						<th scope="col" class="data-table__thumb">Visual</th>
+						<th scope="col">State</th>
+						<th scope="col">Date</th>
+						<th scope="col">Location</th>
+						<th scope="col">Operation</th>
+						<th scope="col" class="data-table__actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each filteredEvents as event (event.id)}
+						<tr>
+							<td class="data-table__thumb">
+								{#if event.image_url}
+									<img
+										src={proxyUrl(event.image_url)}
+										alt=""
+										loading="lazy"
+									/>
+								{:else}
+									<div
+										class="data-table__thumb-placeholder"
+										aria-hidden="true"
+									>
+										<i class="fa-solid fa-cube"></i>
+									</div>
+								{/if}
+							</td>
+							<td>
+								<span
+									class="data-table__chip {new Date(
+										event.date,
+									) >= new Date(today)
+										? 'data-table__chip--live'
+										: 'data-table__chip--muted'}"
+								>
+									{new Date(event.date) >= new Date(today)
+										? "Live"
+										: "Archive"}
+								</span>
+							</td>
+							<td class="data-table__meta">
 								{new Date(event.date)
 									.toLocaleDateString("en-US", {
 										year: "numeric",
@@ -225,53 +250,61 @@
 										day: "2-digit",
 									})
 									.replace(/\//g, ".")}
-							</span>
-							{#if event.location}
-								<span class="sep">/</span>
-								<span>{event.location}</span>
-							{/if}
-						</div>
-						<h3 class="research-row__title">{event.title}</h3>
-					</div>
-					<div class="research-row__aside">
-						<div class="research-row__ops">
-							<button
-								type="button"
-								class="action-icon-btn"
-								onclick={() => openEditModal(event)}
-								aria-label="Edit record"
+							</td>
+							<td class="data-table__meta"
+								>{event.location ?? "—"}</td
 							>
-								<i class="fa-solid fa-pen-to-square"></i>
-							</button>
-							<button
-								type="button"
-								class="action-icon-btn danger"
-								onclick={() => deleteEvent(event.id)}
-								aria-label="Delete record"
-							>
-								<i class="fa-solid fa-trash"></i>
-							</button>
-							{#if event.link}
-								<button
-									type="button"
-									onclick={() => window.open(proxyUrl(event.link), "_blank")}
-									class="button-pill-outline btn-small"
-								>
-									URI <i class="fa-solid fa-arrow-up-right-from-square ms-2"></i>
-								</button>
-							{/if}
-						</div>
-					</div>
-				</li>
-			{/each}
-		</ul>
+							<td>
+								<h3 class="data-table__title">{event.title}</h3>
+							</td>
+							<td class="data-table__actions">
+								<div class="data-table__ops">
+									<button
+										type="button"
+										class="action-icon-btn"
+										onclick={() => openEditModal(event)}
+										aria-label="Edit record"
+									>
+										<i class="fa-solid fa-pen-to-square"
+										></i>
+									</button>
+									<button
+										type="button"
+										class="action-icon-btn danger"
+										onclick={() => deleteEvent(event.id)}
+										aria-label="Delete record"
+									>
+										<i class="fa-solid fa-trash"></i>
+									</button>
+									{#if event.link}
+										<button
+											type="button"
+											onclick={() =>
+												window.open(
+													proxyUrl(event.link),
+													"_blank",
+												)}
+											class="button-pill-outline btn-small"
+										>
+											URI <i
+												class="fa-solid fa-arrow-up-right-from-square ms-2"
+											></i>
+										</button>
+									{/if}
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 	{/if}
 </div>
 
 {#if showModal}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
-		class="modal-overlay"
+		class="gallery-overlay"
 		onclick={() => (showModal = false)}
 		role="presentation"
 	>
@@ -346,20 +379,32 @@
 					</div>
 				</div>
 
-				<div class="form-section">
-					<span class="mono-label">RECORDS_IDENTIFIER_URI</span>
-					<div class="input-field">
-						<input
-							type="url"
-							bind:value={formData.link}
-							placeholder="Source documentation"
-						/>
+				<div class="form-row">
+					<div>
+						<span class="mono-label">RECORDS_IDENTIFIER_URI</span>
+						<div class="input-field">
+							<input
+								type="url"
+								bind:value={formData.link}
+								placeholder="Source documentation"
+							/>
+						</div>
+					</div>
+					<div>
+						<span class="mono-label">BROADCAST_ENDPOINT</span>
+						<div class="input-field">
+							<input
+								type="url"
+								bind:value={formData.live}
+								placeholder="Live stream link"
+							/>
+						</div>
 					</div>
 				</div>
 
 				<div class="form-section">
 					<span class="mono-label">VISUAL_INDEX_ASSET</span>
-					<div class="input-field with-preview">
+					<div class="input-field with-preview form-row">
 						<input
 							type="url"
 							bind:value={formData.image_url}
@@ -372,17 +417,6 @@
 								class="field-preview"
 							/>
 						{/if}
-					</div>
-				</div>
-
-				<div class="form-section">
-					<span class="mono-label">BROADCAST_ENDPOINT</span>
-					<div class="input-field">
-						<input
-							type="url"
-							bind:value={formData.live}
-							placeholder="Live stream link"
-						/>
 					</div>
 				</div>
 

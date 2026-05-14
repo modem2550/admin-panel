@@ -66,21 +66,29 @@ function _page($$renderer, $$props) {
 				$$renderer.push(`Graduated`);
 			});
 		});
-		$$renderer.push(`</div></div></div> <ul class="research-stack"><!--[-->`);
-		const each_array_2 = ensure_array_like(filteredMembers());
-		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
-			let member = each_array_2[$$index_2];
-			$$renderer.push(`<li class="research-row"><div class="research-row__thumb">`);
-			if (member.profile_image_url) {
-				$$renderer.push("<!--[0-->");
-				$$renderer.push(`<img${attr("src", proxyUrl(member.profile_image_url))}${attr("alt", member.name)} loading="lazy"/>`);
-			} else {
-				$$renderer.push("<!--[-1-->");
-				$$renderer.push(`<div class="research-thumb-placeholder">${escape_html(member.name?.charAt(0) ?? "—")}</div>`);
+		$$renderer.push(`</div></div></div> `);
+		if (filteredMembers().length === 0) {
+			$$renderer.push("<!--[0-->");
+			$$renderer.push(`<div class="status-stream"><div class="status-node"><i class="fa-solid fa-users-slash me-2 opacity-50" aria-hidden="true"></i> <span class="mono-label">No entries match filters</span></div></div>`);
+		} else {
+			$$renderer.push("<!--[-1-->");
+			$$renderer.push(`<div class="data-table-wrap data-table-wrap--scroll"><table class="data-table data-table--zebra data-table--sticky"><thead><tr><th scope="col" class="data-table__thumb">Visual</th><th scope="col">State</th><th scope="col">Unit</th><th scope="col">Identity</th><th scope="col" class="data-table__actions">Actions</th></tr></thead><tbody><!--[-->`);
+			const each_array_2 = ensure_array_like(filteredMembers());
+			for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+				let member = each_array_2[$$index_2];
+				$$renderer.push(`<tr><td class="data-table__thumb">`);
+				if (member.profile_image_url) {
+					$$renderer.push("<!--[0-->");
+					$$renderer.push(`<img${attr("src", proxyUrl(member.profile_image_url))}${attr("alt", member.name)} loading="lazy"/>`);
+				} else {
+					$$renderer.push("<!--[-1-->");
+					$$renderer.push(`<div class="data-table__thumb-placeholder">${escape_html(member.name?.charAt(0) ?? "—")}</div>`);
+				}
+				$$renderer.push(`<!--]--></td><td><span${attr_class(`data-table__chip ${stringify(member.graduated_at ? "data-table__chip--muted" : "data-table__chip--live")}`)}>${escape_html(member.graduated_at ? "Alumni" : "Active")}</span></td><td class="data-table__meta"><span>${escape_html(member.brand)}</span> <span class="sep">/</span> <span>${escape_html(member.gen)}</span> <span class="sep">/</span> <span>${escape_html(member.team)}</span></td><td><h3 class="data-table__title">${escape_html(member.name)}</h3></td><td class="data-table__actions"><div class="data-table__ops"><button type="button" class="action-icon-btn" aria-label="Edit entry"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" class="action-icon-btn danger" aria-label="Delete entry"><i class="fa-solid fa-trash"></i></button></div></td></tr>`);
 			}
-			$$renderer.push(`<!--]--> <span${attr_class(`research-row__chip ${stringify(member.graduated_at ? "research-row__chip--muted" : "research-row__chip--live")}`)}>${escape_html(member.graduated_at ? "Alumni" : "Active")}</span></div> <div class="research-row__body"><div class="research-row__meta"><span>${escape_html(member.brand)}</span> <span class="sep">/</span> <span>${escape_html(member.gen)}</span> <span class="sep">/</span> <span>${escape_html(member.team)}</span></div> <h3 class="research-row__title">${escape_html(member.name)}</h3></div> <div class="research-row__aside"><div class="research-row__ops"><button type="button" class="action-icon-btn" aria-label="Edit entry"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" class="action-icon-btn danger" aria-label="Delete entry"><i class="fa-solid fa-trash"></i></button></div></div></li>`);
+			$$renderer.push(`<!--]--></tbody></table></div>`);
 		}
-		$$renderer.push(`<!--]--></ul></div> `);
+		$$renderer.push(`<!--]--></div> `);
 		$$renderer.push("<!--[-1-->");
 		$$renderer.push(`<!--]-->`);
 	});

@@ -353,6 +353,9 @@
 
 	// ── Modal / Carousel state ────────────────────────────────────────────────
 	let selectedAsset = $state<Asset | null>(null);
+	let galleryOverlayEl = $state<HTMLDivElement | null>(null);
+	let galleryCloseBtn = $state<HTMLButtonElement | null>(null);
+	let lastFocusBeforeGallery: HTMLElement | null = null;
 	let modalSkus = $state<string[]>([]);
 	let modalLoadingSkus = $state(false);
 	let modalMainUrl = $state("");
@@ -466,130 +469,180 @@
 		scrollCarouselToIndex(next, "smooth");
 	}
 
+	function focusablesIn(root: HTMLElement): HTMLElement[] {
+		const sel =
+			'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+		return Array.from(root.querySelectorAll<HTMLElement>(sel)).filter(
+			(el) =>
+				!el.hasAttribute("disabled") &&
+				!(el as HTMLButtonElement).disabled &&
+				el.tabIndex !== -1 &&
+				!el.hidden &&
+				el.getAttribute("aria-hidden") !== "true",
+		);
+	}
+
+	function trapGalleryTab(e: KeyboardEvent) {
+		if (!galleryOverlayEl || e.key !== "Tab") return;
+		const nodes = focusablesIn(galleryOverlayEl);
+		if (nodes.length === 0) return;
+		const first = nodes[0]!;
+		const last = nodes[nodes.length - 1]!;
+		const cur = document.activeElement as HTMLElement | null;
+		const inList = cur && nodes.includes(cur);
+		if (e.shiftKey) {
+			if (!inList || cur === first) {
+				e.preventDefault();
+				last.focus();
+			}
+		} else {
+			if (!inList || cur === last) {
+				e.preventDefault();
+				first.focus();
+			}
+		}
+	}
+
 	async function openGallery(asset: Asset) {
+		if (!selectedAsset) {
+			lastFocusBeforeGallery =
+				document.activeElement instanceof HTMLElement
+					? document.activeElement
+					: null;
+		}
 		selectedAsset = asset;
 		carouselIdx = 0;
 		discoveredUrls = [];
 		preloadedSlideUrls = new Set();
 
-		if (
-			assetType === "product" &&
-			asset.imageFileUrlList &&
-			asset.imageFileUrlList.length > 0
-		) {
-			modalMainUrl = asset.imageFileUrlList[0];
-			modalSkus = [];
-			modalSwingIdx = 0;
-			modalLoadingSkus = false;
-			await syncCarouselScrollPosition();
-			return;
-		}
-
-		const c =
-			assetType === "product" ? productThumbCandidates(asset.id) : null;
-		const resolved = resolvedThumbByProductId.get(asset.id);
-
-		if (assetType === "product" && resolved) {
-			modalMainUrl = resolved;
-			modalSwingIdx = c ? findCandidateIndex(c, resolved) : 0;
-		} else if (assetType === "product" && c) {
-			modalSwingIdx = 0;
-			modalMainUrl = c[0] ?? asset.url;
-		} else {
-			modalSwingIdx = 0;
-			modalMainUrl = asset.url;
-		}
-
-		modalSkus = [];
-		if (assetType !== "product") {
-			await syncCarouselScrollPosition();
-			return;
-		}
-
-		modalLoadingSkus = true;
 		try {
-			if (skuCache.has(asset.id)) {
-				modalSkus = compactSkuUrls(skuCache.get(asset.id)!);
-			} else {
-				const baseUrl = modalPrimaryUrl(asset) || asset.url;
-
-				const resp = await fetch(
-					`/api/assets/scan/status/sku?id=${asset.id}&type=product`,
-				);
-				if (resp.ok) {
-					const data = await resp.json();
-					const skuUrls: string[] = [];
-					const seen = new Set<string>();
-
-					const pushSkuUrl = (u: string, force = false) => {
-						if (!force && !isSkuVariantUrl(u)) return;
-						if (
-							pathsMatch(u, modalMainUrl) ||
-							pathsMatch(u, asset.url)
-						)
-							return;
-						if (seen.has(u)) return;
-						seen.add(u);
-						skuUrls.push(u);
-					};
-
-					if (data?.urls && Array.isArray(data.urls)) {
-						for (const u of data.urls) pushSkuUrl(u, true);
-					}
-
-					const explicitSkus: number[] =
-						data?.skus && Array.isArray(data.skus)
-							? data.skus.filter((n: unknown) =>
-									Number.isFinite(n as number),
-								)
-							: [];
-
-					const guessSkus = explicitSkus.some((n) => n > 1)
-						? explicitSkus
-						: [2, 3, 4, 5, 6, 7, 8];
-					for (const skuUrl of buildSkuUrlsFromBase(
-						baseUrl,
-						guessSkus,
-					))
-						pushSkuUrl(skuUrl);
-
-					modalSkus = compactSkuUrls(skuUrls);
-					skuCache.set(asset.id, modalSkus);
-				} else {
-					modalSkus = compactSkuUrls(
-						buildSkuUrlsFromBase(
-							baseUrl,
-							[2, 3, 4, 5, 6, 7, 8],
-						).filter(
-							(u) =>
-								!pathsMatch(u, modalMainUrl) &&
-								!pathsMatch(u, asset.url),
-						),
-					);
-					skuCache.set(asset.id, modalSkus);
-				}
+			if (
+				assetType === "product" &&
+				asset.imageFileUrlList &&
+				asset.imageFileUrlList.length > 0
+			) {
+				modalMainUrl = asset.imageFileUrlList[0];
+				modalSkus = [];
+				modalSwingIdx = 0;
+				modalLoadingSkus = false;
+				await syncCarouselScrollPosition();
+				return;
 			}
-		} catch (err) {
-			console.error("Failed to load SKUs:", err);
-			const baseUrl = modalPrimaryUrl(asset) || asset.url;
-			modalSkus = compactSkuUrls(
-				buildSkuUrlsFromBase(baseUrl, [2, 3, 4, 5, 6, 7, 8]).filter(
-					(u) =>
-						!pathsMatch(u, modalMainUrl) &&
-						!pathsMatch(u, asset.url),
-				),
-			);
-			skuCache.set(asset.id, modalSkus);
+
+			const c =
+				assetType === "product"
+					? productThumbCandidates(asset.id)
+					: null;
+			const resolved = resolvedThumbByProductId.get(asset.id);
+
+			if (assetType === "product" && resolved) {
+				modalMainUrl = resolved;
+				modalSwingIdx = c ? findCandidateIndex(c, resolved) : 0;
+			} else if (assetType === "product" && c) {
+				modalSwingIdx = 0;
+				modalMainUrl = c[0] ?? asset.url;
+			} else {
+				modalSwingIdx = 0;
+				modalMainUrl = asset.url;
+			}
+
+			modalSkus = [];
+			if (assetType !== "product") {
+				await syncCarouselScrollPosition();
+				return;
+			}
+
+			modalLoadingSkus = true;
+			try {
+				if (skuCache.has(asset.id)) {
+					modalSkus = compactSkuUrls(skuCache.get(asset.id)!);
+				} else {
+					const baseUrl = modalPrimaryUrl(asset) || asset.url;
+
+					const resp = await fetch(
+						`/api/assets/scan/status/sku?id=${asset.id}&type=product`,
+					);
+					if (resp.ok) {
+						const data = await resp.json();
+						const skuUrls: string[] = [];
+						const seen = new Set<string>();
+
+						const pushSkuUrl = (u: string, force = false) => {
+							if (!force && !isSkuVariantUrl(u)) return;
+							if (
+								pathsMatch(u, modalMainUrl) ||
+								pathsMatch(u, asset.url)
+							)
+								return;
+							if (seen.has(u)) return;
+							seen.add(u);
+							skuUrls.push(u);
+						};
+
+						if (data?.urls && Array.isArray(data.urls)) {
+							for (const u of data.urls) pushSkuUrl(u, true);
+						}
+
+						const explicitSkus: number[] =
+							data?.skus && Array.isArray(data.skus)
+								? data.skus.filter((n: unknown) =>
+										Number.isFinite(n as number),
+									)
+								: [];
+
+						const guessSkus = explicitSkus.some((n) => n > 1)
+							? explicitSkus
+							: [2, 3, 4, 5, 6, 7, 8];
+						for (const skuUrl of buildSkuUrlsFromBase(
+							baseUrl,
+							guessSkus,
+						))
+							pushSkuUrl(skuUrl);
+
+						modalSkus = compactSkuUrls(skuUrls);
+						skuCache.set(asset.id, modalSkus);
+					} else {
+						modalSkus = compactSkuUrls(
+							buildSkuUrlsFromBase(
+								baseUrl,
+								[2, 3, 4, 5, 6, 7, 8],
+							).filter(
+								(u) =>
+									!pathsMatch(u, modalMainUrl) &&
+									!pathsMatch(u, asset.url),
+							),
+						);
+						skuCache.set(asset.id, modalSkus);
+					}
+				}
+			} catch (err) {
+				console.error("Failed to load SKUs:", err);
+				const baseUrl = modalPrimaryUrl(asset) || asset.url;
+				modalSkus = compactSkuUrls(
+					buildSkuUrlsFromBase(baseUrl, [2, 3, 4, 5, 6, 7, 8]).filter(
+						(u) =>
+							!pathsMatch(u, modalMainUrl) &&
+							!pathsMatch(u, asset.url),
+					),
+				);
+				skuCache.set(asset.id, modalSkus);
+			} finally {
+				modalLoadingSkus = false;
+			}
+			await syncCarouselScrollPosition();
 		} finally {
-			modalLoadingSkus = false;
+			await tick();
+			galleryCloseBtn?.focus();
 		}
-		await syncCarouselScrollPosition();
 	}
 
 	function closeGallery() {
 		selectedAsset = null;
 		carouselIdx = 0;
 		modalSkus = [];
+		const restore = lastFocusBeforeGallery;
+		lastFocusBeforeGallery = null;
+		void tick().then(() => restore?.focus?.());
 	}
 
 	function navigateGallery(direction: "prev" | "next") {
@@ -607,7 +660,14 @@
 	// keyboard navigation
 	function handleKeydown(e: KeyboardEvent) {
 		if (!selectedAsset) return;
-		if (e.key === "Escape") closeGallery();
+		if (e.key === "Escape") {
+			closeGallery();
+			return;
+		}
+		if (e.key === "Tab" && galleryOverlayEl) {
+			trapGalleryTab(e);
+			return;
+		}
 		if (e.key === "ArrowLeft") {
 			// shift+left = prev asset, left alone = prev slide
 			if (e.shiftKey) navigateGallery("prev");
@@ -622,6 +682,16 @@
 	onMount(() => {
 		window.addEventListener("keydown", handleKeydown);
 		return () => window.removeEventListener("keydown", handleKeydown);
+	});
+
+	$effect(() => {
+		if (typeof document === "undefined") return;
+		if (!selectedAsset) return;
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
 	});
 
 	function assetThumbSrc(asset: Asset): string {
@@ -755,7 +825,7 @@
 		assets = [];
 		currentCursor = idNum;
 		loadNextBatch();
-		scanningStatus = `🚀 กระโดดไปที่ ID ${idNum} ...`;
+		scanningStatus = `Moving to ID ${idNum} ...`;
 	}
 
 	const loadMoreLabel = () =>
@@ -780,7 +850,7 @@
 			assets = [];
 			currentCursor = parseInt(jumpParam, 10);
 			loadNextBatch();
-			scanningStatus = `🚀 กระโดดไปที่ ID ${jumpParam} ...`;
+			scanningStatus = `Moving to ID ${jumpParam} ...`;
 		}
 
 		mounted = true;
@@ -965,9 +1035,7 @@
 						loading="lazy"
 						onload={(e) => {
 							const img = e.currentTarget as HTMLImageElement;
-							if (
-								parseFloat(getComputedStyle(img).opacity) < 0.5
-							)
+							if (parseFloat(getComputedStyle(img).opacity) < 0.5)
 								return;
 							recordResolvedProductThumb(asset.id, img.src);
 						}}
@@ -1003,19 +1071,33 @@
 </div>
 
 <!-- ══════════════════════════════════════════════
-     POPUP — IG-style carousel
+     Gallery lightbox — IG-style layout
 ══════════════════════════════════════════════ -->
 {#if selectedAsset}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<div class="gallery-overlay" onclick={closeGallery} role="presentation">
-		<!-- Close -->
-		<button class="close-trigger" onclick={closeGallery} aria-label="Close">
-			<i class="fa-solid fa-xmark"></i>
+	<div
+		class="gallery-overlay"
+		bind:this={galleryOverlayEl}
+		onclick={closeGallery}
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="asset-gallery-title"
+		tabindex={-1}
+	>
+		<button
+			type="button"
+			class="close-trigger gallery-overlay__close"
+			bind:this={galleryCloseBtn}
+			onclick={closeGallery}
+			aria-label="Close gallery"
+		>
+			<i class="fa-solid fa-xmark" aria-hidden="true"></i>
 		</button>
 
 		<!-- Prev / Next asset (Shift+Arrow) -->
 		<div class="asset-nav">
 			<button
+				type="button"
 				class="asset-nav-btn"
 				onclick={(e) => {
 					e.stopPropagation();
@@ -1029,6 +1111,7 @@
 				<i class="fa-solid fa-angle-left"></i>
 			</button>
 			<button
+				type="button"
 				class="asset-nav-btn"
 				onclick={(e) => {
 					e.stopPropagation();
@@ -1085,6 +1168,7 @@
 					<!-- IG prev/next slide arrows -->
 					{#if carouselSlides.length > 1}
 						<button
+							type="button"
 							class="slide-arrow slide-arrow--prev"
 							onclick={() => goCarousel("prev")}
 							disabled={carouselIdx === 0}
@@ -1093,6 +1177,7 @@
 							<i class="fa-solid fa-chevron-left"></i>
 						</button>
 						<button
+							type="button"
 							class="slide-arrow slide-arrow--next"
 							onclick={() => goCarousel("next")}
 							disabled={carouselIdx >= carouselSlides.length - 1}
@@ -1107,6 +1192,7 @@
 						<div class="ig-dots-bar">
 							{#each carouselSlides as _, i}
 								<button
+									type="button"
 									class="ig-dot"
 									class:active={carouselIdx === i}
 									onclick={() => {
@@ -1140,7 +1226,10 @@
 						<span class="mono-label"
 							>{assetType.toUpperCase()} Type</span
 						>
-						<h3 class="technical-title">{selectedAsset.title ?? `THEATER #${selectedAsset.id}`}</h3>
+						<h3 id="asset-gallery-title" class="technical-title">
+							{selectedAsset.title ??
+								`THEATER #${selectedAsset.id}`}
+						</h3>
 					</div>
 
 					{#if assetType === "theater"}
@@ -1158,7 +1247,9 @@
 							</p>
 							<p>
 								<strong>Members:</strong>
-								{(selectedAsset.memberNames ?? []).join(" / ") || "-"}
+								{(selectedAsset.memberNames ?? []).join(
+									" / ",
+								) || "-"}
 							</p>
 						</div>
 					{/if}
@@ -1166,7 +1257,8 @@
 					{#if assetType === "product" && (selectedAsset.title || selectedAsset.description)}
 						<div class="product-popup-meta">
 							{#if selectedAsset.description}
-								<pre class="product-popup-desc">{selectedAsset.description}</pre>
+								<pre
+									class="product-popup-desc">{selectedAsset.description}</pre>
 							{/if}
 						</div>
 					{/if}

@@ -152,21 +152,23 @@
 			<button type="button" class="button-primary" onclick={openAddModal}>
 				Add entry <i class="fa-solid fa-plus ms-2"></i>
 			</button>
+			<div class="filter-group flex-1">
+				<div class="search-box">
+					<i
+						class="fa-solid fa-magnifying-glass opacity-50"
+						aria-hidden="true"
+					></i>
+					<input
+						type="search"
+						placeholder="Search entries..."
+						bind:value={searchQuery}
+					/>
+				</div>
+			</div>
 		</div>
 	</div>
 
 	<div class="technical-filter-bar">
-		<div class="filter-group flex-1">
-			<div class="search-box">
-				<i class="fa-solid fa-magnifying-glass opacity-50" aria-hidden="true"></i>
-				<input
-					type="search"
-					placeholder="Search entries..."
-					bind:value={searchQuery}
-				/>
-			</div>
-		</div>
-
 		<div class="filter-group">
 			<div class="filter-pills">
 				<button
@@ -228,68 +230,96 @@
 		</div>
 	</div>
 
-	<ul class="research-stack">
-		{#each filteredMembers as member (member.id)}
-			<li class="research-row">
-				<div class="research-row__thumb">
-					{#if member.profile_image_url}
-						<img
-							src={proxyUrl(member.profile_image_url)}
-							alt={member.name}
-							loading="lazy"
-						/>
-					{:else}
-						<div class="research-thumb-placeholder">
-							{member.name?.charAt(0) ?? "—"}
-						</div>
-					{/if}
-					<span
-						class="research-row__chip {member.graduated_at
-							? 'research-row__chip--muted'
-							: 'research-row__chip--live'}"
-					>
-						{member.graduated_at ? "Alumni" : "Active"}
-					</span>
-				</div>
-				<div class="research-row__body">
-					<div class="research-row__meta">
-						<span>{member.brand}</span>
-						<span class="sep">/</span>
-						<span>{member.gen}</span>
-						<span class="sep">/</span>
-						<span>{member.team}</span>
-					</div>
-					<h3 class="research-row__title">{member.name}</h3>
-				</div>
-				<div class="research-row__aside">
-					<div class="research-row__ops">
-						<button
-							type="button"
-							class="action-icon-btn"
-							onclick={() => openEditModal(member)}
-							aria-label="Edit entry"
-						>
-							<i class="fa-solid fa-pen-to-square"></i>
-						</button>
-						<button
-							type="button"
-							class="action-icon-btn danger"
-							onclick={() => deleteMember(member.id)}
-							aria-label="Delete entry"
-						>
-							<i class="fa-solid fa-trash"></i>
-						</button>
-					</div>
-				</div>
-			</li>
-		{/each}
-	</ul>
+	{#if filteredMembers.length === 0}
+		<div class="status-stream">
+			<div class="status-node">
+				<i
+					class="fa-solid fa-user-slash me-2 opacity-50"
+					aria-hidden="true"
+				></i>
+				<span class="mono-label">No entries match filters</span>
+			</div>
+		</div>
+	{:else}
+		<div class="data-table-wrap data-table-wrap--scroll">
+			<table class="data-table data-table--zebra data-table--sticky">
+				<thead>
+					<tr>
+						<th scope="col" class="data-table__thumb">Visual</th>
+						<th scope="col">State</th>
+						<th scope="col">Unit</th>
+						<th scope="col">Identity</th>
+						<th scope="col" class="data-table__actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each filteredMembers as member (member.id)}
+						<tr>
+							<td class="data-table__thumb">
+								{#if member.profile_image_url}
+									<img
+										src={proxyUrl(member.profile_image_url)}
+										alt={member.name}
+										loading="lazy"
+									/>
+								{:else}
+									<div class="data-table__thumb-placeholder">
+										{member.name?.charAt(0) ?? "—"}
+									</div>
+								{/if}
+							</td>
+							<td>
+								<span
+									class="data-table__chip {member.graduated_at
+										? 'data-table__chip--muted'
+										: 'data-table__chip--live'}"
+								>
+									{member.graduated_at ? "Alumni" : "Active"}
+								</span>
+							</td>
+							<td class="data-table__meta">
+								<span>{member.brand}</span>
+								<span class="sep">/</span>
+								<span>{member.gen}</span>
+								<span class="sep">/</span>
+								<span>{member.team}</span>
+							</td>
+							<td>
+								<h3 class="data-table__title">{member.name}</h3>
+							</td>
+							<td class="data-table__actions">
+								<div class="data-table__ops">
+									<button
+										type="button"
+										class="action-icon-btn"
+										onclick={() => openEditModal(member)}
+										aria-label="Edit entry"
+									>
+										<i class="fa-solid fa-pen-to-square"
+										></i>
+									</button>
+									<button
+										type="button"
+										class="action-icon-btn danger"
+										onclick={() => deleteMember(member.id)}
+										aria-label="Delete entry"
+									>
+										<i class="fa-solid fa-trash"></i>
+									</button>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
 </div>
 
 {#if showModal}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
-		class="modal-overlay"
+		class="gallery-overlay"
 		onclick={() => (showModal = false)}
 		role="presentation"
 	>
@@ -367,7 +397,7 @@
 
 				<div class="form-section">
 					<span class="mono-label">VISUAL_ASSET</span>
-					<div class="input-field with-preview">
+					<div class="input-field with-preview form-row">
 						<input
 							type="url"
 							bind:value={formData.profile_image_url}

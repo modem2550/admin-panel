@@ -9,7 +9,7 @@ export const load = async ({ locals }: Parameters<PageServerLoad>[0]) => {
 
     const supabase = locals.supabase;
 
-    const [membersResult, eventsResult, nextEventResult] = await Promise.all([
+    const [membersResult, eventsResult, nextEventResult, adsResponse] = await Promise.all([
         supabase.from('members').select('*', { count: 'exact', head: true }),
         supabase.from('event_data').select('*', { count: 'exact', head: true }),
         supabase.from('event_data')
@@ -17,12 +17,32 @@ export const load = async ({ locals }: Parameters<PageServerLoad>[0]) => {
             .gte('date', new Date().toISOString().split('T')[0])
             .order('date', { ascending: true })
             .limit(1)
-            .maybeSingle()
+            .maybeSingle(),
+        fetch('https://public.bnk48.io/ads', {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        }).then(res => res.json()).catch(() => null)
     ]);
+
+    let champSplashUrl = null;
+    if (adsResponse && adsResponse.sections) {
+        const splashSection = adsResponse.sections.find((s: any) => s.type === 'splash-screen');
+        if (splashSection) {
+            for (const ad of splashSection.ads) {
+                const item = ad.items.find((i: any) => i.code === 'champ-of-the-week/376');
+                if (item) {
+                    champSplashUrl = item.imageUrl;
+                    break;
+                }
+            }
+        }
+    }
 
     return {
         membersCount: membersResult.count ?? 0,
         eventsCount: eventsResult.count ?? 0,
-        nextEvent: nextEventResult.data ?? null
+        nextEvent: nextEventResult.data ?? null,
+        champSplashUrl
     };
 };
