@@ -91,7 +91,7 @@ async function runScan(type: string, startId: number, endId: number, logId: numb
                     const foundUrl = await checkAnyExists(getDiscoveryUrls(type, id));
                     if (!foundUrl) return null;
                     // แปลง CDN URL → proxied URL สำหรับเก็บใน DB
-                    const proxiedUrl = foundUrl.replace('https://img.bnk48cdn.net/', '/p/img/');
+                    const proxiedUrl = foundUrl.replace('https://img.bnk48cdn.net/', '/api/img/');
                     return { id, proxiedUrl };
                 })
             );

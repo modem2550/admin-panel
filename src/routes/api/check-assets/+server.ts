@@ -9,7 +9,7 @@ const ALLOWED_TYPES = new Set(['product', 'group', 'theater']);
 function proxyCdnUrl(url: string): string {
     if (!url) return '';
     if (url.startsWith('https://img.bnk48cdn.net/')) {
-        return url.replace('https://img.bnk48cdn.net/', '/p/img/');
+        return url.replace('https://img.bnk48cdn.net/', '/api/img/');
     }
     return url;
 }
@@ -97,7 +97,7 @@ async function getTheaterAsset(id: number): Promise<TheaterAsset | null> {
 
     return {
         id: String(perf.eventId ?? id),
-        url: (perf.imageFileUrl ?? '').replace('https://img.bnk48cdn.net/', '/p/img/'),
+        url: (perf.imageFileUrl ?? '').replace('https://img.bnk48cdn.net/', '/api/img/'),
         title: perf.title ?? `Theater ${id}`,
         description: perf.description ?? '',
         date: perf.date ?? '',
@@ -177,7 +177,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 
                 // Make sure url is proxied
                 if (actualUrl.startsWith('https://img.bnk48cdn.net/')) {
-                    actualUrl = actualUrl.replace('https://img.bnk48cdn.net/', '/p/img/');
+                    actualUrl = actualUrl.replace('https://img.bnk48cdn.net/', '/api/img/');
                 }
 
                 return {

@@ -52,6 +52,7 @@
 		link: "",
 		image_url: "",
 		live: "",
+		image_path: "",
 	});
 
 	function openAddModal() {
@@ -64,6 +65,7 @@
 			link: "",
 			image_url: "",
 			live: "",
+			image_path: "",
 		};
 		showModal = true;
 	}
@@ -78,6 +80,7 @@
 			link: event.link ?? "",
 			image_url: event.image_url ?? "",
 			live: event.live ?? "",
+			image_path: event.image_path ?? "",
 		};
 		showModal = true;
 	}
@@ -89,6 +92,7 @@
 			location: formData.location || null,
 			image_url: formData.image_url || null,
 			live: formData.live || null,
+			image_path: formData.image_path || null,
 		};
 
 		if (editingEvent) {
@@ -384,7 +388,7 @@
 						<span class="mono-label">RECORDS_IDENTIFIER_URI</span>
 						<div class="input-field">
 							<input
-								type="url"
+								type="text"
 								bind:value={formData.link}
 								placeholder="Source documentation"
 							/>
@@ -394,9 +398,22 @@
 						<span class="mono-label">BROADCAST_ENDPOINT</span>
 						<div class="input-field">
 							<input
-								type="url"
+								type="text"
 								bind:value={formData.live}
 								placeholder="Live stream link"
+							/>
+						</div>
+					</div>
+				</div>
+
+				<div class="form-row">
+					<div class="flex-1">
+						<span class="mono-label">IMAGE_PATH</span>
+						<div class="input-field">
+							<input
+								type="text"
+								bind:value={formData.image_path}
+								placeholder="e.g. events/2024/concert.jpg"
 							/>
 						</div>
 					</div>
@@ -406,7 +423,7 @@
 					<span class="mono-label">VISUAL_INDEX_ASSET</span>
 					<div class="input-field with-preview form-row">
 						<input
-							type="url"
+							type="text"
 							bind:value={formData.image_url}
 							placeholder="https://..."
 						/>

@@ -72,6 +72,62 @@ export async function getToken(): Promise<string> {
 	return authPromise;
 }
 
+/**
+ * Extracts userId from the cached token payload.
+ */
+export async function getUserId(): Promise<string> {
+	const token = await getToken();
+	try {
+		const payload = JSON.parse(atob(token.split('.')[1]));
+		if (payload.id) return String(payload.id);
+		if (payload.sub) return String(payload.sub);
+		if (payload.userId) return String(payload.userId);
+		throw new Error('User ID not found in token payload');
+	} catch (e) {
+		console.error('Failed to extract user ID:', e);
+		throw e;
+	}
+}
+
+import { fetchTheaterArchive as fetchArchive } from './bnk48';
+import type { TheaterArchiveResult } from './bnk48';
+
+/**
+ * Server-side wrapper for theater archive fetching.
+ */
+export async function getTheaterArchive(skip = 0, take = 20): Promise<TheaterArchiveResult> {
+	const token = await getToken();
+	const userId = await getUserId();
+	console.log(`[TheaterArchive] Fetching for userId: ${userId}`);
+	const result = await fetchArchive(userId, token, skip, take);
+	
+	// Normalize result: some endpoints return array directly, others return { items: [] }
+	if (Array.isArray(result)) {
+		if (result.length > 0) {
+			console.log(`[TheaterArchive] Item 0 keys:`, Object.keys(result[0]));
+			console.log(`[TheaterArchive] Item 0 sample:`, JSON.stringify(result[0]).slice(0, 200));
+		}
+		return {
+			items: result,
+			total: result.length,
+			skip: skip,
+			take: take
+		};
+	}
+	
+	if (!result.items) {
+		console.error(`[TheaterArchive] result.items is missing! Result keys:`, Object.keys(result));
+		// Fallback if result is not an array and has no items
+		return {
+			items: [],
+			total: 0,
+			skip,
+			take
+		};
+	}
+	return result;
+}
+
 async function httpGet<T>(url: string): Promise<T> {
 	const token = await getToken();
 	// ✅ ลบ console.log URL ทุก request (มีเยอะมาก ทำให้ log รก + อาจ leak path)

@@ -6,5 +6,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.session) {
 		throw redirect(303, '/login');
 	}
-	return {};
+	return {
+		session: locals.session
+	};
 };

@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { untrack, onMount, tick } from "svelte";
 	import { toasts } from "$lib/toasts";
+	import { supabase } from "$lib/supabase";
 
-	let itemsPerPage = 250;
-	let assetType = $state<"product" | "group" | "theater">("product");
+	let itemsPerPage = 180;
+	let assetType = $state<"product" | "group" | "theater" | "archive">(
+		"product",
+	);
 	let sortOrder = $state<"asc" | "desc">("desc");
 
 	interface Asset {
@@ -79,9 +82,18 @@
 				: `กำลังโหลด ID ${start}–${rangeEnd} (ใหม่ไปเก่า) ...`;
 
 		try {
-			const resp = await fetch(
-				`/api/check-assets?start=${start}&count=${itemsPerPage}&type=${assetType}&order=${sortOrder}`,
-			);
+			let resp: Response;
+			if (assetType === "archive") {
+				const skip = assets.length;
+				const take = 100; // Archive usually has fewer items than general scanning
+				resp = await fetch(
+					`/api/assets/theater-archive?skip=${skip}&take=${take}`,
+				);
+			} else {
+				resp = await fetch(
+					`/api/check-assets?start=${start}&count=${itemsPerPage}&type=${assetType}&order=${sortOrder}`,
+				);
+			}
 			if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 			const newAssets: Asset[] = await resp.json();
 
@@ -90,13 +102,15 @@
 			} else {
 				assets = [...assets, ...newAssets];
 
-				if (sortOrder === "asc") {
-					currentCursor = start + itemsPerPage;
-				} else {
-					const smallestNewId = Math.min(
-						...newAssets.map((a) => parseInt(a.id)),
-					);
-					currentCursor = smallestNewId - 1;
+				if (assetType !== "archive") {
+					if (sortOrder === "asc") {
+						currentCursor = start + itemsPerPage;
+					} else {
+						const smallestNewId = Math.min(
+							...newAssets.map((a) => parseInt(a.id)),
+						);
+						currentCursor = smallestNewId - 1;
+					}
 				}
 				scanningStatus = "";
 			}
@@ -113,6 +127,10 @@
 
 	async function findLatestAdaptive() {
 		if (_fetchInFlight) return;
+		if (assetType === "archive") {
+			resetAndLoad();
+			return;
+		}
 		_fetchInFlight = true;
 		loading = true;
 		assets = [];
@@ -152,6 +170,10 @@
 
 	function resetAndLoad() {
 		assets = [];
+		if (assetType === "archive") {
+			loadNextBatch();
+			return;
+		}
 		if (sortOrder === "asc") {
 			currentCursor = 1;
 			loadNextBatch();
@@ -168,7 +190,8 @@
 	}
 
 	function assetResolvedOrApiUrl(asset: Asset): string {
-		if (assetType !== "product") return asset.url;
+		if (assetType !== "product" && assetType !== "archive")
+			return asset.url;
 		return resolvedThumbByProductId.get(asset.id) ?? asset.url;
 	}
 
@@ -457,6 +480,25 @@
 		});
 	}
 
+	async function importTheaterToEvents(asset: Asset) {
+		if (assetType !== "archive" && assetType !== "theater") return;
+
+		const payload = {
+			title: asset.title || `Theater #${asset.id}`,
+			date: asset.date || new Date().toISOString().split("T")[0],
+			location: asset.placeName || null,
+			image_url: asset.url || null,
+			link: asset.id ? `https://app.bnk48.io/theater/${asset.id}` : null,
+		};
+
+		const { error } = await supabase.from("event_data").insert([payload]);
+
+		if (error) toasts.add(error.message, "error");
+		else {
+			toasts.add("Imported to Events successfully", "success");
+		}
+	}
+
 	function goCarousel(direction: "prev" | "next") {
 		const len = carouselSlides.length;
 		if (len === 0) return;
@@ -695,7 +737,8 @@
 	});
 
 	function assetThumbSrc(asset: Asset): string {
-		if (assetType !== "product") return asset.url;
+		if (assetType !== "product" && assetType !== "archive")
+			return asset.url;
 		if (asset.imageFileUrlList?.length)
 			return asset.imageFileUrlList[0] ?? asset.url;
 		const c = productThumbCandidates(asset.id);
@@ -839,7 +882,8 @@
 		if (
 			typeParam === "product" ||
 			typeParam === "group" ||
-			typeParam === "theater"
+			typeParam === "theater" ||
+			typeParam === "archive"
 		) {
 			assetType = typeParam;
 		}
@@ -968,6 +1012,14 @@
 				class:active={assetType === "theater"}
 			>
 				Theater
+			</button>
+			<button
+				type="button"
+				class="button-pill-outline taxonomy-chip"
+				onclick={() => (assetType = "archive")}
+				class:active={assetType === "archive"}
+			>
+				Archive
 			</button>
 		</div>
 
@@ -1232,7 +1284,7 @@
 						</h3>
 					</div>
 
-					{#if assetType === "theater"}
+					{#if assetType === "theater" || assetType === "archive"}
 						<div class="theater-popup-meta">
 							<p>
 								<strong>Date/Time:</strong>
@@ -1254,7 +1306,7 @@
 						</div>
 					{/if}
 
-					{#if assetType === "product" && (selectedAsset.title || selectedAsset.description)}
+					{#if (assetType === "product" || assetType === "archive") && (selectedAsset.title || selectedAsset.description)}
 						<div class="product-popup-meta">
 							{#if selectedAsset.description}
 								<pre
@@ -1284,6 +1336,18 @@
 							View Full Asset <i class="fa-solid fa-expand ms-2"
 							></i>
 						</button>
+
+						{#if assetType === "theater" || assetType === "archive"}
+							<button
+								class="button-primary"
+								style="margin-top: 0.5rem; width: 100%;"
+								onclick={() =>
+									importTheaterToEvents(selectedAsset!)}
+							>
+								<i class="fa-solid fa-file-import me-2"></i>
+								Import to Events
+							</button>
+						{/if}
 					</div>
 
 					{#if carouselSlides.length > 1}

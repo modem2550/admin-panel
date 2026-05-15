@@ -6,7 +6,7 @@
 	import Toast from "$lib/components/Toast.svelte";
 	import { fade } from "svelte/transition";
 
-	let { children } = $props();
+	let { data, children } = $props();
 	let isMobileMenuOpen = $state(false);
 	let _toggleTheme: (() => void) | null = null;
 
@@ -25,8 +25,13 @@
 	});
 
 	onMount(() => {
-		// Auth: ใช้ +layout.server.ts (cookie → locals.session) — ห้ามพึ่ง getSession()
-		// เพราะ persistSession: false ทำให้ client มักได้ null แล้วโดนไล่ไป /login โดยผิด (มักเจอบนจอเล็ก)
+		// Auth: Sync session from server
+		if (data.session) {
+			supabase.auth.setSession({
+				access_token: data.session.access_token,
+				refresh_token: data.session.refresh_token
+			});
+		}
 
 		// Theme Management
 		const storageKey = "cohere-theme-preference";

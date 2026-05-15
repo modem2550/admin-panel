@@ -1,4 +1,4 @@
-// src/routes/p/[...path]/+server.ts
+// src/routes/api/[...path]/+server.ts
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 

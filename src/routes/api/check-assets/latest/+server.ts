@@ -134,7 +134,7 @@ export const GET: RequestHandler = async ({ url }) => {
                     const p = await r.json();
                     if (typeof p.thumbnailImageUrl === 'string') {
                         thumbUrl = p.thumbnailImageUrl.startsWith('https://img.bnk48cdn.net/')
-                            ? p.thumbnailImageUrl.replace('https://img.bnk48cdn.net/', '/p/img/')
+                            ? p.thumbnailImageUrl.replace('https://img.bnk48cdn.net/', '/api/img/')
                             : p.thumbnailImageUrl;
                     }
                 }
@@ -211,8 +211,8 @@ export const GET: RequestHandler = async ({ url }) => {
             ];
             
             // Add the specific fallback format for this ID range
-            const fallbackPath = getDefaultAssetUrl('product', id).replace('/p/img/', '');
-            const fallbackUrl = `https://img.bnk48cdn.net/${fallbackPath}`;
+            const fallbackPath = getDefaultAssetUrl('product', id).replace('/api/image/', '');
+            const fallbackUrl = `https://img.bnk48cdn.net/shop/${fallbackPath}`;
             if (!quickUrls.includes(fallbackUrl)) {
                 quickUrls.push(fallbackUrl);
             }

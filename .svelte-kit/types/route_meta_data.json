@@ -17,6 +17,9 @@
 	"/api/assets/scan/status/sku": [
 		"src/routes/api/assets/scan/status/sku/+server.ts"
 	],
+	"/api/assets/theater-archive": [
+		"src/routes/api/assets/theater-archive/+server.ts"
+	],
 	"/api/auth/session": [
 		"src/routes/api/auth/session/+server.ts"
 	],
@@ -31,6 +34,9 @@
 	],
 	"/api/image/[...path]": [
 		"src/routes/api/image/[...path]/+server.ts"
+	],
+	"/api/[...path]": [
+		"src/routes/api/[...path]/+server.ts"
 	],
 	"/(app)/assets": [
 		"src/routes/(app)/+layout.ts",
@@ -57,9 +63,6 @@
 		"src/routes/(app)/members/+page.ts",
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
-	],
-	"/p/[...path]": [
-		"src/routes/p/[...path]/+server.ts"
 	],
 	"/robots.txt": [
 		"src/routes/robots.txt/+server.ts"
