@@ -29,7 +29,7 @@ declare module "$app/types" {
 	type MatcherParam<M> = M extends (param : string) => param is (infer U extends string) ? U : string;
 
 	export interface AppTypes {
-		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/assets/theater-archive" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/download" | "/api/download/mp4" | "/api/image" | "/api/image/[...path]" | "/api/proxy" | "/api/[...path]" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/downloader" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/robots.txt" | "/(app)/settings";
+		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/assets/theater-archive" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/download" | "/api/download/mp4" | "/api/image" | "/api/image/[...path]" | "/api/[...path]" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/downloader" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/robots.txt" | "/(app)/settings";
 		RouteParams(): {
 			"/api/image/[...path]": { path: string };
 			"/api/[...path]": { path: string }
@@ -54,7 +54,6 @@ declare module "$app/types" {
 			"/api/download/mp4": Record<string, never>;
 			"/api/image": { path?: string };
 			"/api/image/[...path]": { path: string };
-			"/api/proxy": Record<string, never>;
 			"/api/[...path]": { path: string };
 			"/(app)/assets": Record<string, never>;
 			"/(app)/dashboard": Record<string, never>;

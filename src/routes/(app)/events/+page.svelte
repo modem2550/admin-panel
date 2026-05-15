@@ -52,7 +52,6 @@
 		link: "",
 		image_url: "",
 		live: "",
-		image_path: "",
 	});
 
 	function openAddModal() {
@@ -65,7 +64,6 @@
 			link: "",
 			image_url: "",
 			live: "",
-			image_path: "",
 		};
 		showModal = true;
 	}
@@ -80,7 +78,6 @@
 			link: event.link ?? "",
 			image_url: event.image_url ?? "",
 			live: event.live ?? "",
-			image_path: event.image_path ?? "",
 		};
 		showModal = true;
 	}
@@ -92,7 +89,6 @@
 			location: formData.location || null,
 			image_url: formData.image_url || null,
 			live: formData.live || null,
-			image_path: formData.image_path || null,
 		};
 
 		if (editingEvent) {
@@ -337,7 +333,7 @@
 					handleSubmit();
 				}}
 			>
-				<div class="form-section">
+				<div class="form-section mb-3">
 					<span class="mono-label">OPERATION_TITLE</span>
 					<div class="input-field">
 						<input
@@ -349,8 +345,8 @@
 					</div>
 				</div>
 
-				<div class="form-row">
-					<div class="form-section flex-1">
+				<div class="form-row mb-3">
+					<div class="form-section mb-3 flex-1">
 						<span class="mono-label">START_TIME</span>
 						<div class="input-field">
 							<input
@@ -360,7 +356,7 @@
 							/>
 						</div>
 					</div>
-					<div class="form-section flex-1">
+					<div class="form-section mb-3 flex-1">
 						<span class="mono-label">END_TIME</span>
 						<div class="input-field">
 							<input
@@ -372,7 +368,7 @@
 					</div>
 				</div>
 
-				<div class="form-section">
+				<div class="form-section mb-3">
 					<span class="mono-label">GEOGRAPHIC_COORD</span>
 					<div class="input-field">
 						<input
@@ -383,7 +379,7 @@
 					</div>
 				</div>
 
-				<div class="form-row">
+				<div class="form-row mb-3">
 					<div>
 						<span class="mono-label">RECORDS_IDENTIFIER_URI</span>
 						<div class="input-field">
@@ -400,26 +396,13 @@
 							<input
 								type="text"
 								bind:value={formData.live}
-								placeholder="Live stream link"
+								placeholder="Channel name (e.g. YouTube, iAM48)"
 							/>
 						</div>
 					</div>
 				</div>
 
-				<div class="form-row">
-					<div class="flex-1">
-						<span class="mono-label">IMAGE_PATH</span>
-						<div class="input-field">
-							<input
-								type="text"
-								bind:value={formData.image_path}
-								placeholder="e.g. events/2024/concert.jpg"
-							/>
-						</div>
-					</div>
-				</div>
-
-				<div class="form-section">
+				<div class="form-section mb-3">
 					<span class="mono-label">VISUAL_INDEX_ASSET</span>
 					<div class="input-field with-preview form-row">
 						<input
@@ -437,7 +420,7 @@
 					</div>
 				</div>
 
-				<footer class="form-footer">
+				<footer class="form-footer mt-3">
 					<button
 						type="button"
 						class="button-secondary"

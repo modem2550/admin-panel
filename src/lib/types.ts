@@ -19,6 +19,5 @@ export interface EventData {
   image_url: string | null;
   live: string | null;
   image_urls: any | null; // jsonb
-  image_path: string | null;
   updated_at: string;
 }

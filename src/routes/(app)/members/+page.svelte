@@ -348,7 +348,7 @@
 					handleSubmit();
 				}}
 			>
-				<div class="form-section">
+				<div class="form-section mt-3">
 					<span class="mono-label">PRIMARY_IDENTITY</span>
 					<div class="input-field">
 						<label for="member-name">Legal/Stage Name</label>
@@ -362,7 +362,7 @@
 					</div>
 				</div>
 
-				<div class="form-row">
+				<div class="form-row mt-3">
 					<div class="form-section flex-1">
 						<span class="mono-label">ORGANIZATION</span>
 						<div class="input-field">
@@ -384,7 +384,7 @@
 					</div>
 				</div>
 
-				<div class="form-section">
+				<div class="form-section mt-3">
 					<span class="mono-label">UNIT_ASSIGNMENT</span>
 					<div class="input-field">
 						<input
@@ -395,7 +395,7 @@
 					</div>
 				</div>
 
-				<div class="form-section">
+				<div class="form-section mt-3">
 					<span class="mono-label">VISUAL_ASSET</span>
 					<div class="input-field with-preview form-row">
 						<input
@@ -413,7 +413,7 @@
 					</div>
 				</div>
 
-				<div class="form-section">
+				<div class="form-section mt-3">
 					<span class="mono-label">LIFECYCLE_STATE</span>
 					<div class="input-field">
 						<label for="member-graduated"
@@ -427,7 +427,7 @@
 					</div>
 				</div>
 
-				<footer class="form-footer">
+				<footer class="form-footer mt-3">
 					<button
 						type="button"
 						class="button-secondary"

@@ -161,6 +161,7 @@ body {
 	line-height: var(--lh-caption-md);
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
+	text-align: center;
 	color: var(--stone);
 }
 
@@ -723,10 +724,15 @@ a.btn:active {
 	color: var(--body);
 }
 
+.data-table tr {
+	max-height: 102px;
+}
+
 .data-table th,
 .data-table td {
-	padding: 0.65rem 0.75rem;
+	padding: 1rem 0.75rem;
 	text-align: left;
+	text-wrap: balance;
 	vertical-align: middle;
 	border-bottom: 1px solid var(--hairline);
 }
@@ -829,6 +835,8 @@ a.btn:active {
 }
 
 .data-table__ops {
+	display: flex;
+	gap: 0.5rem;
 	align-items: center;
 }
 

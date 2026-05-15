@@ -4,7 +4,7 @@
 	import { supabase } from "$lib/supabase";
 
 	let itemsPerPage = 180;
-	let assetType = $state<"product" | "group" | "theater" | "archive">(
+	let assetType = $state<"product" | "group" | "archive">(
 		"product",
 	);
 	let sortOrder = $state<"asc" | "desc">("desc");
@@ -85,7 +85,7 @@
 			let resp: Response;
 			if (assetType === "archive") {
 				const skip = assets.length;
-				const take = 100; // Archive usually has fewer items than general scanning
+				const take = itemsPerPage;
 				resp = await fetch(
 					`/api/assets/theater-archive?skip=${skip}&take=${take}`,
 				);
@@ -95,12 +95,26 @@
 				);
 			}
 			if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-			const newAssets: Asset[] = await resp.json();
+
+			// Archive endpoint returns { items, total, skip, take }
+			// Other endpoints return Asset[] directly
+			let newAssets: Asset[];
+			let archiveTotal: number | null = null;
+			if (assetType === "archive") {
+				const envelope = await resp.json() as { items: Asset[]; total: number; skip: number; take: number };
+				newAssets = envelope.items ?? [];
+				archiveTotal = envelope.total ?? null;
+			} else {
+				newAssets = await resp.json() as Asset[];
+			}
 
 			if (newAssets.length === 0) {
 				scanningStatus = `ไม่พบ asset ในช่วงนี้ ลองเปลี่ยนประเภทหรือลำดับ`;
 			} else {
-				assets = [...assets, ...newAssets];
+				// Deduplicate to prevent Svelte 'each_key_duplicate' error
+				const existingIds = new Set(assets.map(a => a.id));
+				const filteredNew = newAssets.filter(a => !existingIds.has(a.id));
+				assets = [...assets, ...filteredNew];
 
 				if (assetType !== "archive") {
 					if (sortOrder === "asc") {
@@ -112,7 +126,14 @@
 						currentCursor = smallestNewId - 1;
 					}
 				}
-				scanningStatus = "";
+
+				if (assetType === "archive" && archiveTotal !== null) {
+					scanningStatus = assets.length >= archiveTotal
+						? `โหลดครบแล้ว ${assets.length} รายการ`
+						: `โหลดแล้ว ${assets.length} / ${archiveTotal} รายการ`;
+				} else {
+					scanningStatus = "";
+				}
 			}
 		} catch (error) {
 			console.error(error);
@@ -478,25 +499,6 @@
 			const w = carouselTrackEl.clientWidth;
 			carouselTrackEl.scrollTo({ left: i * w, behavior });
 		});
-	}
-
-	async function importTheaterToEvents(asset: Asset) {
-		if (assetType !== "archive" && assetType !== "theater") return;
-
-		const payload = {
-			title: asset.title || `Theater #${asset.id}`,
-			date: asset.date || new Date().toISOString().split("T")[0],
-			location: asset.placeName || null,
-			image_url: asset.url || null,
-			link: asset.id ? `https://app.bnk48.io/theater/${asset.id}` : null,
-		};
-
-		const { error } = await supabase.from("event_data").insert([payload]);
-
-		if (error) toasts.add(error.message, "error");
-		else {
-			toasts.add("Imported to Events successfully", "success");
-		}
 	}
 
 	function goCarousel(direction: "prev" | "next") {
@@ -882,7 +884,6 @@
 		if (
 			typeParam === "product" ||
 			typeParam === "group" ||
-			typeParam === "theater" ||
 			typeParam === "archive"
 		) {
 			assetType = typeParam;
@@ -1004,14 +1005,6 @@
 				class:active={assetType === "group"}
 			>
 				Collectives
-			</button>
-			<button
-				type="button"
-				class="button-pill-outline taxonomy-chip"
-				onclick={() => (assetType = "theater")}
-				class:active={assetType === "theater"}
-			>
-				Theater
 			</button>
 			<button
 				type="button"
@@ -1284,7 +1277,7 @@
 						</h3>
 					</div>
 
-					{#if assetType === "theater" || assetType === "archive"}
+					{#if assetType === "archive"}
 						<div class="theater-popup-meta">
 							<p>
 								<strong>Date/Time:</strong>
@@ -1336,18 +1329,6 @@
 							View Full Asset <i class="fa-solid fa-expand ms-2"
 							></i>
 						</button>
-
-						{#if assetType === "theater" || assetType === "archive"}
-							<button
-								class="button-primary"
-								style="margin-top: 0.5rem; width: 100%;"
-								onclick={() =>
-									importTheaterToEvents(selectedAsset!)}
-							>
-								<i class="fa-solid fa-file-import me-2"></i>
-								Import to Events
-							</button>
-						{/if}
 					</div>
 
 					{#if carouselSlides.length > 1}
