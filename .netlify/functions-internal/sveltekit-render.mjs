@@ -12,7 +12,7 @@ return {
 	assets: new Set([".assetsignore","favicon.ico","favicon.svg"]),
 	mimeTypes: {".svg":"image/svg+xml"},
 	_: {
-		client: {start:"_app/immutable/entry/start.CQpD2gSV.js",app:"_app/immutable/entry/app.DBeWqeUy.js",imports:["_app/immutable/entry/start.CQpD2gSV.js","_app/immutable/chunks/CG7xseMn.js","_app/immutable/chunks/B-U5jx19.js","_app/immutable/chunks/CXuWhOti.js","_app/immutable/entry/app.DBeWqeUy.js","_app/immutable/chunks/B-U5jx19.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.BnQ3qw3c.js",app:"_app/immutable/entry/app.DefJloga.js",imports:["_app/immutable/entry/start.BnQ3qw3c.js","_app/immutable/chunks/BAA48xXh.js","_app/immutable/chunks/B-U5jx19.js","_app/immutable/chunks/CXuWhOti.js","_app/immutable/entry/app.DefJloga.js","_app/immutable/chunks/B-U5jx19.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('../server/nodes/0.js')),
 			__memo(() => import('../server/nodes/1.js')),
@@ -67,6 +67,13 @@ return {
 				endpoint: __memo(() => import('../server/entries/endpoints/api/assets/scan/status/sku/_server.ts.js'))
 			},
 			{
+				id: "/api/assets/theater-archive",
+				pattern: /^\/api\/assets\/theater-archive\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('../server/entries/endpoints/api/assets/theater-archive/_server.ts.js'))
+			},
+			{
 				id: "/api/auth/session",
 				pattern: /^\/api\/auth\/session\/?$/,
 				params: [],
@@ -100,6 +107,13 @@ return {
 				params: [{"name":"path","optional":false,"rest":true,"chained":true}],
 				page: null,
 				endpoint: __memo(() => import('../server/entries/endpoints/api/image/_...path_/_server.ts.js'))
+			},
+			{
+				id: "/api/[...path]",
+				pattern: /^\/api(?:\/([^]*))?\/?$/,
+				params: [{"name":"path","optional":false,"rest":true,"chained":true}],
+				page: null,
+				endpoint: __memo(() => import('../server/entries/endpoints/api/_...path_/_server.ts.js'))
 			},
 			{
 				id: "/(app)/assets",
@@ -142,13 +156,6 @@ return {
 				params: [],
 				page: { layouts: [0,2,], errors: [1,,], leaf: 9 },
 				endpoint: null
-			},
-			{
-				id: "/p/[...path]",
-				pattern: /^\/p(?:\/([^]*))?\/?$/,
-				params: [{"name":"path","optional":false,"rest":true,"chained":true}],
-				page: null,
-				endpoint: __memo(() => import('../server/entries/endpoints/p/_...path_/_server.ts.js'))
 			},
 			{
 				id: "/robots.txt",

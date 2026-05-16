@@ -8,6 +8,9 @@
 	"/.well-known/security.txt": [
 		"src/routes/.well-known/security.txt/+server.ts"
 	],
+	"/api/assets/playback": [
+		"src/routes/api/assets/playback/+server.ts"
+	],
 	"/api/assets/scan": [
 		"src/routes/api/assets/scan/+server.ts"
 	],

@@ -8,7 +8,7 @@
 	let loading = $state(false);
 
 	async function handleLogin() {
-		if (import.meta.env.DEV) console.log("--- [Login] Sequence Started ---");
+
 		
 		// Manual sync for some password managers that don't trigger events
 		const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
@@ -17,16 +17,10 @@
 		const currentEmail = email.trim() || (emailInput?.value || "").trim();
 		const currentPassword = password.trim() || (passwordInput?.value || "").trim();
 
-		if (import.meta.env.DEV) {
-			console.log("[Login] Step 1: Credentials Validation", { 
-				emailProvided: !!currentEmail,
-				passwordProvided: !!currentPassword,
-				source: email.trim() ? "Svelte State" : "DOM Direct"
-			});
-		}
+
 
 		if (!currentEmail || !currentPassword) {
-			if (import.meta.env.DEV) console.warn("[Login] Aborted: Missing credentials");
+
 			error = "Identification and security token required.";
 			return;
 		}
@@ -35,20 +29,20 @@
 		error = "";
 
 		try {
-			if (import.meta.env.DEV) console.log("[Login] Step 2: Authenticating with Supabase...");
+
 			const { data, error: err } = await supabase.auth.signInWithPassword({
 				email: currentEmail,
 				password: currentPassword
 			});
 
 			if (err) {
-				if (import.meta.env.DEV) console.error("[Login] Step 2 Failed: Supabase Auth", err.message);
+
 				error = err.message;
 			} else {
-				if (import.meta.env.DEV) console.log("[Login] Step 2 Success: Credentials verified");
+
 				
 				if (data.session) {
-					if (import.meta.env.DEV) console.log("[Login] Step 3: Synchronizing server session...");
+
 					const res = await fetch("/api/auth/session", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -59,20 +53,20 @@
 					});
 					
 					if (res.ok) {
-						if (import.meta.env.DEV) console.log("[Login] Step 3 Success: Server session established");
+
 					} else {
-						if (import.meta.env.DEV) console.error("[Login] Step 3 Failed: Server session API error", res.status);
+
 						error = "Could not establish server session. Try again.";
 						return;
 					}
 				}
 
-				if (import.meta.env.DEV) console.log("[Login] Step 4: Finalizing and redirecting...");
+
 				await goto("/dashboard", { invalidateAll: true });
-				if (import.meta.env.DEV) console.log("--- [Login] Sequence Completed ---");
+
 			}
 		} catch (e) {
-			if (import.meta.env.DEV) console.error("[Login] Step 2-4 Failed: Unexpected Error", e);
+
 			error = "An unexpected error occurred.";
 		} finally {
 			loading = false;

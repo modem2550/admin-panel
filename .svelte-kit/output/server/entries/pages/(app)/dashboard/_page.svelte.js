@@ -1,5 +1,5 @@
 import "../../../../chunks/index-server.js";
-import { z as escape_html } from "../../../../chunks/dev.js";
+import { R as attr, z as escape_html } from "../../../../chunks/dev.js";
 //#region src/routes/(app)/dashboard/+page.svelte
 function _page($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
@@ -13,7 +13,12 @@ function _page($$renderer, $$props) {
 			$$renderer.push("<!--[-1-->");
 			$$renderer.push(`<span class="stat-dash">—</span>`);
 		}
-		$$renderer.push(`<!--]--></div></div></div> <section class="asset-stream"><div class="section-header"><h2 class="card-heading">Asset registry</h2> <a href="/assets" class="button-secondary">Explore repository <i class="fa-solid fa-arrow-right ms-1"></i></a></div> <div class="media-preview-row">`);
+		$$renderer.push(`<!--]--></div></div></div> `);
+		if (data.champSplashUrl) {
+			$$renderer.push("<!--[0-->");
+			$$renderer.push(`<section class="campaign-highlight svelte-1tyszyy"><div class="section-header svelte-1tyszyy"><span class="mono-label">Active Campaign</span> <h2 class="card-heading">Champ of the Week</h2></div> <div class="splash-container svelte-1tyszyy"><img${attr("src", data.champSplashUrl)} alt="Champ of the Week Splash" class="splash-image svelte-1tyszyy"/> <div class="splash-overlay svelte-1tyszyy"><div class="splash-content"><span class="badge svelte-1tyszyy">LIVE</span> <p class="splash-meta svelte-1tyszyy">Current session splash screen active on mobile app.</p></div></div></div></section>`);
+		} else $$renderer.push("<!--[-1-->");
+		$$renderer.push(`<!--]--> <section class="asset-stream svelte-1tyszyy"><div class="section-header svelte-1tyszyy"><h2 class="card-heading">Asset registry</h2> <a href="/assets" class="button-secondary">Explore repository <i class="fa-solid fa-arrow-right ms-1"></i></a></div> <div class="media-preview-row">`);
 		$$renderer.push("<!--[0-->");
 		$$renderer.push(`<div class="preview-col"><div class="skeleton-media mb-3"></div> <div class="skeleton-text"></div></div> <div class="preview-col"><div class="skeleton-media mb-3"></div> <div class="skeleton-text"></div></div>`);
 		$$renderer.push(`<!--]--></div></section></div>`);

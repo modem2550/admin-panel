@@ -83,7 +83,7 @@ async function runScan(type, startId, endId, logId) {
 				if (!foundUrl) return null;
 				return {
 					id,
-					proxiedUrl: foundUrl.replace("https://img.bnk48cdn.net/", "/p/img/")
+					proxiedUrl: foundUrl.replace("https://img.bnk48cdn.net/", "/api/img/")
 				};
 			}))).filter((r) => r !== null);
 			scannedCount += batch.length;

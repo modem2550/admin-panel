@@ -208,6 +208,7 @@
     "imports": [
       "_index-server.js",
       "_dev.js",
+      "_supabase.js",
       "_toasts.js"
     ]
   },
@@ -225,6 +226,9 @@
     "imports": [
       "_index-server.js",
       "_dev.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CO0WJFP-.css"
     ]
   },
   "src/routes/(app)/dashboard/+page.ts": {
@@ -339,7 +343,7 @@
       "_dev.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.CEHW73tF.css"
+      "_app/immutable/assets/_layout.BzC3x3bp.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -364,6 +368,12 @@
       "_shared-server.js"
     ]
   },
+  "src/routes/api/[...path]/+server.ts": {
+    "file": "entries/endpoints/api/_...path_/_server.ts.js",
+    "name": "entries/endpoints/api/_...path_/_server.ts",
+    "src": "src/routes/api/[...path]/+server.ts",
+    "isEntry": true
+  },
   "src/routes/api/assets/scan/+server.ts": {
     "file": "entries/endpoints/api/assets/scan/_server.ts.js",
     "name": "entries/endpoints/api/assets/scan/_server.ts",
@@ -387,6 +397,16 @@
     "file": "entries/endpoints/api/assets/scan/status/sku/_server.ts.js",
     "name": "entries/endpoints/api/assets/scan/status/sku/_server.ts",
     "src": "src/routes/api/assets/scan/status/sku/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_bnk48.js",
+      "_supabase.server.js"
+    ]
+  },
+  "src/routes/api/assets/theater-archive/+server.ts": {
+    "file": "entries/endpoints/api/assets/theater-archive/_server.ts.js",
+    "name": "entries/endpoints/api/assets/theater-archive/_server.ts",
+    "src": "src/routes/api/assets/theater-archive/+server.ts",
     "isEntry": true,
     "imports": [
       "_bnk48.js",
@@ -437,12 +457,6 @@
     "file": "entries/endpoints/api/image/_...path_/_server.ts.js",
     "name": "entries/endpoints/api/image/_...path_/_server.ts",
     "src": "src/routes/api/image/[...path]/+server.ts",
-    "isEntry": true
-  },
-  "src/routes/p/[...path]/+server.ts": {
-    "file": "entries/endpoints/p/_...path_/_server.ts.js",
-    "name": "entries/endpoints/p/_...path_/_server.ts",
-    "src": "src/routes/p/[...path]/+server.ts",
     "isEntry": true
   },
   "src/routes/robots.txt/+server.ts": {

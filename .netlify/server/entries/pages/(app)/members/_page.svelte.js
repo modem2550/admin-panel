@@ -24,7 +24,7 @@ function _page($$renderer, $$props) {
 			return matchesSearch && matchesBrand && matchesStatus && matchesGen && matchesTeam;
 		}));
 		$$renderer.push(`<div class="page-shell"><div class="co-page-hero"><div class="co-page-hero__main"><span class="mono-label">Personnel directory</span> <h1 class="hero-display">Collective registry</h1> <p class="body-large">Operational management of member records, generation indexing,
-				and active status tracking.</p></div> <div class="co-page-hero__actions"><button type="button" class="button-primary">Add entry <i class="fa-solid fa-plus ms-2"></i></button></div></div> <div class="technical-filter-bar"><div class="filter-group flex-1"><div class="search-box"><i class="fa-solid fa-magnifying-glass opacity-50" aria-hidden="true"></i> <input type="search" placeholder="Search entries..."${attr("value", searchQuery)}/></div></div> <div class="filter-group"><div class="filter-pills"><button type="button"${attr_class("button-pill-outline taxonomy-chip", void 0, { "active": filterBrand === "All" })}>All</button> <button type="button"${attr_class("button-pill-outline taxonomy-chip", void 0, { "active": filterBrand === "BNK48" })}>BNK48</button> <button type="button"${attr_class("button-pill-outline taxonomy-chip", void 0, { "active": filterBrand === "CGM48" })}>CGM48</button></div></div> <div class="filter-group"><div class="technical-select">`);
+				and active status tracking.</p></div> <div class="co-page-hero__actions"><button type="button" class="button-primary">Add entry <i class="fa-solid fa-plus ms-2"></i></button> <div class="filter-group flex-1"><div class="search-box"><i class="fa-solid fa-magnifying-glass opacity-50" aria-hidden="true"></i> <input type="search" placeholder="Search entries..."${attr("value", searchQuery)}/></div></div></div></div> <div class="technical-filter-bar"><div class="filter-group"><div class="filter-pills"><button type="button"${attr_class("button-pill-outline taxonomy-chip", void 0, { "active": filterBrand === "All" })}>All</button> <button type="button"${attr_class("button-pill-outline taxonomy-chip", void 0, { "active": filterBrand === "BNK48" })}>BNK48</button> <button type="button"${attr_class("button-pill-outline taxonomy-chip", void 0, { "active": filterBrand === "CGM48" })}>CGM48</button></div></div> <div class="filter-group"><div class="technical-select">`);
 		$$renderer.select({ value: filterGen }, ($$renderer) => {
 			$$renderer.option({ value: "All" }, ($$renderer) => {
 				$$renderer.push(`All generations`);
@@ -69,7 +69,7 @@ function _page($$renderer, $$props) {
 		$$renderer.push(`</div></div></div> `);
 		if (filteredMembers().length === 0) {
 			$$renderer.push("<!--[0-->");
-			$$renderer.push(`<div class="status-stream"><div class="status-node"><i class="fa-solid fa-users-slash me-2 opacity-50" aria-hidden="true"></i> <span class="mono-label">No entries match filters</span></div></div>`);
+			$$renderer.push(`<div class="status-stream"><div class="status-node"><i class="fa-solid fa-user-slash me-2 opacity-50" aria-hidden="true"></i> <span class="mono-label">No entries match filters</span></div></div>`);
 		} else {
 			$$renderer.push("<!--[-1-->");
 			$$renderer.push(`<div class="data-table-wrap data-table-wrap--scroll"><table class="data-table data-table--zebra data-table--sticky"><thead><tr><th scope="col" class="data-table__thumb">Visual</th><th scope="col">State</th><th scope="col">Unit</th><th scope="col">Identity</th><th scope="col" class="data-table__actions">Actions</th></tr></thead><tbody><!--[-->`);

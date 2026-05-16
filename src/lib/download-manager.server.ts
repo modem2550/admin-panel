@@ -90,7 +90,7 @@ function removeTempFile(filePath?: string) {
             fs.unlinkSync(filePath);
         }
     } catch (err) {
-        console.warn(`[Job Manager] Failed to delete temp file`, err);
+
     }
 }
 
@@ -246,9 +246,7 @@ async function probeDuration(
         ffprobe.on('close', () => {
             const duration = parseFloat(stdout.trim());
 
-            if (stderr.trim()) {
-                console.warn(`[ffprobe] ${stderr}`);
-            }
+
 
             resolve(Number.isFinite(duration) ? duration : 0);
         });
@@ -383,18 +381,14 @@ async function runJob(
         /* ---------------------------- Probe Duration --------------------------- */
 
         if (!job.duration) {
-            console.log(
-                `[Job ${job.id}] Probing duration...`
-            );
+
 
             job.duration = await probeDuration(
                 realUrl,
                 token
             );
 
-            console.log(
-                `[Job ${job.id}] Duration: ${job.duration}s`
-            );
+
         }
 
         /* --------------------------- Encoder Attempt -------------------------- */
@@ -411,9 +405,7 @@ async function runJob(
             try {
                 job.encoder = encoder;
 
-                console.log(
-                    `[Job ${job.id}] Starting encoder: ${encoder}`
-                );
+
 
                 const args = buildFfmpegArgs(
                     realUrl,
@@ -435,9 +427,7 @@ async function runJob(
 
                 lastError = message;
 
-                console.warn(
-                    `[Job ${job.id}] Encoder failed (${encoder}): ${message}`
-                );
+
 
                 removeTempFile(tempFilePath);
 
@@ -445,9 +435,7 @@ async function runJob(
                     encoder === 'h264_videotoolbox' &&
                     isRecoverableHardwareError(message)
                 ) {
-                    console.log(
-                        `[Job ${job.id}] Falling back to libx264...`
-                    );
+
 
                     job.progress = 0;
 
@@ -469,12 +457,7 @@ async function runJob(
 
         job.completedAt = Date.now();
 
-        console.log(
-            `[Job ${job.id}] Completed in ${(
-                (job.completedAt - job.startedAt!) /
-                1000
-            ).toFixed(1)}s`
-        );
+
     } catch (err) {
         const message =
             err instanceof Error
@@ -488,9 +471,7 @@ async function runJob(
 
         removeTempFile(tempFilePath);
 
-        console.error(
-            `[Job ${job.id}] Failed: ${message}`
-        );
+
     } finally {
         cleanupJobLater(job.id);
     }

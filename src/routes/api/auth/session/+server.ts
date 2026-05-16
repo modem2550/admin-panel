@@ -35,7 +35,7 @@ export const POST: RequestHandler = async (event) => {
 		clientKey = request.headers.get('x-forwarded-for') || '127.0.0.1';
 	}
 
-	console.log(`[API/Session] POST request from ${clientKey}`);
+
 
 	if (isRateLimited(`session:post:${clientKey}`, SESSION_POST_LIMIT, SESSION_POST_WINDOW_MS)) {
 		securityAudit('auth.session.rate_limited', {});
@@ -84,7 +84,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	securityAudit('auth.session.created', {});
-	console.log(`[API/Session] Session successfully established for ${clientKey}`);
+
 
 	return json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
 };

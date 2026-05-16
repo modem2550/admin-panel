@@ -4,7 +4,7 @@
 	import { supabase } from "$lib/supabase";
 
 	let itemsPerPage = 180;
-	let assetType = $state<"product" | "group" | "archive">(
+	let assetType = $state<"product" | "group" | "archive" | "playback">(
 		"product",
 	);
 	let sortOrder = $state<"asc" | "desc">("desc");
@@ -58,15 +58,19 @@
 					/* fall through */
 				}
 				if (currentCursor === null) {
-					_fetchInFlight = false;
-					loading = false;
-					scanningStatus =
-						"โหมดใหม่สุดต้องรู้ ID ล่าสุดก่อน — กด Find Latest หรือสลับลำดับ";
-					toasts.add(
-						"ไม่ทราบ ID ล่าสุดสำหรับโหมดนี้ กด Find Latest",
-						"warning",
-					);
-					return;
+					if (assetType === "archive" || assetType === "playback") {
+						currentCursor = 1; // Dummy cursor to bypass check
+					} else {
+						_fetchInFlight = false;
+						loading = false;
+						scanningStatus =
+							"โหมดใหม่สุดต้องรู้ ID ล่าสุดก่อน — กด Find Latest หรือสลับลำดับ";
+						toasts.add(
+							"ไม่ทราบ ID ล่าสุดสำหรับโหมดนี้ กด Find Latest",
+							"warning",
+						);
+						return;
+					}
 				}
 			}
 			start = currentCursor;
@@ -76,10 +80,14 @@
 			sortOrder === "asc"
 				? start + itemsPerPage - 1
 				: Math.max(1, start - itemsPerPage + 1);
-		scanningStatus =
-			sortOrder === "asc"
-				? `กำลังโหลด ID ${start}–${start + itemsPerPage - 1} ...`
-				: `กำลังโหลด ID ${start}–${rangeEnd} (ใหม่ไปเก่า) ...`;
+		if (assetType === "archive" || assetType === "playback") {
+			scanningStatus = `กำลังโหลดรายการใหม่ (${assets.length}–${assets.length + itemsPerPage}) ...`;
+		} else {
+			scanningStatus =
+				sortOrder === "asc"
+					? `กำลังโหลด ID ${start}–${start + itemsPerPage - 1} ...`
+					: `กำลังโหลด ID ${start}–${rangeEnd} (ใหม่ไปเก่า) ...`;
+		}
 
 		try {
 			let resp: Response;
@@ -88,6 +96,12 @@
 				const take = itemsPerPage;
 				resp = await fetch(
 					`/api/assets/theater-archive?skip=${skip}&take=${take}`,
+				);
+			} else if (assetType === "playback") {
+				const skip = assets.length;
+				const take = itemsPerPage;
+				resp = await fetch(
+					`/api/assets/playback?skip=${skip}&take=${take}`,
 				);
 			} else {
 				resp = await fetch(
@@ -100,23 +114,30 @@
 			// Other endpoints return Asset[] directly
 			let newAssets: Asset[];
 			let archiveTotal: number | null = null;
-			if (assetType === "archive") {
-				const envelope = await resp.json() as { items: Asset[]; total: number; skip: number; take: number };
+			if (assetType === "archive" || assetType === "playback") {
+				const envelope = (await resp.json()) as {
+					items: Asset[];
+					total: number;
+					skip: number;
+					take: number;
+				};
 				newAssets = envelope.items ?? [];
 				archiveTotal = envelope.total ?? null;
 			} else {
-				newAssets = await resp.json() as Asset[];
+				newAssets = (await resp.json()) as Asset[];
 			}
 
 			if (newAssets.length === 0) {
 				scanningStatus = `ไม่พบ asset ในช่วงนี้ ลองเปลี่ยนประเภทหรือลำดับ`;
 			} else {
 				// Deduplicate to prevent Svelte 'each_key_duplicate' error
-				const existingIds = new Set(assets.map(a => a.id));
-				const filteredNew = newAssets.filter(a => !existingIds.has(a.id));
+				const existingIds = new Set(assets.map((a) => a.id));
+				const filteredNew = newAssets.filter(
+					(a) => !existingIds.has(a.id),
+				);
 				assets = [...assets, ...filteredNew];
 
-				if (assetType !== "archive") {
+				if (assetType !== "archive" && assetType !== "playback") {
 					if (sortOrder === "asc") {
 						currentCursor = start + itemsPerPage;
 					} else {
@@ -127,10 +148,14 @@
 					}
 				}
 
-				if (assetType === "archive" && archiveTotal !== null) {
-					scanningStatus = assets.length >= archiveTotal
-						? `โหลดครบแล้ว ${assets.length} รายการ`
-						: `โหลดแล้ว ${assets.length} / ${archiveTotal} รายการ`;
+				if (
+					(assetType === "archive" || assetType === "playback") &&
+					archiveTotal !== null
+				) {
+					scanningStatus =
+						assets.length >= archiveTotal
+							? `โหลดครบแล้ว ${assets.length} รายการ`
+							: `โหลดแล้ว ${assets.length} / ${archiveTotal} รายการ`;
 				} else {
 					scanningStatus = "";
 				}
@@ -148,7 +173,7 @@
 
 	async function findLatestAdaptive() {
 		if (_fetchInFlight) return;
-		if (assetType === "archive") {
+		if (assetType === "archive" || assetType === "playback") {
 			resetAndLoad();
 			return;
 		}
@@ -191,7 +216,7 @@
 
 	function resetAndLoad() {
 		assets = [];
-		if (assetType === "archive") {
+		if (assetType === "archive" || assetType === "playback") {
 			loadNextBatch();
 			return;
 		}
@@ -204,26 +229,14 @@
 		}
 	}
 
-	function clearResults() {
-		assets = [];
-		scanningStatus = "ล้างรายการแล้ว";
-		currentCursor = sortOrder === "asc" ? 1 : null;
-	}
-
 	function assetResolvedOrApiUrl(asset: Asset): string {
-		if (assetType !== "product" && assetType !== "archive")
+		if (
+			assetType !== "product" &&
+			assetType !== "archive" &&
+			assetType !== "playback"
+		)
 			return asset.url;
 		return resolvedThumbByProductId.get(asset.id) ?? asset.url;
-	}
-
-	function copyAllUrls() {
-		if (assets.length === 0) {
-			toasts.add("ไม่มีรายการให้คัดลอก", "warning");
-			return;
-		}
-		const urls = assets.map((a) => assetResolvedOrApiUrl(a)).join("\n");
-		navigator.clipboard.writeText(urls);
-		toasts.add(`คัดลอก ${assets.length} Internal URI แล้ว`, "success");
 	}
 
 	function formatTheaterDateTime(date?: string, time?: string): string {
@@ -739,7 +752,11 @@
 	});
 
 	function assetThumbSrc(asset: Asset): string {
-		if (assetType !== "product" && assetType !== "archive")
+		if (
+			assetType !== "product" &&
+			assetType !== "archive" &&
+			assetType !== "playback"
+		)
 			return asset.url;
 		if (asset.imageFileUrlList?.length)
 			return asset.imageFileUrlList[0] ?? asset.url;
@@ -807,39 +824,6 @@
 			return;
 		}
 
-		const src = img.src;
-
-		if (src.includes("SAT-Round")) {
-			img.src = src.replace("SAT-Round", "SUN-Round");
-			img.dataset.retried = "1";
-			return;
-		}
-		if (src.includes("SUN-Round") && img.dataset.retried === "1") {
-			const roundMatch = src.match(/Round(\d+)/);
-			if (roundMatch) {
-				const nextRound = parseInt(roundMatch[1], 10) + 1;
-				if (nextRound <= 6) {
-					img.src = src.replace(
-						/SAT-Round\d+|SUN-Round\d+/,
-						`SAT-Round${nextRound}`,
-					);
-					img.dataset.retried = "2";
-					return;
-				}
-			}
-		}
-
-		if (src.endsWith(".jpg")) {
-			img.src = src.replace(".jpg", ".png");
-			img.dataset.retried = "done";
-			return;
-		}
-		if (src.endsWith(".png")) {
-			img.src = src.replace(".png", ".jpg");
-			img.dataset.retried = "done";
-			return;
-		}
-
 		img.dataset.retried = "done";
 		img.hidden = true;
 		img.closest(".editorial-card")?.setAttribute("data-broken", "true");
@@ -884,7 +868,8 @@
 		if (
 			typeParam === "product" ||
 			typeParam === "group" ||
-			typeParam === "archive"
+			typeParam === "archive" ||
+			typeParam === "playback"
 		) {
 			assetType = typeParam;
 		}
@@ -1006,6 +991,7 @@
 			>
 				Collectives
 			</button>
+
 			<button
 				type="button"
 				class="button-pill-outline taxonomy-chip"
@@ -1013,6 +999,15 @@
 				class:active={assetType === "archive"}
 			>
 				Archive
+			</button>
+
+			<button
+				type="button"
+				class="button-pill-outline taxonomy-chip"
+				onclick={() => (assetType = "playback")}
+				class:active={assetType === "playback"}
+			>
+				Playback
 			</button>
 		</div>
 
@@ -1272,12 +1267,11 @@
 							>{assetType.toUpperCase()} Type</span
 						>
 						<h3 id="asset-gallery-title" class="technical-title">
-							{selectedAsset.title ??
-								`THEATER #${selectedAsset.id}`}
+							{selectedAsset.title ?? `ITEM #${selectedAsset.id}`}
 						</h3>
 					</div>
 
-					{#if assetType === "archive"}
+					{#if assetType === "archive" || assetType === "playback"}
 						<div class="theater-popup-meta">
 							<p>
 								<strong>Date/Time:</strong>
@@ -1299,7 +1293,7 @@
 						</div>
 					{/if}
 
-					{#if (assetType === "product" || assetType === "archive") && (selectedAsset.title || selectedAsset.description)}
+					{#if (assetType === "product" || assetType === "archive" || assetType === "playback") && (selectedAsset.title || selectedAsset.description)}
 						<div class="product-popup-meta">
 							{#if selectedAsset.description}
 								<pre

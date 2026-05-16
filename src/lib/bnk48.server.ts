@@ -98,14 +98,13 @@ import type { TheaterArchiveResult } from './bnk48';
 export async function getTheaterArchive(skip = 0, take = 20): Promise<TheaterArchiveResult> {
 	const token = await getToken();
 	const userId = await getUserId();
-	console.log(`[TheaterArchive] Fetching for userId: ${userId}`);
+
 	const result = await fetchArchive(userId, token, skip, take);
 	
 	// Normalize result: some endpoints return array directly, others return { items: [] }
 	if (Array.isArray(result)) {
 		if (result.length > 0) {
-			console.log(`[TheaterArchive] Item 0 keys:`, Object.keys(result[0]));
-			console.log(`[TheaterArchive] Item 0 sample:`, JSON.stringify(result[0]).slice(0, 200));
+
 		}
 		return {
 			items: result,

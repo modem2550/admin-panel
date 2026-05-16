@@ -19,12 +19,12 @@ var HOST_PREFIX_MAP = {
 var proxyCache = /* @__PURE__ */ new Map();
 /**
 * Proxies a URL through the project's own API to hide the original domain.
-* Uses a stealthy path-based approach: /p/{prefix}/{path}
+* Uses a stealthy path-based approach: /api/{prefix}/{path}
 * Results are memoized — repeated calls with the same URL are O(1).
 */
 function proxyUrl(url) {
 	if (!url) return "";
-	if (url.startsWith("/p/")) return url;
+	if (url.startsWith("/api/")) return url;
 	if (!url.startsWith("http")) return url;
 	const cached = proxyCache.get(url);
 	if (cached !== void 0) return cached;
@@ -32,19 +32,19 @@ function proxyUrl(url) {
 	try {
 		const parsed = new URL(url);
 		const prefix = HOST_PREFIX_MAP[parsed.hostname];
-		if (prefix) result = `/p/${prefix}/${parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname}${parsed.search}`;
+		if (prefix) result = `/api/${prefix}/${parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname}${parsed.search}`;
 	} catch {}
 	proxyCache.set(url, result);
 	return result;
 }
 /**
 * Reverses a proxied URL back to its original domain.
-* Example: /p/usr/path -> https://user.bnk48.io/path
+* Example: /api/usr/path -> https://user.bnk48.io/path
 */
 function unproxyUrl(proxiedUrl) {
 	if (!proxiedUrl) return "";
-	if (!proxiedUrl.startsWith("/p/")) return proxiedUrl;
-	const parts = proxiedUrl.slice(3).split("/");
+	if (!proxiedUrl.startsWith("/api/")) return proxiedUrl;
+	const parts = proxiedUrl.slice(5).split("/");
 	const prefix = parts[0];
 	const pathWithSearch = parts.slice(1).join("/");
 	const host = Object.keys(HOST_PREFIX_MAP).find((key) => HOST_PREFIX_MAP[key] === prefix);
@@ -54,14 +54,12 @@ function unproxyUrl(proxiedUrl) {
 function getDefaultAssetUrl(type, id) {
 	const idStr = String(id);
 	if (type === "group") return `/api/image/product-group/${idStr}.jpg`;
-	if (type === "theater") return "";
 	return `/api/image/product/${idStr}/sku-1.jpg`;
 }
 function getCDNDiscoveryUrls(type, id) {
 	+id;
 	const idStr = String(id);
 	if (type === "group") return [`https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`, `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`];
-	if (type === "theater") return [];
 	return [];
 }
 //#endregion

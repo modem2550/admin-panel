@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/supabase.server';
-import { getCDNDiscoveryUrls, getDefaultAssetUrl } from '$lib/bnk48';
+import { getDefaultAssetUrl } from '$lib/bnk48';
 import https from 'node:https';
 
 async function checkExists(urlStr: string): Promise<boolean> {
@@ -27,16 +27,7 @@ async function checkExists(urlStr: string): Promise<boolean> {
 const cache = new Map<string, { data: any; expires: number }>();
 const CACHE_TTL = 1000 * 60 * 15; // 15 minutes
 
-async function theaterExists(id: number): Promise<boolean> {
-    try {
-        const perfResp = await fetch(`https://public.bnk48.io/performance/${id}`);
-        if (!perfResp.ok) return false;
-        const perf = await perfResp.json();
-        return Boolean(perf?.eventId) && perf.type === 'theater';
-    } catch {
-        return false;
-    }
-}
+
 
 async function shopProductExists(id: number): Promise<boolean> {
     try {
@@ -52,43 +43,7 @@ async function shopProductExists(id: number): Promise<boolean> {
 export const GET: RequestHandler = async ({ url }) => {
     const type = url.searchParams.get('type') || 'product';
 
-    if (type === 'theater') {
-        const cached = cache.get(type);
-        if (cached && cached.expires > Date.now()) {
-            return json(cached.data);
-        }
 
-        let low = 1;
-        let high = 5000;
-        let lastFound = 0;
-
-        while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            const exists = await theaterExists(mid);
-            if (exists) {
-                lastFound = mid;
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-
-        let probe = lastFound + 1;
-        let misses = 5;
-        while (misses > 0 && probe <= 8000) {
-            if (await theaterExists(probe)) {
-                lastFound = probe;
-                misses = 5;
-            } else {
-                misses -= 1;
-            }
-            probe += 1;
-        }
-
-        const result = { id: String(lastFound || 294), url: '' };
-        cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
-        return json(result);
-    }
 
     if (type === 'product') {
         const cached = cache.get(type);
@@ -96,7 +51,7 @@ export const GET: RequestHandler = async ({ url }) => {
             return json(cached.data);
         }
 
-        console.log(`[API/Latest] Searching latest product via shop API...`);
+
         const startTime = Date.now();
 
         let low = 0;
@@ -142,7 +97,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 /* ignore */
             }
 
-            console.log(`[API/Latest] Found latest product: ${lastFoundId} (Took ${Date.now() - startTime}ms)`);
+
 
             const result = {
                 id: lastFoundId.toString(),
@@ -162,7 +117,7 @@ export const GET: RequestHandler = async ({ url }) => {
         return json(cached.data);
     }
 
-    console.log(`[API/Latest] Searching latest ${type}...`);
+
     const startTime = Date.now();
 
     // ── Strategy 1: ดึง MAX(id) จาก DB (เร็วมาก ~50ms) ──────────────────────
@@ -170,16 +125,17 @@ export const GET: RequestHandler = async ({ url }) => {
         .from('cdn_assets')
         .select('id, url')
         .eq('type', type)
+        .lt('id', 10000) // SAFETY
         .order('id', { ascending: false })
         .limit(1)
         .maybeSingle();
 
     if (!dbErr && maxRow) {
-        console.log(`[API/Latest] Found latest ${type}: ${maxRow.id} from DB (Took ${Date.now() - startTime}ms)`);
+
 
         const result = {
             id: maxRow.id.toString(),
-            url: maxRow.url || getDefaultAssetUrl(type as 'product' | 'group' | 'theater', maxRow.id)
+            url: maxRow.url || getDefaultAssetUrl(type as 'product' | 'group', maxRow.id)
         };
 
         cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
@@ -187,18 +143,14 @@ export const GET: RequestHandler = async ({ url }) => {
     }
 
     // ── Strategy 2: DB ว่าง → ใช้ binary search (เฉพาะครั้งแรกที่ยังไม่เคย scan) ──
-    console.log(`[API/Latest] DB empty for ${type}, falling back to binary search...`);
 
-    function getCandidateUrls(id: number): string[] {
-        return getCDNDiscoveryUrls(type as 'product' | 'group' | 'theater', id);
-    }
 
     // ใช้ probe แบบเร็ว — ลองแค่ sku-1.jpg/png และ format เฉพาะของ ID นั้นๆ
     // ไม่ต้องลองทุก candidate URL (เร็วกว่าหลายร้อยเท่า)
     async function quickProbe(id: number): Promise<boolean> {
         const idStr = id.toString();
         let quickUrls: string[];
-        
+
         if (type === 'group') {
             quickUrls = [
                 `https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`,
@@ -209,7 +161,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.jpg`,
                 `https://img.bnk48cdn.net/shop/product/${idStr}/sku-1.png`
             ];
-            
+
             // Add the specific fallback format for this ID range
             const fallbackPath = getDefaultAssetUrl('product', id).replace('/api/image/', '');
             const fallbackUrl = `https://img.bnk48cdn.net/shop/${fallbackPath}`;
@@ -252,17 +204,17 @@ export const GET: RequestHandler = async ({ url }) => {
     }
 
     if (lastFoundId > 0) {
-        console.log(`[API/Latest] Found latest ${type}: ${lastFoundId} via binary search (Took ${Date.now() - startTime}ms)`);
+
 
         const result = {
             id: lastFoundId.toString(),
-            url: getDefaultAssetUrl(type as 'product' | 'group' | 'theater', lastFoundId)
+            url: getDefaultAssetUrl(type as 'product' | 'group', lastFoundId)
         };
 
         cache.set(type, { data: result, expires: Date.now() + CACHE_TTL });
         return json(result);
     }
 
-    console.log(`[API/Latest] No ${type} found (Took ${Date.now() - startTime}ms)`);
+
     return json({ id: '0', url: '' });
 };

@@ -4,15 +4,9 @@ import { supabaseAdmin } from '$lib/supabase.server';
 import { getDefaultAssetUrl } from '$lib/bnk48';
 
 const MAX_COUNT = 250;
-const ALLOWED_TYPES = new Set(['product', 'group', 'theater']);
+const ALLOWED_TYPES = new Set(['product', 'group']);
 
-function proxyCdnUrl(url: string): string {
-    if (!url) return '';
-    if (url.startsWith('https://img.bnk48cdn.net/')) {
-        return url.replace('https://img.bnk48cdn.net/', '/api/img/');
-    }
-    return url;
-}
+import { proxyUrl } from '$lib/bnk48';
 
 type ShopProductAsset = {
     id: string;
@@ -30,11 +24,11 @@ async function fetchShopProduct(id: number): Promise<ShopProductAsset | null> {
         const p = await resp.json();
         if (!p || typeof p.id !== 'number') return null;
 
-        const thumb = proxyCdnUrl(typeof p.thumbnailImageUrl === 'string' ? p.thumbnailImageUrl : '');
+        const thumb = proxyUrl(typeof p.thumbnailImageUrl === 'string' ? p.thumbnailImageUrl : '');
         const rawList = Array.isArray(p.imageFileUrlList) ? p.imageFileUrlList : [];
         const images = rawList
             .filter((u: unknown): u is string => typeof u === 'string')
-            .map((u: string) => proxyCdnUrl(u))
+            .map((u: string) => proxyUrl(u))
             .filter(Boolean);
 
         const primary = thumb || images[0] || '';
@@ -55,59 +49,7 @@ async function fetchShopProduct(id: number): Promise<ShopProductAsset | null> {
     }
 }
 
-type TheaterAsset = {
-    id: string;
-    url: string;
-    title: string;
-    description: string;
-    date: string;
-    time: string;
-    placeName: string;
-    memberIdList: number[];
-    memberNames: string[];
-    extra_skus: string[];
-};
 
-const memberNameCache = new Map<number, string>();
-
-async function getMemberName(memberId: number): Promise<string> {
-    const cached = memberNameCache.get(memberId);
-    if (cached) return cached;
-
-    try {
-        const memberResp = await fetch(`https://public.bnk48.io/member/${memberId}/profile`);
-        if (!memberResp.ok) return `#${memberId}`;
-        const member = await memberResp.json();
-        const name = member.codeName || member.nickname || member.name || `#${memberId}`;
-        memberNameCache.set(memberId, name);
-        return name;
-    } catch {
-        return `#${memberId}`;
-    }
-}
-
-async function getTheaterAsset(id: number): Promise<TheaterAsset | null> {
-    const perfResp = await fetch(`https://public.bnk48.io/performance/${id}`);
-    if (!perfResp.ok) return null;
-    const perf = await perfResp.json();
-    if (!perf || perf.type !== 'theater') return null;
-
-    const memberIds: number[] = Array.isArray(perf.memberIdList) ? perf.memberIdList : [];
-    const memberNames = await Promise.all(memberIds.map((memberId) => getMemberName(memberId)));
-
-    return {
-        id: String(perf.eventId ?? id),
-        url: (perf.imageFileUrl ?? '').replace('https://img.bnk48cdn.net/', '/api/img/'),
-        title: perf.title ?? `Theater ${id}`,
-        description: perf.description ?? '',
-        date: perf.date ?? '',
-        time: perf.time ?? '',
-        placeName: perf.placeName ?? '',
-        memberIdList: memberIds,
-        memberNames,
-        extra_skus: []
-    };
-}
 const ALLOWED_ORDERS = new Set(['asc', 'desc']);
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -121,24 +63,11 @@ export const GET: RequestHandler = async ({ url }) => {
     if (isNaN(startRaw) || startRaw < 0) throw error(400, 'Invalid start parameter');
     if (isNaN(countRaw) || countRaw < 1) throw error(400, 'Invalid count parameter');
 
-    const count = Math.min(countRaw, type === 'theater' ? 60 : MAX_COUNT);
+    const count = Math.min(countRaw, MAX_COUNT);
     const rangeStart = order === 'asc' ? Math.max(1, startRaw) : Math.max(1, startRaw - count + 1);
     const rangeEnd = order === 'asc' ? rangeStart + count - 1 : Math.max(1, startRaw);
 
-    if (type === 'theater') {
-        const ids: number[] = [];
-        if (order === 'asc') {
-            for (let id = rangeStart; id <= rangeEnd; id++) ids.push(id);
-        } else {
-            for (let id = rangeEnd; id >= rangeStart; id--) ids.push(id);
-        }
 
-        const assetResults = await Promise.all(ids.map((id) => getTheaterAsset(id)));
-        const assets = assetResults.filter((item): item is TheaterAsset => item !== null);
-        return json(assets, {
-            headers: { 'Cache-Control': 'public, max-age=60' }
-        });
-    }
 
     if (type === 'product') {
         const ids: number[] = [];
@@ -172,13 +101,11 @@ export const GET: RequestHandler = async ({ url }) => {
                 // Use validated extra_urls[0] if available, otherwise row.url, otherwise fallback to generator
                 let actualUrl = row.extra_urls?.[0] || row.url;
                 if (!actualUrl || actualUrl === '') {
-                    actualUrl = getDefaultAssetUrl(type as 'product' | 'group' | 'theater', row.id);
+                    actualUrl = getDefaultAssetUrl(type as 'product' | 'group', row.id);
                 }
                 
                 // Make sure url is proxied
-                if (actualUrl.startsWith('https://img.bnk48cdn.net/')) {
-                    actualUrl = actualUrl.replace('https://img.bnk48cdn.net/', '/api/img/');
-                }
+                actualUrl = proxyUrl(actualUrl);
 
                 return {
                     id: idStr,
@@ -202,7 +129,7 @@ export const GET: RequestHandler = async ({ url }) => {
         for (let id = rangeStart; id <= rangeEnd && assets.length < count; id++) {
             assets.push({
                 id: id.toString(),
-                url: getDefaultAssetUrl(type as 'product' | 'group' | 'theater', id),
+                url: getDefaultAssetUrl(type as 'product' | 'group', id),
                 extra_skus: []
             });
         }
@@ -210,7 +137,7 @@ export const GET: RequestHandler = async ({ url }) => {
         for (let id = rangeEnd; id >= rangeStart && assets.length < count; id--) {
             assets.push({
                 id: id.toString(),
-                url: getDefaultAssetUrl(type as 'product' | 'group' | 'theater', id),
+                url: getDefaultAssetUrl(type as 'product' | 'group', id),
                 extra_skus: []
             });
         }

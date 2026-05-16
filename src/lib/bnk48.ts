@@ -108,17 +108,15 @@ export function unproxyUrl(proxiedUrl: string | null | undefined): string {
     return `https://${host}/${pathWithSearch}`;
 }
 
-export function getDefaultAssetUrl(type: 'product' | 'group' | 'theater', id: number | string): string {
+export function getDefaultAssetUrl(type: 'product' | 'group', id: number | string): string {
     const idStr = String(id);
     if (type === 'group') return `/api/image/product-group/${idStr}.jpg`;
-    if (type === 'theater') return '';
     return `/api/image/product/${idStr}/sku-1.jpg`;
 }
 
 // ── getCDNDiscoveryUrls ────────────────────────────────────────────────────────
 
-export function getCDNDiscoveryUrls(type: 'product' | 'group' | 'theater', id: number | string): string[] {
-    const idNum = +id;
+export function getCDNDiscoveryUrls(type: 'product' | 'group', id: number | string): string[] {
     const idStr = String(id);
 
     if (type === 'group') {
@@ -127,16 +125,8 @@ export function getCDNDiscoveryUrls(type: 'product' | 'group' | 'theater', id: n
             `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`,
         ];
     }
-    if (type === 'theater') return [];
 
-    // Seen set to deduplicate without post-processing
-    const seen = new Set<string>();
     const candidates: string[] = [];
-
-    const push = (path: string) => {
-        const full = `https://img.bnk48cdn.net/shop/product/${idStr}/${path}`;
-        if (!seen.has(full)) { seen.add(full); candidates.push(full); }
-    };
 
     return candidates;
 }
