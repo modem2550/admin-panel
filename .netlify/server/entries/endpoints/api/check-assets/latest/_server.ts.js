@@ -1,5 +1,5 @@
+import { f as getDefaultAssetUrl } from "../../../../../chunks/bnk48.js";
 import { t as supabaseAdmin } from "../../../../../chunks/supabase.server.js";
-import { d as getDefaultAssetUrl } from "../../../../../chunks/bnk48.js";
 import { json } from "@sveltejs/kit";
 import https from "node:https";
 //#region src/routes/api/check-assets/latest/+server.ts
@@ -40,8 +40,6 @@ var GET = async ({ url }) => {
 	if (type === "product") {
 		const cached = cache.get(type);
 		if (cached && cached.expires > Date.now()) return json(cached.data);
-		console.log(`[API/Latest] Searching latest product via shop API...`);
-		const startTime = Date.now();
 		let low = 0;
 		let high = 15e3;
 		let lastFoundId = 0;
@@ -70,7 +68,6 @@ var GET = async ({ url }) => {
 					if (typeof p.thumbnailImageUrl === "string") thumbUrl = p.thumbnailImageUrl.startsWith("https://img.bnk48cdn.net/") ? p.thumbnailImageUrl.replace("https://img.bnk48cdn.net/", "/api/img/") : p.thumbnailImageUrl;
 				}
 			} catch {}
-			console.log(`[API/Latest] Found latest product: ${lastFoundId} (Took ${Date.now() - startTime}ms)`);
 			const result = {
 				id: lastFoundId.toString(),
 				url: thumbUrl
@@ -88,11 +85,8 @@ var GET = async ({ url }) => {
 	}
 	const cached = cache.get(type);
 	if (cached && cached.expires > Date.now()) return json(cached.data);
-	console.log(`[API/Latest] Searching latest ${type}...`);
-	const startTime = Date.now();
 	const { data: maxRow, error: dbErr } = await supabaseAdmin.from("cdn_assets").select("id, url").eq("type", type).lt("id", 1e4).order("id", { ascending: false }).limit(1).maybeSingle();
 	if (!dbErr && maxRow) {
-		console.log(`[API/Latest] Found latest ${type}: ${maxRow.id} from DB (Took ${Date.now() - startTime}ms)`);
 		const result = {
 			id: maxRow.id.toString(),
 			url: maxRow.url || getDefaultAssetUrl(type, maxRow.id)
@@ -103,7 +97,6 @@ var GET = async ({ url }) => {
 		});
 		return json(result);
 	}
-	console.log(`[API/Latest] DB empty for ${type}, falling back to binary search...`);
 	async function quickProbe(id) {
 		const idStr = id.toString();
 		let quickUrls;
@@ -135,7 +128,6 @@ var GET = async ({ url }) => {
 		checkId++;
 	}
 	if (lastFoundId > 0) {
-		console.log(`[API/Latest] Found latest ${type}: ${lastFoundId} via binary search (Took ${Date.now() - startTime}ms)`);
 		const result = {
 			id: lastFoundId.toString(),
 			url: getDefaultAssetUrl(type, lastFoundId)
@@ -146,7 +138,6 @@ var GET = async ({ url }) => {
 		});
 		return json(result);
 	}
-	console.log(`[API/Latest] No ${type} found (Took ${Date.now() - startTime}ms)`);
 	return json({
 		id: "0",
 		url: ""

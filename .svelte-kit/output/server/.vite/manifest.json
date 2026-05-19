@@ -374,6 +374,16 @@
     "src": "src/routes/api/[...path]/+server.ts",
     "isEntry": true
   },
+  "src/routes/api/assets/playback/+server.ts": {
+    "file": "entries/endpoints/api/assets/playback/_server.ts.js",
+    "name": "entries/endpoints/api/assets/playback/_server.ts",
+    "src": "src/routes/api/assets/playback/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_bnk48.server.js",
+      "_bnk48.js"
+    ]
+  },
   "src/routes/api/assets/scan/+server.ts": {
     "file": "entries/endpoints/api/assets/scan/_server.ts.js",
     "name": "entries/endpoints/api/assets/scan/_server.ts",

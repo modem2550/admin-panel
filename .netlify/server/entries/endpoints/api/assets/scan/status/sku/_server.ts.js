@@ -1,5 +1,5 @@
+import { d as getCDNDiscoveryUrls } from "../../../../../../../chunks/bnk48.js";
 import { t as supabaseAdmin } from "../../../../../../../chunks/supabase.server.js";
-import { u as getCDNDiscoveryUrls } from "../../../../../../../chunks/bnk48.js";
 import { error, json } from "@sveltejs/kit";
 import https from "node:https";
 //#region src/routes/api/assets/scan/status/sku/+server.ts

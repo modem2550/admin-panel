@@ -1,22 +1,17 @@
+import { f as getDefaultAssetUrl, p as proxyUrl } from "../../../../chunks/bnk48.js";
 import { t as supabaseAdmin } from "../../../../chunks/supabase.server.js";
-import { d as getDefaultAssetUrl } from "../../../../chunks/bnk48.js";
 import { error, json } from "@sveltejs/kit";
 //#region src/routes/api/check-assets/+server.ts
 var MAX_COUNT = 250;
 var ALLOWED_TYPES = new Set(["product", "group"]);
-function proxyCdnUrl(url) {
-	if (!url) return "";
-	if (url.startsWith("https://img.bnk48cdn.net/")) return url.replace("https://img.bnk48cdn.net/", "/api/img/");
-	return url;
-}
 async function fetchShopProduct(id) {
 	try {
 		const resp = await fetch(`https://public.bnk48.io/shop/product/${id}`);
 		if (!resp.ok) return null;
 		const p = await resp.json();
 		if (!p || typeof p.id !== "number") return null;
-		const thumb = proxyCdnUrl(typeof p.thumbnailImageUrl === "string" ? p.thumbnailImageUrl : "");
-		const images = (Array.isArray(p.imageFileUrlList) ? p.imageFileUrlList : []).filter((u) => typeof u === "string").map((u) => proxyCdnUrl(u)).filter(Boolean);
+		const thumb = proxyUrl(typeof p.thumbnailImageUrl === "string" ? p.thumbnailImageUrl : "");
+		const images = (Array.isArray(p.imageFileUrlList) ? p.imageFileUrlList : []).filter((u) => typeof u === "string").map((u) => proxyUrl(u)).filter(Boolean);
 		const primary = thumb || images[0] || "";
 		if (!primary) return null;
 		const imageFileUrlList = images.length > 0 ? images : [primary];
@@ -57,7 +52,7 @@ var GET = async ({ url }) => {
 			const idStr = row.id.toString();
 			let actualUrl = row.extra_urls?.[0] || row.url;
 			if (!actualUrl || actualUrl === "") actualUrl = getDefaultAssetUrl(type, row.id);
-			if (actualUrl.startsWith("https://img.bnk48cdn.net/")) actualUrl = actualUrl.replace("https://img.bnk48cdn.net/", "/api/img/");
+			actualUrl = proxyUrl(actualUrl);
 			return {
 				id: idStr,
 				url: actualUrl,
