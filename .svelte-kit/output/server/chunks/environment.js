@@ -24,7 +24,7 @@ function set_assets(path) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1778917399299";
+var version = "1779202572242";
 var prerendering = false;
 function set_building() {}
 function set_prerendering() {

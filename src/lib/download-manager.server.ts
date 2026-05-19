@@ -142,31 +142,31 @@ function buildFfmpegArgs(
     const videoArgs =
         encoder === 'h264_videotoolbox'
             ? [
-                  '-c:v',
-                  'h264_videotoolbox',
+                '-c:v',
+                'h264_videotoolbox',
 
-                  '-b:v',
-                  '3M',
+                '-b:v',
+                '3M',
 
-                  '-maxrate:v',
-                  '3.5M',
+                '-maxrate:v',
+                '3.5M',
 
-                  '-bufsize:v',
-                  '6M',
-              ]
+                '-bufsize:v',
+                '6M',
+            ]
             : [
-                  '-c:v',
-                  'libx264',
+                '-c:v',
+                'libx264',
 
-                  '-preset',
-                  'fast',
+                '-preset',
+                'fast',
 
-                  '-crf',
-                  '22',
+                '-crf',
+                '22',
 
-                  '-movflags',
-                  '+faststart',
-              ];
+                '-movflags',
+                '+faststart',
+            ];
 
     return [
         '-headers',
