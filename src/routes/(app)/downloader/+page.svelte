@@ -12,9 +12,11 @@
 	let showTimelineModal = $state(false);
 	let fetchingVodId = $state<string | null>(null);
 	let playVideo = $state(false);
+
+	// ffmpeg.wasm state
 	let downloadProgress = $state<number | null>(null);
-	let downloadingJobId = $state<string | null>(null);
 	let downloadingUrl = $state<string | null>(null);
+	let downloadStatusText = $state<string>("");
 
 	function closeModals() {
 		showVodModal = false;
@@ -77,63 +79,90 @@
 		toasts.add("Link copied to clipboard", "success");
 	}
 
-	function handleDownloadMp4(url: string, fileName: string, info?: any) {
-		if (downloadingJobId) {
+	// ── ffmpeg.wasm download ────────────────────────────────────────────────────
+
+	async function handleDownloadMp4(url: string, fileName: string) {
+		if (downloadingUrl) {
 			toasts.add("A download is already in progress", "warning");
 			return;
 		}
 
-		let rawDuration = info?.duration || info?.videoDuration || info?.video_duration || 0;
-		if (rawDuration > 100000) {
-			rawDuration = rawDuration / 1000;
-		}
-
-		const duration = Math.floor(rawDuration);
-		const startUrl = `/api/download/mp4?action=start&url=${encodeURIComponent(url)}&name=${encodeURIComponent(fileName)}&duration=${duration}`;
-
-		toasts.add(`Starting compression for ${fileName}...`, "info");
-		downloadProgress = 0;
 		downloadingUrl = url;
+		downloadProgress = 0;
+		downloadStatusText = "Loading ffmpeg engine...";
 
-		fetch(startUrl)
-			.then((res) => res.json())
-			.then((data) => {
-				const jobId = data.jobId;
-				downloadingJobId = jobId;
-				pollDownloadStatus(jobId);
-			})
-			.catch((err) => {
-				toasts.add("Failed to start download job", "error");
-				downloadProgress = null;
-			});
-	}
-
-	async function pollDownloadStatus(jobId: string) {
 		try {
-			const res = await fetch(`/api/download/mp4?action=status&jobId=${jobId}`);
-			const data = await res.json();
+			// Dynamic import — โหลดเฉพาะตอนกดดาวน์โหลด ไม่ block หน้าเว็บ
+			const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+			const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
 
-			if (data.status === "processing") {
-				downloadProgress = data.progress;
-				setTimeout(() => pollDownloadStatus(jobId), 2000);
-			} else if (data.status === "completed") {
-				downloadProgress = 100;
-				toasts.add("Compression complete! Starting download...", "success");
-				window.location.href = `/api/download/mp4?action=download&jobId=${jobId}`;
-				setTimeout(() => {
-					downloadProgress = null;
-					downloadingJobId = null;
-					downloadingUrl = null;
-				}, 3000);
-			} else if (data.status === "failed") {
-				toasts.add(`Download failed: ${data.error}`, "error");
-				downloadProgress = null;
-				downloadingJobId = null;
-				downloadingUrl = null;
-			}
-		} catch (err) {
-			console.error("Polling error", err);
-			setTimeout(() => pollDownloadStatus(jobId), 5000);
+			const ffmpeg = new FFmpeg();
+
+			// Progress callback
+			ffmpeg.on("progress", ({ progress }) => {
+				downloadProgress = Math.round(progress * 100);
+			});
+
+			ffmpeg.on("log", ({ message }) => {
+				// แสดง fps/speed แบบย่อ
+				const match = message.match(/speed=\s*([\d.]+)x/);
+				if (match) downloadStatusText = `Processing... ${match[1]}x speed`;
+			});
+
+			downloadStatusText = "Loading ffmpeg engine...";
+
+			// โหลด core จาก CDN (ไม่ต้อง host เอง)
+			const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+			await ffmpeg.load({
+				coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+				wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+			});
+
+			downloadStatusText = "Fetching video...";
+			downloadProgress = 0;
+
+			// ดึงไฟล์วิดีโอมาไว้ใน memory
+			const inputData = await fetchFile(url);
+			await ffmpeg.writeFile("input.m3u8", inputData);
+
+			downloadStatusText = "Converting...";
+
+			// แปลง HLS → MP4
+			await ffmpeg.exec([
+				"-i", "input.m3u8",
+				"-c:v", "copy",   // ไม่ re-encode ถ้าเป็น h264 อยู่แล้ว (เร็วมาก)
+				"-c:a", "copy",
+				"-movflags", "+faststart",
+				"output.mp4"
+			]);
+
+			downloadStatusText = "Preparing download...";
+			downloadProgress = 100;
+
+			// อ่านไฟล์ output แล้วสร้าง download link
+			const data = await ffmpeg.readFile("output.mp4");
+			const blob = new Blob([data], { type: "video/mp4" });
+			const objectUrl = URL.createObjectURL(blob);
+
+			const a = document.createElement("a");
+			a.href = objectUrl;
+			a.download = `${fileName}.mp4`;
+			a.click();
+
+			// cleanup
+			URL.revokeObjectURL(objectUrl);
+			await ffmpeg.deleteFile("input.m3u8").catch(() => {});
+			await ffmpeg.deleteFile("output.mp4").catch(() => {});
+
+			toasts.add("Download complete!", "success");
+
+		} catch (err: any) {
+			console.error("ffmpeg.wasm error:", err);
+			toasts.add(`Download failed: ${err?.message ?? "unknown error"}`, "error");
+		} finally {
+			downloadProgress = null;
+			downloadingUrl = null;
+			downloadStatusText = "";
 		}
 	}
 
@@ -320,6 +349,25 @@
 					</div>
 				</div>
 
+				<!-- Progress bar -->
+				{#if downloadingUrl === selectedVod.resourceUrl && downloadProgress !== null}
+					<div class="progress-block hairline-section">
+						<div class="progress-header">
+							<span class="mono-label">
+								<span class="ds-busy" aria-hidden="true">[*]</span>
+								{downloadStatusText || "Processing..."}
+							</span>
+							<span class="mono-label">{downloadProgress}%</span>
+						</div>
+						<div class="progress-track">
+							<div class="progress-fill" style="width: {downloadProgress}%"></div>
+						</div>
+						<p class="ds-caption-md progress-note">
+							Processing in your browser — do not close this tab.
+						</p>
+					</div>
+				{/if}
+
 				<div class="modal-actions-co">
 					<a
 						href={selectedVod.resourceUrl}
@@ -330,14 +378,9 @@
 						Open stream
 					</a>
 					<button
-						onclick={() =>
-							handleDownloadMp4(
-								selectedVod!.resourceUrl,
-								selectedVod!.fileName,
-								selectedVod!.info
-							)}
+						onclick={() => handleDownloadMp4(selectedVod!.resourceUrl, selectedVod!.fileName)}
 						class="button-primary ds-button-md"
-						disabled={!!downloadingJobId}
+						disabled={!!downloadingUrl}
 					>
 						{#if downloadingUrl === selectedVod.resourceUrl}
 							<span class="ds-busy" aria-hidden="true">[*]</span>
@@ -424,6 +467,25 @@
 				</div>
 
 				{#if selectedTimeline.resourceUrl}
+					<!-- Progress bar -->
+					{#if downloadingUrl === selectedTimeline.resourceUrl && downloadProgress !== null}
+						<div class="progress-block hairline-section">
+							<div class="progress-header">
+								<span class="mono-label">
+									<span class="ds-busy" aria-hidden="true">[*]</span>
+									{downloadStatusText || "Processing..."}
+								</span>
+								<span class="mono-label">{downloadProgress}%</span>
+							</div>
+							<div class="progress-track">
+								<div class="progress-fill" style="width: {downloadProgress}%"></div>
+							</div>
+							<p class="ds-caption-md progress-note">
+								Processing in your browser — do not close this tab.
+							</p>
+						</div>
+					{/if}
+
 					<div class="modal-actions-co">
 						<a
 							href={selectedTimeline.resourceUrl}
@@ -437,11 +499,10 @@
 							onclick={() =>
 								handleDownloadMp4(
 									selectedTimeline!.resourceUrl!,
-									selectedTimeline!.fileName,
-									selectedTimeline!.info
+									selectedTimeline!.fileName
 								)}
 							class="button-primary ds-button-md"
-							disabled={!!downloadingJobId}
+							disabled={!!downloadingUrl}
 						>
 							{#if downloadingUrl === selectedTimeline.resourceUrl}
 								<span class="ds-busy" aria-hidden="true">[*]</span>
@@ -528,34 +589,12 @@
 		opacity: 0.65;
 	}
 
-	.download-hero__kicker {
-		margin: 0 0 0.35rem;
-	}
-
-	.download-hero__lede {
-		margin: 0.75rem 0 0;
-		max-width: 52ch;
-	}
-
-	.bracket-muted {
-		margin-right: 0.35em;
-		color: var(--ash);
-	}
-
-	.bracket-accent {
-		margin-right: 0.35em;
-		color: var(--accent);
-	}
-
-	.bracket-danger {
-		margin-right: 0.5rem;
-		color: var(--danger);
-		font-weight: 700;
-	}
-
-	.playback-search-form {
-		margin: 0;
-	}
+	.download-hero__kicker { margin: 0 0 0.35rem; }
+	.download-hero__lede { margin: 0.75rem 0 0; max-width: 52ch; }
+	.bracket-muted { margin-right: 0.35em; color: var(--ash); }
+	.bracket-accent { margin-right: 0.35em; color: var(--accent); }
+	.bracket-danger { margin-right: 0.5rem; color: var(--danger); font-weight: 700; }
+	.playback-search-form { margin: 0; }
 
 	.playback-search-field {
 		display: flex;
@@ -582,9 +621,7 @@
 		outline: none;
 	}
 
-	.playback-search-field input::placeholder {
-		color: var(--ash);
-	}
+	.playback-search-field input::placeholder { color: var(--ash); }
 
 	.playback-search-field .button-primary {
 		align-self: center;
@@ -611,9 +648,7 @@
 		gap: 0.5rem 1rem;
 	}
 
-	.section-title {
-		margin: 0;
-	}
+	.section-title { margin: 0; }
 
 	.technical-grid {
 		display: grid;
@@ -621,11 +656,7 @@
 		gap: 1.25rem;
 	}
 
-	.media-card-co {
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-	}
+	.media-card-co { overflow: hidden; display: flex; flex-direction: column; }
 
 	.card-media {
 		position: relative;
@@ -633,12 +664,7 @@
 		background: var(--surface-soft);
 	}
 
-	.card-media img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-	}
+	.card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 	.play-trigger {
 		position: absolute;
@@ -657,22 +683,10 @@
 		font: inherit;
 	}
 
-	.play-trigger:hover:not(:disabled) {
-		border-color: var(--ink);
-		background: var(--surface-soft);
-	}
+	.play-trigger:hover:not(:disabled) { border-color: var(--ink); background: var(--surface-soft); }
+	.play-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
 
-	.play-trigger:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.card-info {
-		padding: 0.75rem 0.85rem 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-	}
+	.card-info { padding: 0.75rem 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; }
 
 	.technical-title {
 		margin: 0;
@@ -683,14 +697,8 @@
 		white-space: nowrap;
 	}
 
-	.empty-state {
-		padding: 1.5rem 1.25rem;
-	}
-
-	.empty-copy {
-		margin: 0.75rem 0 0;
-		max-width: 48ch;
-	}
+	.empty-state { padding: 1.5rem 1.25rem; }
+	.empty-copy { margin: 0.75rem 0 0; max-width: 48ch; }
 
 	.modal-overlay {
 		position: fixed;
@@ -720,9 +728,7 @@
 		background: var(--surface-soft);
 	}
 
-	.modal-heading {
-		margin: 0.35rem 0 0;
-	}
+	.modal-heading { margin: 0.35rem 0 0; }
 
 	.close-trigger {
 		border: 1px solid var(--hairline-strong);
@@ -735,10 +741,7 @@
 		padding: 0.35rem 0.55rem;
 	}
 
-	.close-trigger:hover {
-		background: var(--surface-card);
-		border-color: var(--ink);
-	}
+	.close-trigger:hover { background: var(--surface-card); border-color: var(--ink); }
 
 	.technical-details {
 		padding: 1rem 1.15rem 1.25rem;
@@ -767,16 +770,8 @@
 	}
 
 	.media-preview img,
-	.media-preview video {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-	}
-
-	.media-preview.is-playing {
-		min-height: 200px;
-	}
+	.media-preview video { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.media-preview.is-playing { min-height: 200px; }
 
 	.play-overlay {
 		position: absolute;
@@ -795,29 +790,45 @@
 		font: inherit;
 	}
 
-	.play-overlay:hover {
-		border-color: var(--ink);
+	.play-overlay:hover { border-color: var(--ink); }
+	.detail-content .body-small { margin: 0.5rem 0 0; color: var(--mute); }
+	.modal-actions-co { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+
+	/* Progress bar */
+	.progress-block {
+		padding: 0.85rem 1rem;
+		background: var(--surface-soft);
 	}
 
-	.detail-content .body-small {
-		margin: 0.5rem 0 0;
-		color: var(--mute);
-	}
-
-	.modal-actions-co {
+	.progress-header {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.65rem;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.5rem;
 	}
 
-	.image-inventory {
-		padding: 1rem;
+	.progress-track {
+		height: 4px;
+		background: var(--hairline);
+		border-radius: 2px;
+		overflow: hidden;
 	}
 
-	.inventory-label {
-		display: block;
-		margin-bottom: 0.75rem;
+	.progress-fill {
+		height: 100%;
+		background: var(--accent);
+		border-radius: 2px;
+		transition: width 0.3s ease;
 	}
+
+	.progress-note {
+		margin: 0.5rem 0 0;
+		color: var(--ash);
+	}
+
+	/* Images */
+	.image-inventory { padding: 1rem; }
+	.inventory-label { display: block; margin-bottom: 0.75rem; }
 
 	.inventory-grid {
 		display: grid;
@@ -833,12 +844,7 @@
 	}
 
 	.inventory-item img,
-	.inventory-video {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-	}
+	.inventory-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 	.item-overlay {
 		position: absolute;
@@ -853,9 +859,7 @@
 	}
 
 	.inventory-item:hover .item-overlay,
-	.inventory-item:focus-within .item-overlay {
-		opacity: 1;
-	}
+	.inventory-item:focus-within .item-overlay { opacity: 1; }
 
 	.overlay-btn {
 		display: inline-flex;
@@ -873,21 +877,11 @@
 		cursor: pointer;
 	}
 
-	.overlay-btn:hover {
-		border-color: var(--ink);
-	}
+	.overlay-btn:hover { border-color: var(--ink); }
 
-	.ds-busy {
-		animation: coBusy 0.85s ease-in-out infinite;
-	}
+	.ds-busy { animation: coBusy 0.85s ease-in-out infinite; }
 
-	@keyframes coBusy {
-		50% {
-			opacity: 0.25;
-		}
-	}
+	@keyframes coBusy { 50% { opacity: 0.25; } }
 
-	:global(.dark) .item-overlay {
-		background: rgba(20, 18, 18, 0.88);
-	}
+	:global(.dark) .item-overlay { background: rgba(20, 18, 18, 0.88); }
 </style>
