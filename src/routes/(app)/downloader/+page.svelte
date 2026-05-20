@@ -112,10 +112,9 @@
 			downloadStatusText = "Loading ffmpeg engine...";
 
 			// โหลด core จาก CDN (ไม่ต้อง host เอง)
-			const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
 			await ffmpeg.load({
-				coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-				wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+				coreURL: await toBlobURL(`/ffmpeg/ffmpeg-core.js`, "text/javascript"),
+				wasmURL: await toBlobURL(`/ffmpeg/ffmpeg-core.wasm`, "application/wasm"),
 			});
 
 			downloadStatusText = "Fetching video...";
