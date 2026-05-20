@@ -14,11 +14,12 @@ export function buildContentSecurityPolicy(isHttps: boolean): string {
 
 	const parts = [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
+		"script-src 'self' 'unsafe-inline' https://unpkg.com blob:",
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
 		"font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
 		"img-src 'self' data: https: blob:",
-		`connect-src 'self' ${supabaseHosts}`,
+		`connect-src 'self' ${supabaseHosts} https://unpkg.com blob:`,
+		"worker-src 'self' blob:",
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
