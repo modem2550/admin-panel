@@ -10,8 +10,12 @@
 	onMount(async () => {
 		try {
 			const [p, g] = await Promise.all([
-				fetch("/api/check-assets/latest?type=product").then((r) => r.json()),
-				fetch("/api/check-assets/latest?type=group").then((r) => r.json()),
+				fetch("/api/check-assets/latest?type=product").then((r) =>
+					r.json(),
+				),
+				fetch("/api/check-assets/latest?type=group").then((r) =>
+					r.json(),
+				),
 			]);
 			latestProduct = p;
 			latestGroup = g;
@@ -29,8 +33,9 @@
 			<span class="mono-label">Operational Overview</span>
 			<h1 class="hero-display">Dashboard</h1>
 			<p class="body-large">
-				High-level counts, the next scheduled activity, and a snapshot of
-				the newest indexed media — white surface, rule-based hierarchy.
+				High-level counts, the next scheduled activity, and a snapshot
+				of the newest indexed media — white surface, rule-based
+				hierarchy.
 			</p>
 		</div>
 	</div>
@@ -70,11 +75,17 @@
 				<h2 class="card-heading">Champ of the Week</h2>
 			</div>
 			<div class="splash-container">
-				<img src={data.champSplashUrl} alt="Champ of the Week Splash" class="splash-image" />
+				<img
+					src={data.champSplashUrl}
+					alt="Champ of the Week Splash"
+					class="splash-image"
+				/>
 				<div class="splash-overlay">
 					<div class="splash-content">
 						<span class="badge">LIVE</span>
-						<p class="splash-meta">Current session splash screen active on mobile app.</p>
+						<p class="splash-meta">
+							Current session splash screen active on mobile app.
+						</p>
 					</div>
 				</div>
 			</div>
@@ -85,7 +96,8 @@
 		<div class="section-header">
 			<h2 class="card-heading">Asset registry</h2>
 			<a href="/assets" class="button-secondary"
-				>Explore repository <i class="fa-solid fa-arrow-right ms-1"></i></a
+				>Explore repository <i class="fa-solid fa-arrow-right ms-1"
+				></i></a
 			>
 		</div>
 
@@ -107,9 +119,13 @@
 						</div>
 						<div class="preview-info">
 							<span class="mono-label">
-								PRD-{latestProduct.id.toString().padStart(4, "0")}
+								PRD-{latestProduct.id
+									.toString()
+									.padStart(4, "0")}
 							</span>
-							<h3 class="feature-heading">Latest product media</h3>
+							<h3 class="feature-heading">
+								Latest product media
+							</h3>
 						</div>
 					</div>
 				{/if}
@@ -123,7 +139,9 @@
 							<span class="mono-label">
 								GRP-{latestGroup.id.toString().padStart(4, "0")}
 							</span>
-							<h3 class="feature-heading">Latest collective media</h3>
+							<h3 class="feature-heading">
+								Latest collective media
+							</h3>
 						</div>
 					</div>
 				{/if}
