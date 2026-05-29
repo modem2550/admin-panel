@@ -42,6 +42,9 @@ jobs:
       - name: install frontend dependencies
         run: npm install # หรือถ้าใช้ pnpm ให้เปลี่ยนเป็น pnpm install
 
+      - name: build frontend
+        run: npm run build
+
       - name: Create .env file
         shell: bash   # ← สำคัญมาก! บังคับใช้ Bash
         run: |
