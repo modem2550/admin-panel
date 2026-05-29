@@ -60,28 +60,42 @@ jobs:
           EOF
 
       # === แก้ปัญหา Sidecar Binary สำหรับ macOS ===
-      - name: Prepare Node Sidecar for Universal macOS
-        if: matrix.platform == 'macos-latest'
+      - name: Prepare Node Sidecar Binaries
         shell: bash
         run: |
           mkdir -p src-tauri/binaries
-          
-          echo "📥 Downloading Node.js binaries..."
-          
-          curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-arm64.tar.gz -o node-arm64.tar.gz
-          curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-x64.tar.gz -o node-x64.tar.gz
-          
-          tar -xzf node-arm64.tar.gz
-          tar -xzf node-x64.tar.gz
-          
-          echo "🔨 Creating universal binary with lipo..."
-          lipo -create -output src-tauri/binaries/node-universal-apple-darwin \
-            node-v20.18.0-darwin-arm64/bin/node \
-            node-v20.18.0-darwin-x64/bin/node
-          
-          chmod +x src-tauri/binaries/node-universal-apple-darwin
-          
-          echo "✅ Universal Node binary created:"
+          echo "📥 Preparing Node sidecar binaries..."
+
+          if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
+            echo "→ macOS Universal build"
+
+            # ดาวน์โหลดทั้งสองสถาปัตยกรรม
+            curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-arm64.tar.gz -o node-arm64.tar.gz
+            curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-x64.tar.gz -o node-x64.tar.gz
+
+            tar -xzf node-arm64.tar.gz
+            tar -xzf node-x64.tar.gz
+
+            # สำหรับ universal (สำคัญ)
+            lipo -create -output src-tauri/binaries/node-universal-apple-darwin \
+              node-v20.18.0-darwin-arm64/bin/node \
+              node-v20.18.0-darwin-x64/bin/node
+
+            # สำหรับ build แต่ละ architecture (Tauri มักต้องการ)
+            cp node-v20.18.0-darwin-arm64/bin/node src-tauri/binaries/node-aarch64-apple-darwin
+            cp node-v20.18.0-darwin-x64/bin/node src-tauri/binaries/node-x86_64-apple-darwin
+
+            chmod +x src-tauri/binaries/node-*
+
+          elif [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+            echo "→ Windows build"
+            curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-win-x64.zip -o node-win.zip
+            unzip -q node-win.zip
+            cp node-v20.18.0-win-x64/node.exe src-tauri/binaries/node-x86_64-pc-windows-msvc.exe
+            chmod +x src-tauri/binaries/node-x86_64-pc-windows-msvc.exe
+          fi
+
+          echo "✅ Done! Files in binaries folder:"
           ls -la src-tauri/binaries/
 
       - name: Build and Publish
