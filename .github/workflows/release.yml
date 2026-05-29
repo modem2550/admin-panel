@@ -60,25 +60,29 @@ jobs:
           EOF
 
       # === แก้ปัญหา Sidecar Binary สำหรับ macOS ===
-      - name: Prepare Node Sidecar Binaries (macOS)
+      - name: Prepare Node Sidecar for Universal macOS
         if: matrix.platform == 'macos-latest'
         shell: bash
         run: |
           mkdir -p src-tauri/binaries
           
-          echo "Downloading Node binaries for universal build..."
+          echo "📥 Downloading Node.js binaries..."
           
-          # ดาวน์โหลดและแตกไฟล์สำหรับ Apple Silicon (aarch64)
           curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-arm64.tar.gz -o node-arm64.tar.gz
-          tar -xzf node-arm64.tar.gz
-          cp node-v20.18.0-darwin-arm64/bin/node src-tauri/binaries/node-aarch64-apple-darwin
-          
-          # ดาวน์โหลดและแตกไฟล์สำหรับ Intel (x86_64)
           curl -L https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-x64.tar.gz -o node-x64.tar.gz
-          tar -xzf node-x64.tar.gz
-          cp node-v20.18.0-darwin-x64/bin/node src-tauri/binaries/node-x86_64-apple-darwin
           
-          chmod +x src-tauri/binaries/node-*
+          tar -xzf node-arm64.tar.gz
+          tar -xzf node-x64.tar.gz
+          
+          echo "🔨 Creating universal binary with lipo..."
+          lipo -create -output src-tauri/binaries/node-universal-apple-darwin \
+            node-v20.18.0-darwin-arm64/bin/node \
+            node-v20.18.0-darwin-x64/bin/node
+          
+          chmod +x src-tauri/binaries/node-universal-apple-darwin
+          
+          echo "✅ Universal Node binary created:"
+          ls -la src-tauri/binaries/
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
