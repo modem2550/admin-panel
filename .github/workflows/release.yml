@@ -43,6 +43,7 @@ jobs:
         run: npm install # หรือถ้าใช้ pnpm ให้เปลี่ยนเป็น pnpm install
 
       - name: Create .env file
+        shell: bash   # ← สำคัญมาก! บังคับใช้ Bash
         run: |
           cat > .env << 'EOF'
           VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
