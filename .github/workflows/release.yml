@@ -44,13 +44,14 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} > .env
-          echo VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }} >> .env
-          echo ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }} >> .env
-          echo SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} >> .env
-          echo BNK48_EMAIL=${{ secrets.BNK48_EMAIL }} >> .env
-          echo BNK48_PASSWORD=${{ secrets.BNK48_PASSWORD }} >> .env
-        shell: bash
+          cat > .env << 'EOF'
+          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BNK48_EMAIL=${{ secrets.BNK48_EMAIL }}
+          BNK48_PASSWORD=${{ secrets.BNK48_PASSWORD }}
+          EOF
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
