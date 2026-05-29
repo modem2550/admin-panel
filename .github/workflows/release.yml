@@ -44,12 +44,12 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" > .env
-          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
-          echo "ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}" >> .env
-          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
-          echo "BNK48_EMAIL=${{ secrets.BNK48_EMAIL }}" >> .env
-          echo "BNK48_PASSWORD=${{ secrets.BNK48_PASSWORD }}" >> .env
+          echo VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} > .env
+          echo VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }} >> .env
+          echo ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }} >> .env
+          echo SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} >> .env
+          echo BNK48_EMAIL=${{ secrets.BNK48_EMAIL }} >> .env
+          echo BNK48_PASSWORD=${{ secrets.BNK48_PASSWORD }} >> .env
         shell: bash
 
       - name: Build and Publish
