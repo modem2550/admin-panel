@@ -6,9 +6,23 @@
 	import Toast from "$lib/components/Toast.svelte";
 	import { fade } from "svelte/transition";
 
-	let { data, children } = $props();
+	type LayoutData = {
+		session?: {
+			access_token: string;
+			refresh_token: string;
+		};
+	};
+
+	let { data, children } = $props<{ data: LayoutData }>();
 	let isMobileMenuOpen = $state(false);
 	let _toggleTheme: (() => void) | null = null;
+
+	// ตรวจสอบ session ทันทีเมื่อโหลดหน้า
+	$effect(() => {
+		if (!data.session) {
+			goto("/login");
+		}
+	});
 
 	function toggleTheme() {
 		if (_toggleTheme) _toggleTheme();
@@ -18,31 +32,32 @@
 		isMobileMenuOpen = !isMobileMenuOpen;
 	}
 
-	// Close menu on navigation
 	$effect(() => {
 		const path = $page.url.pathname;
 		isMobileMenuOpen = false;
 	});
 
 	onMount(() => {
-		// Auth: Sync session from server
+		// Sync session
 		if (data.session) {
-			supabase.auth.setSession({
-				access_token: data.session.access_token,
-				refresh_token: data.session.refresh_token
-			});
+			supabase.auth
+				.setSession({
+					access_token: data.session.access_token,
+					refresh_token: data.session.refresh_token,
+				})
+				.then(() => {
+					console.log("✅ Session synced in layout");
+				});
 		}
 
 		// Theme Management
 		const storageKey = "cohere-theme-preference";
 		let theme = localStorage.getItem(storageKey) || "system";
-
 		const applyTheme = (currentTheme: string) => {
 			const isDark =
 				currentTheme === "dark" ||
 				(currentTheme === "system" &&
 					window.matchMedia("(prefers-color-scheme: dark)").matches);
-
 			if (isDark) {
 				document.documentElement.classList.add("dark");
 			} else {
@@ -53,28 +68,29 @@
 		window
 			.matchMedia("(prefers-color-scheme: dark)")
 			.addEventListener("change", () => {
-				if (localStorage.getItem(storageKey) === "system") {
+				if (localStorage.getItem(storageKey) === "system")
 					applyTheme("system");
-				}
 			});
 
 		applyTheme(theme);
 
-		// Expose toggle function
 		_toggleTheme = () => {
 			const current = localStorage.getItem(storageKey) || "system";
-			let next = "light";
-			if (current === "light") next = "dark";
-			else if (current === "dark") next = "light";
-
+			let next =
+				current === "light"
+					? "dark"
+					: current === "dark"
+						? "light"
+						: "system";
 			localStorage.setItem(storageKey, next);
 			applyTheme(next);
 		};
 
+		// Auth listener
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((event) => {
-			// เฉพาะ sign out จริง — อย่า redirect เมื่อ session=null จาก INITIAL_SESSION ฯลฯ
+			console.log("🔄 Auth event:", event);
 			if (event === "SIGNED_OUT") {
 				goto("/login");
 			}
@@ -99,7 +115,9 @@
 		</button>
 		<a href="/dashboard" class="logo">
 			<i class="fa-solid fa-cube"></i>
-			<span class="logo-text">Niya's <span>ADMIN<small>beta</small></span></span>
+			<span class="logo-text"
+				>Niya's <span>ADMIN<small>beta</small></span></span
+			>
 		</a>
 	</div>
 
@@ -137,10 +155,12 @@
 					>Downloader</a
 				>
 			</li>
-			<li> 
-				<a href="/settings"
-				class:active={$page.url.pathname === "/settings"}
-				>Settings</a>
+			<li>
+				<a
+					href="/settings"
+					class:active={$page.url.pathname === "/settings"}
+					>Settings</a
+				>
 			</li>
 		</ul>
 	</nav>
@@ -215,11 +235,13 @@
 						>Downloader</a
 					>
 				</li>
-				<li> 
-				<a href="/settings"
-				class:active={$page.url.pathname === "/settings"}
-				>Settings</a>
-			</li>
+				<li>
+					<a
+						href="/settings"
+						class:active={$page.url.pathname === "/settings"}
+						>Settings</a
+					>
+				</li>
 			</ul>
 			<div class="mobile-footer">
 				<button

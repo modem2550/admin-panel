@@ -56,6 +56,7 @@ const HOST_PREFIX_MAP: Record<string, string> = {
     'user.bnk48.io': 'usr',
     'app.bnk48.com': 'app',
     'api.bnk48.com': 'api',
+    // 'media.bnk48cdn.net': 'media'
 };
 
 const proxyCache = new Map<string, string>();
@@ -76,10 +77,17 @@ export function proxyUrl(url: string | null | undefined): string {
     let result = url;
     try {
         const parsed = new URL(url);
-        const prefix = HOST_PREFIX_MAP[parsed.hostname];
-        if (prefix) {
-            const path = parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname;
-            result = `/api/${prefix}/${path}${parsed.search}`;
+
+        const isMediaDomain =
+            parsed.hostname === 'media.bnk48cdn.net' ||
+            (parsed.hostname.startsWith('media') && parsed.hostname.endsWith('.bnk48cdn.net'));
+
+        if (!isMediaDomain) {
+            const prefix = HOST_PREFIX_MAP[parsed.hostname];
+            if (prefix) {
+                const path = parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname;
+                result = `/api/${prefix}/${path}${parsed.search}`;
+            }
         }
     } catch {
         // ignore invalid URLs, return original
@@ -127,6 +135,38 @@ export function getCDNDiscoveryUrls(type: 'product' | 'group', id: number | stri
     }
 
     const candidates: string[] = [];
+    // Standard SKU formats (1 to 8)
+    for (let sku = 1; sku <= 8; sku++) {
+        candidates.push(
+            `https://img.bnk48cdn.net/shop/product/${idStr}/sku-${sku}.jpg`,
+            `https://img.bnk48cdn.net/shop/product/${idStr}/sku-${sku}.png`,
+            `https://img.bnk48cdn.net/shop/product/${idStr}/sku${sku}.jpg`,
+            `https://img.bnk48cdn.net/shop/product/${idStr}/sku${sku}.png`,
+        );
+    }
+    
+    // Specific rounds based on ID range
+    const idNum = parseInt(idStr, 10);
+    if (!isNaN(idNum)) {
+        if (idNum >= 422 && idNum <= 750) {
+            for (let r = 1; r <= 6; r++) {
+                candidates.push(
+                    `https://img.bnk48cdn.net/shop/product/${idStr}/SAT-Round${r}.png`,
+                    `https://img.bnk48cdn.net/shop/product/${idStr}/SAT-Round${r}.jpg`,
+                    `https://img.bnk48cdn.net/shop/product/${idStr}/SUN-Round${r}.png`,
+                    `https://img.bnk48cdn.net/shop/product/${idStr}/SUN-Round${r}.jpg`,
+                );
+            }
+        }
+        if (idNum >= 850 && idNum <= 914) {
+            for (let r = 1; r <= 6; r++) {
+                candidates.push(
+                    `https://img.bnk48cdn.net/shop/product/${idStr}/Round${r}.png`,
+                    `https://img.bnk48cdn.net/shop/product/${idStr}/Round${r}.jpg`,
+                );
+            }
+        }
+    }
 
     return candidates;
 }

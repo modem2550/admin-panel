@@ -14,18 +14,25 @@ const HISTORICAL_ID_MIN = 14;
 const DEFAULT_MAX_BUFFER = 10; // How many IDs to probe beyond the last known ID
 
 // ── Member name cache ────────────────────────────────────────────────────────
-const memberNameCache = new Map<number, string>();
+const MEMBER_CACHE_TTL_MS = 60 * 60 * 1000;
+
+interface CacheEntry {
+    name: string;
+    expiresAt: number;
+}
+
+const memberNameCache = new Map<number, CacheEntry>();
 
 async function getMemberName(memberId: number): Promise<string> {
     const cached = memberNameCache.get(memberId);
-    if (cached) return cached;
+    if (cached && Date.now() < cached.expiresAt) return cached.name;
 
     try {
         const resp = await fetch(`https://public.bnk48.io/member/${memberId}/profile`);
         if (!resp.ok) return `#${memberId}`;
         const member = await resp.json();
         const name = member.codeName || member.nickname || member.name || `#${memberId}`;
-        memberNameCache.set(memberId, name);
+        memberNameCache.set(memberId, { name, expiresAt: Date.now() + MEMBER_CACHE_TTL_MS });
         return name;
     } catch {
         return `#${memberId}`;

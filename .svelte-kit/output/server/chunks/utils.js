@@ -1,5 +1,4 @@
 import { d as coalesce_to_error, f as get_message, p as get_status } from "./shared.js";
-import "./shared-server.js";
 import { json, text } from "@sveltejs/kit";
 import { HttpError, SvelteKitError } from "@sveltejs/kit/internal";
 import { with_request_store } from "@sveltejs/kit/internal/server";
@@ -94,8 +93,6 @@ async function deserialize_binary_form(request) {
 		};
 	}
 	if (!request.body) throw deserialize_error("no body");
-	const content_length = parseInt(request.headers.get("content-length") ?? "");
-	if (Number.isNaN(content_length)) throw deserialize_error("invalid Content-Length header");
 	const reader = request.body.getReader();
 	/** @type {Array<Promise<Uint8Array<ArrayBuffer> | undefined>>} */
 	const chunks = [];
@@ -157,9 +154,7 @@ async function deserialize_binary_form(request) {
 	if (header[0] !== BINARY_FORM_VERSION) throw deserialize_error(`got version ${header[0]}, expected version ${BINARY_FORM_VERSION}`);
 	const header_view = new DataView(header.buffer, header.byteOffset, header.byteLength);
 	const data_length = header_view.getUint32(1, true);
-	if (HEADER_BYTES + data_length > content_length) throw deserialize_error("data overflow");
 	const file_offsets_length = header_view.getUint16(5, true);
-	if (HEADER_BYTES + data_length + file_offsets_length > content_length) throw deserialize_error("file offset table overflow");
 	const data_buffer = await get_buffer(HEADER_BYTES, data_length);
 	if (!data_buffer) throw deserialize_error("data too short");
 	/** @type {Array<number | undefined>} */
@@ -182,7 +177,6 @@ async function deserialize_binary_form(request) {
 		if (offset === void 0) throw deserialize_error("duplicate file offset table index");
 		file_offsets[index] = void 0;
 		offset += files_start_offset;
-		if (offset + size > content_length) throw deserialize_error("file data overflow");
 		file_spans.push({
 			offset,
 			size
@@ -403,11 +397,27 @@ function deep_get(object, path) {
 	return current;
 }
 /**
+*
+* @param {string} field_type
+* @param {boolean} is_array
+* @param {unknown} input_value
+*/
+function get_type_prefix(field_type, is_array, input_value) {
+	if (field_type === "number" || field_type === "range") return "n:";
+	if (field_type === "checkbox" && !is_array) return "b:";
+	if (field_type === "hidden" || field_type === "submit") {
+		const input_type = typeof input_value;
+		if (input_type === "number") return "n:";
+		if (input_type === "boolean") return "b:";
+	}
+	return "";
+}
+/**
 * Creates a proxy-based field accessor for form data
 * @param {any} target - Function or empty POJO
 * @param {() => Record<string, any>} get_input - Function to get current input data
 * @param {(path: (string | number)[], value: any) => void} set_input - Function to set input data
-* @param {() => Record<string, InternalRemoteFormIssue[]>} get_issues - Function to get current issues
+* @param {(path?: (string | number)[], all?: boolean) => Record<string, InternalRemoteFormIssue[]>} get_issues - Function to get current issues
 * @param {(string | number)[]} path - Current access path
 * @returns {any} Proxy object with name(), value(), and issues() methods
 */
@@ -429,7 +439,7 @@ function create_field_proxy(target, get_input, set_input, get_issues, path = [])
 		if (prop === "value") return create_field_proxy(get_value, get_input, set_input, get_issues, [...path, prop]);
 		if (prop === "issues" || prop === "allIssues") {
 			const issues_func = () => {
-				const all_issues = get_issues()[key === "" ? "$" : key];
+				const all_issues = get_issues(path, prop === "allIssues")[key === "" ? "$" : key];
 				if (prop === "allIssues") return all_issues?.map((issue) => ({
 					path: issue.path,
 					message: issue.message
@@ -450,14 +460,14 @@ function create_field_proxy(target, get_input, set_input, get_issues, path = [])
 				const is_array = type === "file multiple" || type === "select multiple" || type === "checkbox" && typeof input_value === "string";
 				/** @type {Record<string, any>} */
 				const base_props = {
-					name: (type === "number" || type === "range" ? "n:" : type === "checkbox" && !is_array ? "b:" : "") + key + (is_array ? "[]" : ""),
+					name: get_type_prefix(type, is_array, input_value) + key + (is_array ? "[]" : ""),
 					get "aria-invalid"() {
 						return key in get_issues() ? "true" : void 0;
 					}
 				};
 				if (type !== "text" && type !== "select" && type !== "select multiple") base_props.type = type === "file multiple" ? "file" : type;
 				if (type === "submit" || type === "hidden") return Object.defineProperties(base_props, { value: {
-					value: input_value,
+					value: typeof input_value === "boolean" ? input_value ? "on" : "off" : input_value,
 					enumerable: true
 				} });
 				if (type === "select" || type === "select multiple") return Object.defineProperties(base_props, {
@@ -687,6 +697,7 @@ function escape_html(str, is_attr) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/server/utils.js
+/** @import { ServerHooks } from 'types' */
 /**
 * @param {Partial<Record<import('types').HttpMethod, any>>} mod
 * @param {import('types').HttpMethod} method
@@ -833,5 +844,20 @@ function get_node_type(node_id) {
 function count_non_ssi_comments(str) {
 	return (str.match(/<!--(?!#)/g) ?? []).length;
 }
+/**
+* Creates a serialiser for non-arbitrary POJOs using the app's transport hook
+* @param {ServerHooks['transport']} transport
+* @returns {(thing: unknown) => string | undefined}
+*/
+function create_replacer(transport) {
+	/** @param {unknown} thing */
+	const replacer = (thing) => {
+		for (const key in transport) {
+			const encoded = transport[key].encode(thing);
+			if (encoded) return `app.decode('${key}', ${devalue.uneval(encoded, replacer)})`;
+		}
+	};
+	return replacer;
+}
 //#endregion
-export { throw_on_old_property_access as C, SVELTE_KIT_ASSETS as D, PAGE_METHODS as E, set_nested_value as S, MUTATIVE_METHODS as T, create_field_proxy as _, get_node_type as a, flatten_issues as b, has_prerendered_path as c, serialize_uses as d, static_error_page as f, negotiate as g, is_form_content_type as h, get_global_name as i, method_not_allowed as l, s as m, count_non_ssi_comments as n, handle_error_and_jsonify as o, escape_html as p, format_server_error as r, handle_fatal_error as s, clarify_devalue_error as t, redirect_response as u, deep_set as v, ENDPOINT_METHODS as w, normalize_issue as x, deserialize_binary_form as y };
+export { set_nested_value as C, PAGE_METHODS as D, MUTATIVE_METHODS as E, SVELTE_KIT_ASSETS as O, normalize_issue as S, ENDPOINT_METHODS as T, negotiate as _, get_global_name as a, deserialize_binary_form as b, handle_fatal_error as c, redirect_response as d, serialize_uses as f, is_form_content_type as g, s as h, format_server_error as i, has_prerendered_path as l, escape_html as m, count_non_ssi_comments as n, get_node_type as o, static_error_page as p, create_replacer as r, handle_error_and_jsonify as s, clarify_devalue_error as t, method_not_allowed as u, create_field_proxy as v, throw_on_old_property_access as w, flatten_issues as x, deep_set as y };

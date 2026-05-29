@@ -14,10 +14,17 @@ import type { RequestHandler } from './$types';
 const SESSION_POST_LIMIT = 40;
 const SESSION_POST_WINDOW_MS = 60_000;
 const MAX_BODY_CHARS = 24_000;
+const ALLOWED_ORIGINS = [
+	'http://localhost:5173',
+	'http://127.0.0.1:5173',
+	'http://127.0.0.1:17348',
+	'tauri://localhost',
+	'https://tauri.localhost'
+];
 
 function guardMutation(request: Request, url: URL) {
 	try {
-		assertBrowserMutation(request, url);
+		assertBrowserMutation(request, url, ALLOWED_ORIGINS);
 	} catch (e) {
 		securityAudit('auth.session.blocked', { path: url.pathname });
 		throw e;
@@ -26,6 +33,7 @@ function guardMutation(request: Request, url: URL) {
 
 export const POST: RequestHandler = async (event) => {
 	const { request, cookies, url, getClientAddress } = event;
+	
 	guardMutation(request, url);
 
 	let clientKey = 'unknown';
@@ -96,3 +104,4 @@ export const DELETE: RequestHandler = async ({ request, cookies, url }) => {
 	securityAudit('auth.session.deleted', {});
 	return json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
 };
+

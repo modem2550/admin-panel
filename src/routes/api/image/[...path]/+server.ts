@@ -40,6 +40,16 @@ export const GET: RequestHandler = async ({ params, url, fetch, locals }) => {
         const response = await fetch(targetUrl.toString());
 
         if (!response.ok) {
+            if (response.status === 404 && /\.(jpe?g|png|webp|gif|svg)$/i.test(assetPath)) {
+                const transparentPixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+                return new Response(transparentPixel, {
+                    status: 200,
+                    headers: {
+                        'Content-Type': 'image/gif',
+                        'Cache-Control': 'public, max-age=300'
+                    }
+                });
+            }
             return new Response(null, {
                 status: response.status,
                 headers: { 'Cache-Control': 'no-store' }

@@ -1,4 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { isTauri, installFetchOverride } from '$lib/api';
+
+// Install fetch override as early as possible so all subsequent fetches are patched
+installFetchOverride();
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -19,11 +23,13 @@ function getClient(): SupabaseClient {
 		return dummy as SupabaseClient;
 	}
 	if (!_client) {
+		const runningInTauri = isTauri();
 		_client = createClient(supabaseUrl, supabaseAnonKey, {
 			auth: {
-				// ✅ ไม่เก็บ session ใน localStorage (จัดการผ่าน HttpOnly cookie แทน)
-				persistSession: false,
-				autoRefreshToken: false,
+				// Tauri: persist session in localStorage (no server cookie jar)
+				// Web:   don't persist (managed via HttpOnly cookie)
+				persistSession: runningInTauri,
+				autoRefreshToken: runningInTauri,
 				detectSessionInUrl: false,
 			}
 		});
@@ -36,8 +42,10 @@ function getClient(): SupabaseClient {
 					// NOTE: เราจัดการ sync session ในหน้า login หรือผ่าน flow อื่นโดยตรง
 					// เพื่อหลีกเลี่ยงการเรียก API ซ้ำซ้อน (Double fetch)
 				} else if (event === 'SIGNED_OUT') {
-					// ✅ ให้ server ลบ cookie
-					fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
+					// ✅ ให้ server ลบ cookie (skip on Tauri — no server cookie)
+					if (!runningInTauri) {
+						fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
+					}
 				}
 			});
 		}

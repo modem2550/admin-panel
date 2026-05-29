@@ -1,12 +1,16 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
-/** ยึด session จาก HttpOnly cookie (locals) — ไม่พึ่ง getSession() บน client ที่ persistSession: false */
-export const load: LayoutServerLoad = async ({ locals }) => {
+export const load: LayoutServerLoad = async ({ locals, url }) => {
+	// ถ้ายังไม่มี session → ไปหน้า login
 	if (!locals.session) {
-		throw redirect(303, '/login');
+		throw redirect(302, `/login?redirectTo=${url.pathname}`);
 	}
+
 	return {
-		session: locals.session
+		session: {
+			access_token: locals.session.access_token,
+			refresh_token: locals.session.refresh_token ?? ''
+		}
 	};
 };

@@ -1,12 +1,11 @@
-import { _ as get_relative_path, a as split_remote_key, b as once, g as base64_encode, i as parse_remote_arg, m as normalize_error, n as TRAILING_SLASH_PARAM, o as stringify, p as get_status, r as create_remote_key, t as INVALIDATED_PARAM, v as text_encoder, y as noop } from "./chunks/shared.js";
-import { a as app_dir, c as override, l as reset, o as assets, s as base } from "./chunks/environment.js";
-import { E as PAGE_METHODS, a as get_node_type, c as has_prerendered_path, d as serialize_uses, f as static_error_page, g as negotiate, h as is_form_content_type, i as get_global_name, l as method_not_allowed, m as s, o as handle_error_and_jsonify, p as escape_html, r as format_server_error, s as handle_fatal_error, t as clarify_devalue_error, u as redirect_response, w as ENDPOINT_METHODS, y as deserialize_binary_form } from "./chunks/utils.js";
-import { a as set_public_env, i as set_private_env, r as public_env } from "./chunks/shared-server.js";
+import { a as split_remote_key, b as once, g as base64_encode, i as parse_remote_arg, m as normalize_error, n as TRAILING_SLASH_PARAM, o as stringify, p as get_status, r as create_remote_key, t as INVALIDATED_PARAM, v as text_encoder, y as noop } from "./chunks/shared.js";
+import { a as app_dir, l as reset, o as assets, s as base } from "./chunks/environment.js";
+import { D as PAGE_METHODS, T as ENDPOINT_METHODS, _ as negotiate, a as get_global_name, b as deserialize_binary_form, c as handle_fatal_error, d as redirect_response, f as serialize_uses, g as is_form_content_type, h as s, i as format_server_error, l as has_prerendered_path, m as escape_html, o as get_node_type, p as static_error_page, r as create_replacer, s as handle_error_and_jsonify, t as clarify_devalue_error, u as method_not_allowed } from "./chunks/utils.js";
+import { i as set_public_env, n as public_env, r as set_private_env } from "./chunks/shared-server.js";
 import { S as compact, _ as add_resolution_suffix, b as strip_data_suffix, d as disable_search, f as make_trackable, g as add_data_suffix, h as noop_span, i as validate_page_server_exports, m as resolve, n as validate_layout_server_exports, o as find_route, p as normalize_path, r as validate_page_exports, s as hash, t as validate_layout_exports, u as decode_pathname, v as has_data_suffix, x as strip_resolution_suffix, y as has_resolution_suffix } from "./chunks/exports.js";
-import { E as writable, T as readable } from "./chunks/dev.js";
+import { D as writable, E as readable } from "./chunks/dev.js";
 import "./chunks/index-server2.js";
 import { a as set_read_implementation, i as set_manifest, n as options, r as read_implementation, t as get_hooks } from "./chunks/internal.js";
-import { t as set_app } from "./chunks/app.js";
 import { error, isRedirect, json, text } from "@sveltejs/kit";
 import { ActionFailure, HttpError, Redirect, SvelteKitError } from "@sveltejs/kit/internal";
 import { merge_tracing, with_request_store } from "@sveltejs/kit/internal/server";
@@ -283,12 +282,7 @@ async function call_action(event, event_state, actions) {
 * @param {ServerHooks['transport']} transport
 */
 function uneval_action_response(data, route_id, transport) {
-	const replacer = (thing) => {
-		for (const key in transport) {
-			const encoded = transport[key].encode(thing);
-			if (encoded) return `app.decode('${key}', ${devalue.uneval(encoded, replacer)})`;
-		}
-	};
+	const replacer = create_replacer(transport);
 	return try_serialize(data, (value) => devalue.uneval(value, replacer), route_id);
 }
 /**
@@ -1235,9 +1229,7 @@ function create_client_import(import_path, url) {
 	if (!import_path) return "Promise.resolve({})";
 	if (import_path[0] === "/") return `import('${import_path}')`;
 	if (assets !== "") return `import('${assets}/${import_path}')`;
-	let path = get_relative_path(url.pathname, `${base}/${import_path}`);
-	if (path[0] !== ".") path = `./${path}`;
-	return `import('${path}')`;
+	return `import('${base}/${import_path}')`;
 }
 /**
 * @param {string} resolved_path
@@ -1352,11 +1344,6 @@ async function render_response({ branch, fetched, options, manifest, state, page
 	*/
 	let base_expression = s(base);
 	const csp = new Csp(options.csp, { prerender: !!state.prerendering });
-	if (!state.prerendering?.fallback) {
-		base$1 = event.url.pathname.slice(base.length).split("/").slice(2).map(() => "..").join("/") || ".";
-		base_expression = `new URL(${s(base$1)}, location).pathname.slice(0, -1)`;
-		if (!assets || assets[0] === "/" && assets !== "/_svelte_kit_assets") assets$1 = base$1;
-	} else if (options.hash_routing) base_expression = "new URL('.', location).pathname.slice(0, -1)";
 	if (page_config.ssr) {
 		/** @type {Record<string, any>} */
 		const props = {
@@ -1413,10 +1400,6 @@ async function render_response({ branch, fetched, options, manifest, state, page
 					is_in_render: true
 				}
 			}, async () => {
-				override({
-					base: base$1,
-					assets: assets$1
-				});
 				const maybe_promise = options.root.render(props, render_opts);
 				const rendered = options.async && "then" in maybe_promise ? maybe_promise.then((r) => r) : maybe_promise;
 				if (options.async) reset();
@@ -1607,12 +1590,7 @@ async function render_response({ branch, fetched, options, manifest, state, page
 					}
 				}
 			}
-			const replacer = (thing) => {
-				for (const key in options.hooks.transport) {
-					const encoded = options.hooks.transport[key].encode(thing);
-					if (encoded) return `app.decode('${key}', ${devalue.uneval(encoded, replacer)})`;
-				}
-			};
+			const replacer = create_replacer(options.hooks.transport);
 			if (Object.keys(query).length > 0) serialized_query_data = `${global}.query = ${devalue.uneval(query, replacer)};\n\n\t\t\t\t\t\t`;
 			if (Object.keys(prerender).length > 0) serialized_prerender_data = `${global}.prerender = ${devalue.uneval(prerender, replacer)};\n\n\t\t\t\t\t\t`;
 		}
@@ -3004,11 +2982,11 @@ async function internal_respond(request, options, manifest, state) {
 		remote: {
 			data: null,
 			forms: null,
-			/** A map of remote function key to corresponding single-flight-mutation promise */
 			refreshes: null,
+			requested: null,
 			reconnects: null,
-			/** A map of remote function ID to payloads requested for refreshing by the client */
-			requested: null
+			batches: null,
+			live_iterators: null
 		},
 		is_in_remote_function: false,
 		is_in_render: false,
@@ -3019,7 +2997,7 @@ async function internal_respond(request, options, manifest, state) {
 		cookies,
 		fetch: null,
 		getClientAddress: state.getClientAddress || (() => {
-			throw new Error(`@sveltejs/adapter-netlify does not specify getClientAddress. Please raise an issue`);
+			throw new Error(`@sveltejs/adapter-node does not specify getClientAddress. Please raise an issue`);
 		}),
 		locals: {},
 		params: {},
@@ -3056,6 +3034,7 @@ async function internal_respond(request, options, manifest, state) {
 		config: {},
 		prerender: !!state.prerendering?.fallback
 	});
+	/** @type {string | null} */
 	let resolved_path = url.pathname;
 	if (!remote_id) {
 		const prerendering_reroute_state = state.prerendering?.inside_reroute;
@@ -3071,10 +3050,21 @@ async function internal_respond(request, options, manifest, state) {
 			if (state.prerendering) state.prerendering.inside_reroute = prerendering_reroute_state;
 		}
 	}
+	/** @type {import('types').RequiredResolveOptions} */
+	let resolve_opts = {
+		transformPageChunk: default_transform,
+		filterSerializedResponseHeaders: default_filter,
+		preload: default_preload
+	};
+	/** @type {import('types').TrailingSlash} */
+	let trailing_slash = "never";
+	/** @type {PageNodes | undefined} */
+	let page_nodes;
 	try {
 		resolved_path = decode_pathname(resolved_path);
 	} catch {
-		return text("Malformed URI", { status: 400 });
+		resolved_path = null;
+		return await handle();
 	}
 	if (resolved_path !== decode_pathname(url.pathname) && !state.prerendering?.fallback && has_prerendered_path(manifest, resolved_path)) {
 		const url = new URL(request.url);
@@ -3120,17 +3110,8 @@ async function internal_respond(request, options, manifest, state) {
 			event.params = result.params;
 		}
 	}
-	/** @type {import('types').RequiredResolveOptions} */
-	let resolve_opts = {
-		transformPageChunk: default_transform,
-		filterSerializedResponseHeaders: default_filter,
-		preload: default_preload
-	};
-	/** @type {import('types').TrailingSlash} */
-	let trailing_slash = "never";
 	try {
-		/** @type {PageNodes | undefined} */
-		const page_nodes = route?.page ? new PageNodes(await load_page_nodes(route.page, manifest)) : void 0;
+		page_nodes = route?.page ? new PageNodes(await load_page_nodes(route.page, manifest)) : void 0;
 		if (route && !remote_id) {
 			if (url.pathname === base || url.pathname === base + "/") trailing_slash = "always";
 			else if (page_nodes) trailing_slash = page_nodes.trailing_slash();
@@ -3157,13 +3138,25 @@ async function internal_respond(request, options, manifest, state) {
 					config = page_nodes.get_config() ?? config;
 					prerender = page_nodes.prerender();
 				}
-				if (state.before_handle) state.before_handle(event, config, prerender);
 				if (state.emulator?.platform) event.platform = await state.emulator.platform({
 					config,
 					prerender
 				});
+				if (state.before_handle) return await state.before_handle(event, config, prerender, handle);
 			}
 		}
+		return await handle();
+	} catch (e) {
+		if (e instanceof Redirect) try {
+			const response = is_data_request || remote_id ? redirect_json_response(e) : route?.page && is_action_json_request(event) ? action_json_redirect(e) : redirect_response(e.status, e.location);
+			add_cookies_to_headers(response.headers, new_cookies.values());
+			return response;
+		} catch (err) {
+			return await handle_fatal_error(event, event_state, options, err);
+		}
+		return await handle_fatal_error(event, event_state, options, e);
+	}
+	async function handle() {
 		set_trailing_slash(trailing_slash);
 		if (state.prerendering && !state.prerendering.fallback && !state.prerendering.inside_reroute) disable_search(url);
 		const response = await record_span({
@@ -3241,15 +3234,6 @@ async function internal_respond(request, options, manifest, state) {
 			if (location) return redirect_json_response(new Redirect(response.status, location));
 		}
 		return response;
-	} catch (e) {
-		if (e instanceof Redirect) try {
-			const response = is_data_request || remote_id ? redirect_json_response(e) : route?.page && is_action_json_request(event) ? action_json_redirect(e) : redirect_response(e.status, e.location);
-			add_cookies_to_headers(response.headers, new_cookies.values());
-			return response;
-		} catch (err) {
-			return await handle_fatal_error(event, event_state, options, err);
-		}
-		return await handle_fatal_error(event, event_state, options, e);
 	}
 	/**
 	* @param {import('@sveltejs/kit').RequestEvent} event
@@ -3263,6 +3247,16 @@ async function internal_respond(request, options, manifest, state) {
 				filterSerializedResponseHeaders: opts.filterSerializedResponseHeaders || default_filter,
 				preload: opts.preload || default_preload
 			};
+			if (resolved_path === null) return await respond_with_error({
+				event,
+				event_state,
+				options,
+				manifest,
+				state,
+				status: 400,
+				error: new SvelteKitError(400, "Malformed URI", `Failed to decode URI: ${event.url.pathname}`),
+				resolve_opts
+			});
 			if (options.hash_routing || state.prerendering?.fallback) return await render_response({
 				event,
 				event_state,
@@ -3461,7 +3455,7 @@ var Server = class {
 					reroute: module.reroute || noop,
 					transport: module.transport || {}
 				};
-				set_app({ decoders: module.transport ? Object.fromEntries(Object.entries(module.transport).map(([k, v]) => [k, v.decode])) : {} });
+				module.transport && Object.fromEntries(Object.entries(module.transport).map(([k, v]) => [k, v.decode]));
 				if (module.init) await module.init();
 			} catch (e) {
 				throw e;

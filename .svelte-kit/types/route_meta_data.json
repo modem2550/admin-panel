@@ -32,8 +32,20 @@
 	"/api/check-assets/latest": [
 		"src/routes/api/check-assets/latest/+server.ts"
 	],
-	"/api/download/mp4": [
-		"src/routes/api/download/mp4/+server.ts"
+	"/api/downloader/get-vod": [
+		"src/routes/api/downloader/get-vod/+server.ts"
+	],
+	"/api/downloader/search": [
+		"src/routes/api/downloader/search/+server.ts"
+	],
+	"/api/downloads": [
+		"src/routes/api/downloads/+server.ts"
+	],
+	"/api/downloads/[id]": [
+		"src/routes/api/downloads/[id]/+server.ts"
+	],
+	"/api/downloads/[id]/file": [
+		"src/routes/api/downloads/[id]/file/+server.ts"
 	],
 	"/api/image/[...path]": [
 		"src/routes/api/image/[...path]/+server.ts"
@@ -46,13 +58,12 @@
 		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/dashboard": [
-		"src/routes/(app)/dashboard/+page.ts",
 		"src/routes/(app)/dashboard/+page.server.ts",
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
 	],
 	"/(app)/downloader": [
-		"src/routes/(app)/downloader/+page.server.ts",
+		"src/routes/(app)/downloader/+page.ts",
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
 	],

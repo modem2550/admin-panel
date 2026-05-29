@@ -7,6 +7,10 @@ export function validatePublicEnvOnce(): void {
 	if (!import.meta.env.VITE_SUPABASE_URL) missing.push('VITE_SUPABASE_URL');
 	if (!import.meta.env.VITE_SUPABASE_ANON_KEY) missing.push('VITE_SUPABASE_ANON_KEY');
 	if (missing.length) {
-		console.warn(`[security] Missing env for production: ${missing.join(', ')}`);
+		const msg = `[security] Missing env for production: ${missing.join(', ')}`;
+		console.error(msg);
+		if (process.env.TAURI_DESKTOP === '1') {
+			throw new Error(msg);
+		}
 	}
 }

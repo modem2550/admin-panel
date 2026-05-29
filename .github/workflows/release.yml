@@ -1,0 +1,55 @@
+name: "Publish Release"
+
+on:
+  push:
+    tags:
+      - 'v*' # สคริปต์จะทำงานเฉพาะเวลาเราดัน Tag ที่ขึ้นต้นด้วย v เช่น v1.0.0, v1.0.1
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest" # สำหรับ Build .dmg
+            args: "--target universal-apple-darwin" # สร้างแบบรองรับทั้ง Intel และ Apple Silicon (M1/M2/M3)
+          - platform: "windows-latest" # สำหรับ Build .msi (Windows)
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # เจาะจง target สำหรับ macos universal
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: install frontend dependencies
+        run: npm install # หรือถ้าใช้ pnpm ให้เปลี่ยนเป็น pnpm install
+
+      - name: Build and Publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__ # ระบบจะตั้งชื่อ Tag อัตโนมัติตามเวอร์ชันใน package.json
+          releaseName: "App v__VERSION__"
+          releaseBody: "See the assets below to download."
+          releaseDraft: true # สร้างเป็น Draft ก่อน เพื่อให้คุณตรวจสอบความถูกต้องก่อนกดปล่อยจริง
+          prerelease: false
+          args: ${{ matrix.args }}

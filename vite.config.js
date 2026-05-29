@@ -3,6 +3,12 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+
+	ssr: {
+		noExternal: [],
+		external: ['ffmpeg-static', 'ffprobe-static']
+	},
+
 	build: {
 		sourcemap: false
 	}

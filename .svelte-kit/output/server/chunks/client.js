@@ -2,7 +2,7 @@ import { n as settled, r as tick$1, t as index_server_exports } from "./index-se
 import { f as get_message, h as base64_decode, n as TRAILING_SLASH_PARAM, p as get_status, r as create_remote_key, t as INVALIDATED_PARAM, y as noop } from "./shared.js";
 import { s as base } from "./environment.js";
 import { S as compact, f as make_trackable, g as add_data_suffix, h as noop_span, l as decode_params, p as normalize_path, s as hash, u as decode_pathname } from "./exports.js";
-import { E as writable, J as noop$1 } from "./dev.js";
+import { D as writable, Y as noop$1 } from "./dev.js";
 import "./index-server2.js";
 import "./internal.js";
 import { HttpError, Redirect, SvelteKitError } from "@sveltejs/kit/internal";
@@ -240,8 +240,9 @@ async function* read_ndjson(reader) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/client.js
-/** @import { RemoteQueryCacheEntry } from './remote-functions/query.svelte.js' */
-/** @import { RemoteLiveQueryCacheEntry } from './remote-functions/query-live.svelte.js' */
+/** @import { CacheEntry } from './remote-functions/cache.svelte.js' */
+/** @import { Query } from './remote-functions/query/instance.svelte.js' */
+/** @import { LiveQuery } from './remote-functions/query-live/instance.svelte.js' */
 var { onMount, tick } = index_server_exports;
 /**
 * Set via transformError, reset and read at the end of navigate.
@@ -383,12 +384,12 @@ var token;
 */
 var preload_tokens = /* @__PURE__ */ new Set();
 /**
-* @type {Map<string, Map<string, RemoteQueryCacheEntry<any>>>}
+* @type {Map<string, Map<string, CacheEntry<Query<any>>>>}
 * A map of query id -> payload -> query internals for all active queries.
 */
 var query_map = /* @__PURE__ */ new Map();
 /**
-* @type {Map<string, Map<string, RemoteLiveQueryCacheEntry<any>>>}
+* @type {Map<string, Map<string, CacheEntry<LiveQuery<any>>>>}
 * A map of id -> payload -> live query internals for all active queries.
 */
 var live_query_map = /* @__PURE__ */ new Map();
@@ -459,9 +460,7 @@ async function initialize(result, target, hydrate) {
 		...result.state,
 		nav
 	};
-	const style = document.querySelector("style[data-sveltekit]");
-	if (style) style.remove();
-	Object.assign(page, result.props.page);
+	update(result.props.page);
 	root = new app.root({
 		target,
 		props: {
@@ -1190,6 +1189,11 @@ async function navigate({ type, url, popped, keepfocus, noscroll, replace_state,
 	await commit_promise;
 	await tick$1();
 	await tick$1();
+	if (token !== nav_token) {
+		nav.reject(/* @__PURE__ */ new Error("navigation aborted"));
+		return false;
+	}
+	if (navigation_result.props.page && rendering_error) Object.assign(navigation_result.props.page, rendering_error);
 	/** @type {Element | null | ''} */
 	let deep_linked = null;
 	if (autoscroll) {
@@ -1201,10 +1205,6 @@ async function navigate({ type, url, popped, keepfocus, noscroll, replace_state,
 	const changed_focus = document.activeElement !== activeElement && document.activeElement !== document.body;
 	if (!keepfocus && !changed_focus) reset_focus(url, !deep_linked);
 	autoscroll = true;
-	if (navigation_result.props.page) {
-		if (rendering_error) Object.assign(navigation_result.props.page, rendering_error);
-		Object.assign(page, navigation_result.props.page);
-	}
 	is_navigating = false;
 	if (type === "popstate") restore_snapshot(current_navigation_index);
 	nav.fulfil(void 0);

@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import memberData from '../routes/(app)/members/Member.json';
 import {
 	AUTH_URL, INFO_URL, M3U_URL, MEMBER_URL, TIMELINE_VIDEO_URL,
 	BATCH_THANKYOU_URL, TIMELINE_INFO_URL, API_V2_BASE, PLAYBACK_URL_HEAD,
@@ -15,6 +16,14 @@ const TOKEN_BUFFER_MS = 5 * 60 * 1000;  // refresh ก่อนหมด 5 น�
 
 function isTokenExpired(): boolean {
 	return Date.now() >= tokenExpiresAt - TOKEN_BUFFER_MS;
+}
+
+export async function getValidToken(forceRefresh = false): Promise<string> {
+	if (forceRefresh) {
+		cachedToken = null;
+		tokenExpiresAt = 0;
+	}
+	return getToken();
 }
 
 export async function getToken(): Promise<string> {
@@ -100,7 +109,7 @@ export async function getTheaterArchive(skip = 0, take = 20): Promise<TheaterArc
 	const userId = await getUserId();
 
 	const result = await fetchArchive(userId, token, skip, take);
-	
+
 	// Normalize result: some endpoints return array directly, others return { items: [] }
 	if (Array.isArray(result)) {
 		if (result.length > 0) {
@@ -113,7 +122,7 @@ export async function getTheaterArchive(skip = 0, take = 20): Promise<TheaterArc
 			take: take
 		};
 	}
-	
+
 	if (!result.items) {
 		console.error(`[TheaterArchive] result.items is missing! Result keys:`, Object.keys(result));
 		// Fallback if result is not an array and has no items
@@ -128,9 +137,9 @@ export async function getTheaterArchive(skip = 0, take = 20): Promise<TheaterArc
 }
 
 async function httpGet<T>(url: string): Promise<T> {
-	const token = await getToken();
+	let token = await getValidToken();
 	// ✅ ลบ console.log URL ทุก request (มีเยอะมาก ทำให้ log รก + อาจ leak path)
-	const response = await fetch(url, {
+	let response = await fetch(url, {
 		headers: {
 			'BNK48-Device-Id': 'null',
 			'BNK48-AppCode': 'null',
@@ -139,9 +148,21 @@ async function httpGet<T>(url: string): Promise<T> {
 		}
 	});
 
+	if (response.status === 401 || response.status === 403) {
+		token = await getValidToken(true);
+		response = await fetch(url, {
+			headers: {
+				'BNK48-Device-Id': 'null',
+				'BNK48-AppCode': 'null',
+				'BNK48-Device-Model': 'null',
+				'Authorization': `Bearer ${token}`
+			}
+		});
+	}
+
 	if (!response.ok) {
 		// ✅ token หมดอายุ — clear cache เพื่อให้ refresh ครั้งต่อไป
-		if (response.status === 401) {
+		if (response.status === 401 || response.status === 403) {
 			cachedToken = null;
 			tokenExpiresAt = 0;
 		}
@@ -152,38 +173,15 @@ async function httpGet<T>(url: string): Promise<T> {
 }
 
 // ── Member ID cache ────────────────────────────────────────────────────────────
-const memberIdCache = new Map<string, number>();
-
 export async function getMemberIdByName(name: string): Promise<number | null> {
-	const searchName = name.toUpperCase();
-	if (memberIdCache.has(searchName)) return memberIdCache.get(searchName)!;
-
-	const maxId = 250;
-	const batchSize = 25;
-
-	for (let start = maxId; start >= 0; start -= batchSize) {
-		const batch: Promise<{ id: number; data: any } | null>[] = [];
-
-		for (let i = start; i > start - batchSize && i >= 0; i--) {
-			batch.push(
-				httpGet<any>(`${MEMBER_URL}${i}/profile`)
-					.then((res) => ({ id: i, data: res }))
-					.catch(() => null)
-			);
-		}
-
-		const results = await Promise.all(batch);
-
-		for (const res of results) {
-			if (res?.data?.codeName) {
-				const foundName: string = res.data.codeName.toUpperCase();
-				memberIdCache.set(foundName, res.data.id);
-				if (foundName === searchName) return res.data.id;
-			}
-		}
-	}
-
-	return null;
+	const searchName = name.trim().toLowerCase();
+	const member = memberData.find(
+		(m: any) =>
+			m.codeName?.toLowerCase() === searchName ||
+			m.displayNameEn?.toLowerCase() === searchName ||
+			m.displayName?.toLowerCase() === searchName
+	);
+	return member ? member.id : null;
 }
 
 export async function getMemberLives(
@@ -196,12 +194,66 @@ export async function getMemberLives(
 	);
 }
 
+export async function getMemberTimeline(
+	memberId: number,
+	skip = 0,
+	take = 20,
+	lastId?: string | number
+): Promise<any> {
+	let currentLastId = lastId;
+	const allFeeds: any[] = [];
+	const limitPerPage = 20;
+	let attempts = 0;
+	const maxAttempts = 25; // 25 * 20 = 500 max feeds
+
+	while (allFeeds.length < take && attempts < maxAttempts) {
+		attempts++;
+		const amountToFetch = Math.min(take - allFeeds.length, limitPerPage);
+		let url = `https://public.bnk48.io/timeline/multi/member/${memberId}?amount=${amountToFetch}`;
+		
+		if (currentLastId) {
+			url += `&last_id=${currentLastId}`;
+		} else if (skip > 0 && allFeeds.length === 0) {
+			url += `&skip=${skip}`;
+		}
+
+		try {
+			const res = await httpGet<any>(url);
+			const feeds = res?.feeds || [];
+			if (feeds.length === 0) {
+				break;
+			}
+
+			allFeeds.push(...feeds);
+
+			const lastItem = feeds[feeds.length - 1];
+			if (lastItem && lastItem.id) {
+				if (currentLastId === lastItem.id) {
+					break;
+				}
+				currentLastId = lastItem.id;
+			} else {
+				break;
+			}
+		} catch (error) {
+			console.error(`Error fetching timeline batch:`, error);
+			if (allFeeds.length > 0) {
+				break;
+			}
+			throw error;
+		}
+	}
+
+	return { feeds: allFeeds };
+}
+
+
 export async function getVideoInfo(videoId: string): Promise<any> {
 	return httpGet<any>(`${INFO_URL}${videoId}`);
 }
 
-export async function getVOD(videoId: string): Promise<VODResult> {
-	const id = videoId.replace(PLAYBACK_URL_HEAD, '');
+export async function getVOD(videoId: string | number): Promise<VODResult> {
+	const id = String(videoId).replace(PLAYBACK_URL_HEAD, '');
 	const [data, info] = await Promise.all([
 		httpGet<any>(`${M3U_URL}${id}`),
 		getVideoInfo(id),

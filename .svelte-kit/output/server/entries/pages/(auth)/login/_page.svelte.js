@@ -1,4 +1,4 @@
-import { R as attr } from "../../../../chunks/dev.js";
+import { z as attr } from "../../../../chunks/dev.js";
 import "../../../../chunks/navigation.js";
 import "../../../../chunks/supabase.js";
 //#region src/routes/(auth)/login/+page.svelte

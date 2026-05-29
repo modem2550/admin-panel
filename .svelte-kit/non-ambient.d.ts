@@ -29,18 +29,20 @@ declare module "$app/types" {
 	type MatcherParam<M> = M extends (param : string) => param is (infer U extends string) ? U : string;
 
 	export interface AppTypes {
-		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/playback" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/assets/theater-archive" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/download" | "/api/download/mp4" | "/api/image" | "/api/image/[...path]" | "/api/[...path]" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/downloader" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/robots.txt" | "/(app)/settings";
+		RouteId(): "/(auth)" | "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/playback" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/assets/theater-archive" | "/api/auth" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/downloader" | "/api/downloader/get-vod" | "/api/downloader/search" | "/api/downloads" | "/api/downloads/[id]" | "/api/downloads/[id]/file" | "/api/image" | "/api/image/[...path]" | "/api/[...path]" | "/(app)/assets" | "/(app)/dashboard" | "/(app)/downloader" | "/(app)/events" | "/(auth)/login" | "/(app)/members" | "/robots.txt" | "/(app)/settings";
 		RouteParams(): {
+			"/api/downloads/[id]": { id: string };
+			"/api/downloads/[id]/file": { id: string };
 			"/api/image/[...path]": { path: string };
 			"/api/[...path]": { path: string }
 		};
 		LayoutParams(): {
 			"/(auth)": Record<string, never>;
 			"/(app)": Record<string, never>;
-			"/": { path?: string };
+			"/": { id?: string | undefined; path?: string | undefined };
 			"/.well-known": Record<string, never>;
 			"/.well-known/security.txt": Record<string, never>;
-			"/api": { path?: string };
+			"/api": { id?: string | undefined; path?: string | undefined };
 			"/api/assets": Record<string, never>;
 			"/api/assets/playback": Record<string, never>;
 			"/api/assets/scan": Record<string, never>;
@@ -51,9 +53,13 @@ declare module "$app/types" {
 			"/api/auth/session": Record<string, never>;
 			"/api/check-assets": Record<string, never>;
 			"/api/check-assets/latest": Record<string, never>;
-			"/api/download": Record<string, never>;
-			"/api/download/mp4": Record<string, never>;
-			"/api/image": { path?: string };
+			"/api/downloader": Record<string, never>;
+			"/api/downloader/get-vod": Record<string, never>;
+			"/api/downloader/search": Record<string, never>;
+			"/api/downloads": { id?: string | undefined };
+			"/api/downloads/[id]": { id: string };
+			"/api/downloads/[id]/file": { id: string };
+			"/api/image": { path?: string | undefined };
 			"/api/image/[...path]": { path: string };
 			"/api/[...path]": { path: string };
 			"/(app)/assets": Record<string, never>;
@@ -65,8 +71,8 @@ declare module "$app/types" {
 			"/robots.txt": Record<string, never>;
 			"/(app)/settings": Record<string, never>
 		};
-		Pathname(): "/" | "/.well-known/security.txt" | "/api/assets/playback" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/assets/theater-archive" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/download/mp4" | `/api/image/${string}` & {} | `/api/${string}` & {} | "/assets" | "/dashboard" | "/downloader" | "/events" | "/login" | "/members" | "/robots.txt" | "/settings";
+		Pathname(): "/" | "/.well-known/security.txt" | "/api/assets/playback" | "/api/assets/scan" | "/api/assets/scan/status" | "/api/assets/scan/status/sku" | "/api/assets/theater-archive" | "/api/auth/session" | "/api/check-assets" | "/api/check-assets/latest" | "/api/downloader/get-vod" | "/api/downloader/search" | "/api/downloads" | `/api/downloads/${string}` & {} | `/api/downloads/${string}/file` & {} | `/api/image/${string}` & {} | `/api/${string}` & {} | "/assets" | "/dashboard" | "/downloader" | "/events" | "/login" | "/members" | "/robots.txt" | "/settings";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/.assetsignore" | "/favicon.ico" | "/favicon.svg" | string & {};
+		Asset(): "/.assetsignore" | "/favicon.ico" | "/favicon.svg" | "/ffmpeg/ffmpeg-core.js" | "/ffmpeg/ffmpeg-core.wasm" | string & {};
 	}
 }

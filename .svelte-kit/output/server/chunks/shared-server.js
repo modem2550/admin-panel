@@ -9,8 +9,6 @@ var private_env = {};
 * @type {Record<string, string>}
 */
 var public_env = {};
-/** @param {any} error */
-var fix_stack_trace = (error) => error?.stack;
 /** @type {(environment: Record<string, string>) => void} */
 function set_private_env(environment) {
 	private_env = environment;
@@ -20,4 +18,4 @@ function set_public_env(environment) {
 	public_env = environment;
 }
 //#endregion
-export { set_public_env as a, set_private_env as i, private_env as n, public_env as r, fix_stack_trace as t };
+export { set_public_env as i, public_env as n, set_private_env as r, private_env as t };

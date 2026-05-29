@@ -7,10 +7,10 @@ function __memo(fn) {
 return {
 	appDir: "_app",
 	appPath: "_app",
-	assets: new Set([".assetsignore","favicon.ico","favicon.svg"]),
-	mimeTypes: {".svg":"image/svg+xml"},
+	assets: new Set([".assetsignore","favicon.ico","favicon.svg","ffmpeg/ffmpeg-core.js","ffmpeg/ffmpeg-core.wasm"]),
+	mimeTypes: {".svg":"image/svg+xml",".js":"text/javascript",".wasm":"application/wasm"},
 	_: {
-		client: {start:"_app/immutable/entry/start.Br7tTwPh.js",app:"_app/immutable/entry/app.DaVK9PXn.js",imports:["_app/immutable/entry/start.Br7tTwPh.js","_app/immutable/chunks/BP6uOatx.js","_app/immutable/chunks/B-U5jx19.js","_app/immutable/chunks/CXuWhOti.js","_app/immutable/entry/app.DaVK9PXn.js","_app/immutable/chunks/B-U5jx19.js","_app/immutable/chunks/O6-aNYLC.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.DdIGuCAG.js",app:"_app/immutable/entry/app.Cb7I_-K9.js",imports:["_app/immutable/entry/start.DdIGuCAG.js","_app/immutable/chunks/qVu3EFL_.js","_app/immutable/chunks/DhkMvD30.js","_app/immutable/chunks/D1h2OxpE.js","_app/immutable/entry/app.Cb7I_-K9.js","_app/immutable/chunks/DhkMvD30.js","_app/immutable/chunks/CBB8d3n5.js","_app/immutable/chunks/CP97kCR3.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),
@@ -100,11 +100,39 @@ return {
 				endpoint: __memo(() => import('./entries/endpoints/api/check-assets/latest/_server.ts.js'))
 			},
 			{
-				id: "/api/download/mp4",
-				pattern: /^\/api\/download\/mp4\/?$/,
+				id: "/api/downloader/get-vod",
+				pattern: /^\/api\/downloader\/get-vod\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./entries/endpoints/api/download/mp4/_server.ts.js'))
+				endpoint: __memo(() => import('./entries/endpoints/api/downloader/get-vod/_server.ts.js'))
+			},
+			{
+				id: "/api/downloader/search",
+				pattern: /^\/api\/downloader\/search\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/downloader/search/_server.ts.js'))
+			},
+			{
+				id: "/api/downloads",
+				pattern: /^\/api\/downloads\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/downloads/_server.ts.js'))
+			},
+			{
+				id: "/api/downloads/[id]",
+				pattern: /^\/api\/downloads\/([^/]+?)\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/downloads/_id_/_server.ts.js'))
+			},
+			{
+				id: "/api/downloads/[id]/file",
+				pattern: /^\/api\/downloads\/([^/]+?)\/file\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/downloads/_id_/file/_server.ts.js'))
 			},
 			{
 				id: "/api/image/[...path]",

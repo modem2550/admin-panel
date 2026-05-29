@@ -638,23 +638,23 @@
 
 						if (data?.urls && Array.isArray(data.urls)) {
 							for (const u of data.urls) pushSkuUrl(u, true);
+						} else {
+							const explicitSkus: number[] =
+								data?.skus && Array.isArray(data.skus)
+									? data.skus.filter((n: unknown) =>
+											Number.isFinite(n as number),
+										)
+									: [];
+
+							const guessSkus = explicitSkus.some((n) => n > 1)
+								? explicitSkus
+								: [2, 3, 4, 5, 6, 7, 8];
+							for (const skuUrl of buildSkuUrlsFromBase(
+								baseUrl,
+								guessSkus,
+							))
+								pushSkuUrl(skuUrl);
 						}
-
-						const explicitSkus: number[] =
-							data?.skus && Array.isArray(data.skus)
-								? data.skus.filter((n: unknown) =>
-										Number.isFinite(n as number),
-									)
-								: [];
-
-						const guessSkus = explicitSkus.some((n) => n > 1)
-							? explicitSkus
-							: [2, 3, 4, 5, 6, 7, 8];
-						for (const skuUrl of buildSkuUrlsFromBase(
-							baseUrl,
-							guessSkus,
-						))
-							pushSkuUrl(skuUrl);
 
 						modalSkus = compactSkuUrls(skuUrls);
 						skuCache.set(asset.id, modalSkus);
@@ -840,7 +840,18 @@
 		const asset = selectedAsset;
 		if (!asset || assetType !== "product") return;
 		const img = e.currentTarget as HTMLImageElement;
+		if (img.naturalWidth === 1 && img.naturalHeight === 1) {
+			img.hidden = true;
+			return;
+		}
 		recordResolvedProductThumb(asset.id, img.src);
+	}
+
+	function handleModalSlideLoad(e: Event, slideUrl: string) {
+		const img = e.currentTarget as HTMLImageElement;
+		if (img.naturalWidth === 1 && img.naturalHeight === 1) {
+			handleModalSlideError(e, slideUrl);
+		}
 	}
 
 	let jumpToId = $state("");
@@ -858,7 +869,7 @@
 	}
 
 	const loadMoreLabel = () =>
-		sortOrder === "asc" ? "โหลดเพิ่ม (รุ่นเก่า)" : "โหลดรุ่นเก่าต่อ";
+		sortOrder === "asc" ? "โหลดเพิ่ม (รุ่นเก่า)" : "Load More";
 
 	onMount(() => {
 		const params = new URLSearchParams(window.location.search);
@@ -1075,6 +1086,13 @@
 						loading="lazy"
 						onload={(e) => {
 							const img = e.currentTarget as HTMLImageElement;
+							if (
+								img.naturalWidth === 1 &&
+								img.naturalHeight === 1
+							) {
+								handleAssetThumbError(e, asset);
+								return;
+							}
 							if (parseFloat(getComputedStyle(img).opacity) < 0.5)
 								return;
 							recordResolvedProductThumb(asset.id, img.src);
@@ -1099,9 +1117,9 @@
 		{/if}
 	</div>
 
-	<div class="pagination-footer">
+	<div class="load-more-container">
 		<button
-			class="button-pill-outline px-5"
+			class="button-secondary load-more-container"
 			onclick={loadNextBatch}
 			disabled={loading}
 		>
@@ -1190,9 +1208,10 @@
 									alt="slide {i + 1}"
 									class="viewer-img"
 									loading="eager"
-									onload={i === 0
-										? handleModalMainLoad
-										: undefined}
+									onload={(e) =>
+										i === 0
+											? handleModalMainLoad(e)
+											: handleModalSlideLoad(e, slideUrl)}
 									onerror={(e) =>
 										handleModalSlideError(e, slideUrl)}
 								/>

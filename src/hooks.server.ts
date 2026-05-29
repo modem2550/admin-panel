@@ -1,29 +1,51 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import dns from 'node:dns';
 
 dns.setDefaultResultOrder('ipv4first');
 
 import { dev } from '$app/environment';
+import { isHttpError } from '@sveltejs/kit';
 import { buildContentSecurityPolicy } from '$lib/csp.server';
 import {
-    clearSessionCookies,
-    readSessionTokens,
-    sessionCookieNames,
-    sessionCookieOpts
+	clearSessionCookies,
+	readSessionTokens,
+	sessionCookieNames,
+	sessionCookieOpts
 } from '$lib/session-cookies.server';
 import { validatePublicEnvOnce } from '$lib/validate-env.server';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-// ✅ สร้างครั้งเดียว reuse ทุก request
-const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-});
+let supabaseClient: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient | null {
+	if (!supabaseUrl || !supabaseAnonKey) return null;
+	if (!supabaseClient) {
+		supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+			auth: { persistSession: false, autoRefreshToken: false }
+		});
+	}
+	return supabaseClient;
+}
 
 let didValidateEnv = false;
+
+/** macOS WebView probes these paths automatically — not app routes. */
+const WEBVIEW_ICON_PATHS = new Set([
+	'/apple-touch-icon.png',
+	'/apple-touch-icon-precomposed.png'
+]);
+
+function replyWebviewIconProbe(pathname: string): Response | null {
+	if (!WEBVIEW_ICON_PATHS.has(pathname)) return null;
+	return new Response(null, {
+		status: 302,
+		headers: { Location: '/favicon.ico', 'Cache-Control': 'no-store' }
+	});
+}
 
 function applySecurityHeaders(response: Response, isHttps: boolean) {
 	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy(isHttps));
@@ -47,17 +69,17 @@ function applySecurityHeaders(response: Response, isHttps: boolean) {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+	const iconProbe = replyWebviewIconProbe(event.url.pathname);
+	if (iconProbe) return iconProbe;
+
 	if (!didValidateEnv) {
 		didValidateEnv = true;
 		validatePublicEnvOnce();
 	}
 
 	const cookieSecure = event.url.protocol === 'https:';
-
-	const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-		auth: { persistSession: false, autoRefreshToken: false }
-	});
-	event.locals.supabase = supabaseClient;
+	const supabase = getSupabaseClient();
+	event.locals.supabase = supabase;
 
 	const { access, refresh, names } = readSessionTokens(event.cookies, cookieSecure);
 
@@ -69,7 +91,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return response;
 	}
 
-	if (access && refresh) {
+	if (access && refresh && supabase) {
 		try {
 			const { data, error } = await supabase.auth.setSession({
 				access_token: access,
@@ -132,15 +154,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handleError: HandleServerError = ({ error, event }) => {
-	const errorId = randomUUID();
+const isDesktopBundle = process.env.TAURI_DESKTOP === '1';
 
-	if (!dev) {
+export const handleError: HandleServerError = ({ error, event }) => {
+	if (isHttpError(error) && error.status === 404 && WEBVIEW_ICON_PATHS.has(event.url.pathname)) {
+		return { message: 'Not Found' };
+	}
+
+	const errorId = randomUUID();
+	const message = error instanceof Error ? error.message : 'Unknown error';
+
+	if (!dev && !isDesktopBundle) {
 		console.error(
 			JSON.stringify({
 				errorId,
 				path: event.url.pathname,
-				name: error instanceof Error ? error.name : typeof error
+				name: error instanceof Error ? error.name : typeof error,
+				message
 			})
 		);
 		return {
@@ -148,8 +178,8 @@ export const handleError: HandleServerError = ({ error, event }) => {
 		};
 	}
 
-	console.error(error);
+	console.error(`[${errorId}] ${event.url.pathname}:`, error);
 	return {
-		message: error instanceof Error ? error.message : 'Unknown error'
+		message: `${message} (ref: ${errorId})`
 	};
 };

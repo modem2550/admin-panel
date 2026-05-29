@@ -1,4 +1,5 @@
 import { i as sessionCookieOpts, n as readSessionTokens, r as sessionCookieNames, t as clearSessionCookies } from "../chunks/session-cookies.server.js";
+import { isHttpError } from "@sveltejs/kit";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import dns from "node:dns";
@@ -15,11 +16,13 @@ function buildContentSecurityPolicy(isHttps) {
 	} catch {}
 	const parts = [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
+		"script-src 'self' 'unsafe-inline' https://unpkg.com blob:",
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
 		"font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
 		"img-src 'self' data: https: blob:",
-		`connect-src 'self' ${supabaseHosts}`,
+		`connect-src 'self' ${supabaseHosts} https://unpkg.com blob: https: http:`,
+		"worker-src 'self' blob:",
+		"media-src 'self' blob: https://*.bnk48cdn.net https://*.bnk48.io",
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
@@ -33,18 +36,38 @@ function buildContentSecurityPolicy(isHttps) {
 /** แจ้งเตือนตอน boot เมื่อขาดค่าที่จำเป็นใน production */
 function validatePublicEnvOnce() {
 	const missing = [];
-	if (missing.length) console.warn(`[security] Missing env for production: ${missing.join(", ")}`);
+	if (missing.length) {
+		const msg = `[security] Missing env for production: ${missing.join(", ")}`;
+		console.error(msg);
+		if (process.env.TAURI_DESKTOP === "1") throw new Error(msg);
+	}
 }
 //#endregion
 //#region src/hooks.server.ts
 dns.setDefaultResultOrder("ipv4first");
 var supabaseUrl = "https://kqfnhyaktxgulhitdvqq.supabase.co";
 var supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxZm5oeWFrdHhndWxoaXRkdnFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NTIxMzQsImV4cCI6MjA4MzIyODEzNH0.pwtVfQJ2vmJCTLOYW8p8FH9M56qXBJL_rDCvfNWvvmA";
-var supabaseClient = createClient(supabaseUrl, supabaseAnonKey, { auth: {
-	persistSession: false,
-	autoRefreshToken: false
-} });
+var supabaseClient = null;
+function getSupabaseClient() {
+	if (!supabaseClient) supabaseClient = createClient(supabaseUrl, supabaseAnonKey, { auth: {
+		persistSession: false,
+		autoRefreshToken: false
+	} });
+	return supabaseClient;
+}
 var didValidateEnv = false;
+/** macOS WebView probes these paths automatically — not app routes. */
+var WEBVIEW_ICON_PATHS = new Set(["/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"]);
+function replyWebviewIconProbe(pathname) {
+	if (!WEBVIEW_ICON_PATHS.has(pathname)) return null;
+	return new Response(null, {
+		status: 302,
+		headers: {
+			Location: "/favicon.ico",
+			"Cache-Control": "no-store"
+		}
+	});
+}
 function applySecurityHeaders(response, isHttps) {
 	response.headers.set("Content-Security-Policy", buildContentSecurityPolicy(isHttps));
 	if (isHttps) response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
@@ -56,16 +79,15 @@ function applySecurityHeaders(response, isHttps) {
 	response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
 }
 var handle = async ({ event, resolve }) => {
+	const iconProbe = replyWebviewIconProbe(event.url.pathname);
+	if (iconProbe) return iconProbe;
 	if (!didValidateEnv) {
 		didValidateEnv = true;
 		validatePublicEnvOnce();
 	}
 	const cookieSecure = event.url.protocol === "https:";
-	const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: {
-		persistSession: false,
-		autoRefreshToken: false
-	} });
-	event.locals.supabase = supabaseClient;
+	const supabase = getSupabaseClient();
+	event.locals.supabase = supabase;
 	const { access, refresh, names } = readSessionTokens(event.cookies, cookieSecure);
 	if (access && !refresh || !access && refresh) {
 		clearSessionCookies(event.cookies, cookieSecure);
@@ -74,7 +96,7 @@ var handle = async ({ event, resolve }) => {
 		applySecurityHeaders(response, cookieSecure);
 		return response;
 	}
-	if (access && refresh) try {
+	if (access && refresh && supabase) try {
 		const { data, error } = await supabase.auth.setSession({
 			access_token: access,
 			refresh_token: refresh
@@ -127,14 +149,22 @@ var handle = async ({ event, resolve }) => {
 	applySecurityHeaders(response, cookieSecure);
 	return response;
 };
+var isDesktopBundle = process.env.TAURI_DESKTOP === "1";
 var handleError = ({ error, event }) => {
+	if (isHttpError(error) && error.status === 404 && WEBVIEW_ICON_PATHS.has(event.url.pathname)) return { message: "Not Found" };
 	const errorId = randomUUID();
-	console.error(JSON.stringify({
-		errorId,
-		path: event.url.pathname,
-		name: error instanceof Error ? error.name : typeof error
-	}));
-	return { message: `Something went wrong. Reference: ${errorId}` };
+	const message = error instanceof Error ? error.message : "Unknown error";
+	if (!isDesktopBundle) {
+		console.error(JSON.stringify({
+			errorId,
+			path: event.url.pathname,
+			name: error instanceof Error ? error.name : typeof error,
+			message
+		}));
+		return { message: `Something went wrong. Reference: ${errorId}` };
+	}
+	console.error(`[${errorId}] ${event.url.pathname}:`, error);
+	return { message: `${message} (ref: ${errorId})` };
 };
 //#endregion
 export { handle, handleError };

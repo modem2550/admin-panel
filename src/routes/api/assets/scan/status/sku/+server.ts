@@ -44,7 +44,7 @@ export const GET: RequestHandler = async ({ url }) => {
     if (dbErr) throw error(500, 'DB error');
 
     // ถ้ามี extra_urls แล้ว (ระบบใหม่) คืนค่า urls ไปเลย ไม่ต้อง HEAD
-    if (existing?.extra_urls && existing.extra_urls.length > 0) {
+    if (existing && Array.isArray(existing.extra_urls)) {
         return json({ urls: existing.extra_urls, skus: existing.skus || [] });
     }
     // ถ้าข้อมูลเก่ามีแค่ skus ให้ทำงาน scan ใหม่เพื่ออัพเดต extra_urls ให้ครบถ้วน

@@ -33,7 +33,7 @@ var GET = async ({ url }) => {
 	if (isNaN(id)) throw error(400, "Invalid id");
 	const { data: existing, error: dbErr } = await supabaseAdmin.from("cdn_assets").select("skus, extra_urls").eq("id", id).eq("type", type).maybeSingle();
 	if (dbErr) throw error(500, "DB error");
-	if (existing?.extra_urls && existing.extra_urls.length > 0) return json({
+	if (existing && Array.isArray(existing.extra_urls)) return json({
 		urls: existing.extra_urls,
 		skus: existing.skus || []
 	});

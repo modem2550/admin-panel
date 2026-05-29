@@ -161,7 +161,6 @@ body {
 	line-height: var(--lh-caption-md);
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	text-align: center;
 	color: var(--stone);
 }
 
@@ -295,7 +294,6 @@ a.btn:active {
 	align-items: center;
 	gap: 0.75rem 1rem;
 	padding: 0.75rem 0;
-	border-bottom: 1px solid var(--hairline);
 }
 
 .filter-pills {
@@ -581,15 +579,20 @@ a.btn:active {
 	background: var(--surface-soft);
 }
 
-@media (min-width: 901px) {
+@media (min-width: 920px) {
 	.mobile-menu-trigger {
 		display: none;
 	}
 }
 
-@media (max-width: 900px) {
+@media (max-width: 920px) {
 	.nav-center {
 		display: none;
+	}
+
+	.stats-grid {
+		grid-auto-flow: row;
+		grid-template-columns: 1fr;
 	}
 }
 
@@ -849,7 +852,7 @@ a.btn:active {
 /* Asset registry grid (same ledger language as tables) */
 .asset-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(11.42rem, 1fr));
 	gap: 1px;
 	padding: 0;
 	border: 1px solid var(--hairline);
@@ -883,6 +886,13 @@ a.btn:active {
 	height: 100%;
 	object-fit: cover;
 	display: block;
+}
+
+.load-more-container {
+	display: flex;
+	justify-content: center;
+	margin-top: 1rem;
+	margin-bottom: 2rem;
 }
 
 .node-id {

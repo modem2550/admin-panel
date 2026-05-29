@@ -7,6 +7,10 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
+const { default: ffmpegPath } = await import('ffmpeg-static');
+const { default: ffprobeStatic } = await import('ffprobe-static');
+const ffprobePath = ffmpegPath ? ffmpegPath.replace('app.asar', 'app.asar.unpacked') : null;
+
 export interface DownloadJob {
     id: string;
     progress: number;
@@ -53,6 +57,41 @@ let activeJobs = 0;
 /*                                  STARTUP                                   */
 /* -------------------------------------------------------------------------- */
 
+const STATE_FILE = path.join(process.env.TMPDIR || '/tmp', '48cms-jobs.json');
+
+function persistJobs() {
+    try {
+        const serializable = Array.from(jobs.entries()).map(([id, job]) => [id, {
+            id: job.id,
+            fileName: job.fileName,
+            status: job.status,
+            filePath: job.filePath,
+            progress: job.progress,
+            error: job.error,
+            duration: job.duration,
+            startedAt: job.startedAt,
+            completedAt: job.completedAt,
+            encoder: job.encoder,
+        }]);
+        fs.writeFileSync(STATE_FILE, JSON.stringify(serializable), 'utf-8');
+    } catch { /* ignore */ }
+}
+
+function restoreJobs() {
+    try {
+        if (!fs.existsSync(STATE_FILE)) return;
+        const data = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8')) as [string, any][];
+        for (const [id, job] of data) {
+            if (job.status === 'processing' || job.status === 'queued') {
+                job.status = 'failed';
+                job.error = 'App was restarted during download';
+            }
+            jobs.set(id, job);
+        }
+    } catch { /* ignore */ }
+}
+
+restoreJobs();
 cleanupStaleTempFiles();
 
 function cleanupStaleTempFiles() {
@@ -211,12 +250,14 @@ function buildFfmpegArgs(
 /*                                FFPROBE                                     */
 /* -------------------------------------------------------------------------- */
 
+const FFPROBE_TIMEOUT_MS = 30_000;
+
 async function probeDuration(
     url: string,
     token: string
 ): Promise<number> {
     return new Promise((resolve) => {
-        const ffprobe = spawn('ffprobe', [
+        const ffprobe = spawn(ffprobePath, [
             '-headers',
             `Authorization: Bearer ${token}\r\n`,
 
@@ -244,6 +285,7 @@ async function probeDuration(
         });
 
         ffprobe.on('close', () => {
+            clearTimeout(timer);
             const duration = parseFloat(stdout.trim());
 
 
@@ -252,8 +294,14 @@ async function probeDuration(
         });
 
         ffprobe.on('error', () => {
+            clearTimeout(timer);
             resolve(0);
         });
+
+        const timer = setTimeout(() => {
+            try { ffprobe.kill('SIGKILL'); } catch { }
+            resolve(0);
+        }, FFPROBE_TIMEOUT_MS);
     });
 }
 
@@ -267,7 +315,7 @@ async function spawnFfmpeg(
 ): Promise<void> {
     return new Promise((resolve, reject) => {
         const ffmpeg: ChildProcessWithoutNullStreams = spawn(
-            'ffmpeg',
+            ffmpegPath as string,
             args
         );
 
@@ -376,6 +424,7 @@ async function runJob(
 ): Promise<void> {
     job.status = 'processing';
     job.startedAt = Date.now();
+    persistJobs();
 
     try {
         /* ---------------------------- Probe Duration --------------------------- */
@@ -456,6 +505,7 @@ async function runJob(
         job.status = 'completed';
 
         job.completedAt = Date.now();
+        persistJobs();
 
 
     } catch (err) {
@@ -468,6 +518,7 @@ async function runJob(
         job.error = message;
 
         job.completedAt = Date.now();
+        persistJobs();
 
         removeTempFile(tempFilePath);
 
@@ -515,6 +566,7 @@ export async function startDownloadJob(
     };
 
     jobs.set(jobId, job);
+    persistJobs();
 
     pendingQueue.push({
         job,
@@ -554,6 +606,7 @@ export function cancelJob(jobId: string): boolean {
     job.completedAt = Date.now();
 
     removeTempFile(job.filePath);
+    persistJobs();
 
     return true;
 }

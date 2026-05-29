@@ -32,8 +32,10 @@ function proxyUrl(url) {
 	let result = url;
 	try {
 		const parsed = new URL(url);
-		const prefix = HOST_PREFIX_MAP[parsed.hostname];
-		if (prefix) result = `/api/${prefix}/${parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname}${parsed.search}`;
+		if (!(parsed.hostname === "media.bnk48cdn.net" || parsed.hostname.startsWith("media") && parsed.hostname.endsWith(".bnk48cdn.net"))) {
+			const prefix = HOST_PREFIX_MAP[parsed.hostname];
+			if (prefix) result = `/api/${prefix}/${parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname}${parsed.search}`;
+		}
 	} catch {}
 	proxyCache.set(url, result);
 	return result;
@@ -60,7 +62,14 @@ function getDefaultAssetUrl(type, id) {
 function getCDNDiscoveryUrls(type, id) {
 	const idStr = String(id);
 	if (type === "group") return [`https://img.bnk48cdn.net/shop/product-group/${idStr}.jpg`, `https://img.bnk48cdn.net/shop/product-group/${idStr}.png`];
-	return [];
+	const candidates = [];
+	for (let sku = 1; sku <= 8; sku++) candidates.push(`https://img.bnk48cdn.net/shop/product/${idStr}/sku-${sku}.jpg`, `https://img.bnk48cdn.net/shop/product/${idStr}/sku-${sku}.png`, `https://img.bnk48cdn.net/shop/product/${idStr}/sku${sku}.jpg`, `https://img.bnk48cdn.net/shop/product/${idStr}/sku${sku}.png`);
+	const idNum = parseInt(idStr, 10);
+	if (!isNaN(idNum)) {
+		if (idNum >= 422 && idNum <= 750) for (let r = 1; r <= 6; r++) candidates.push(`https://img.bnk48cdn.net/shop/product/${idStr}/SAT-Round${r}.png`, `https://img.bnk48cdn.net/shop/product/${idStr}/SAT-Round${r}.jpg`, `https://img.bnk48cdn.net/shop/product/${idStr}/SUN-Round${r}.png`, `https://img.bnk48cdn.net/shop/product/${idStr}/SUN-Round${r}.jpg`);
+		if (idNum >= 850 && idNum <= 914) for (let r = 1; r <= 6; r++) candidates.push(`https://img.bnk48cdn.net/shop/product/${idStr}/Round${r}.png`, `https://img.bnk48cdn.net/shop/product/${idStr}/Round${r}.jpg`);
+	}
+	return candidates;
 }
 var DEFAULT_HEADERS = {
 	"Accept": "application/json",

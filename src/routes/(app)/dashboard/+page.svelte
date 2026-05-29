@@ -68,30 +68,6 @@
 		</div>
 	</div>
 
-	{#if data.champSplashUrl}
-		<section class="campaign-highlight">
-			<div class="section-header">
-				<span class="mono-label">Active Campaign</span>
-				<h2 class="card-heading">Champ of the Week</h2>
-			</div>
-			<div class="splash-container">
-				<img
-					src={data.champSplashUrl}
-					alt="Champ of the Week Splash"
-					class="splash-image"
-				/>
-				<div class="splash-overlay">
-					<div class="splash-content">
-						<span class="badge">LIVE</span>
-						<p class="splash-meta">
-							Current session splash screen active on mobile app.
-						</p>
-					</div>
-				</div>
-			</div>
-		</section>
-	{/if}
-
 	<section class="asset-stream">
 		<div class="section-header">
 			<h2 class="card-heading">Asset registry</h2>
@@ -103,6 +79,10 @@
 
 		<div class="media-preview-row">
 			{#if loadingAssets}
+				<div class="preview-col">
+					<div class="skeleton-media mb-3"></div>
+					<div class="skeleton-text"></div>
+				</div>
 				<div class="preview-col">
 					<div class="skeleton-media mb-3"></div>
 					<div class="skeleton-text"></div>
@@ -145,78 +125,32 @@
 						</div>
 					</div>
 				{/if}
+				{#if data.champSplashUrl}
+					<div class="preview-col">
+						<div class="preview-media">
+							<img
+								src={data.champSplashUrl}
+								alt="Champ of the Week Splash"
+								class="splash-image"
+							/>
+						</div>
+						<div class="preview-info">
+							<span class="mono-label"> Banner </span>
+							<h3 class="feature-heading">Champ of the Week</h3>
+						</div>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</section>
 </div>
 
 <style>
-	.campaign-highlight {
-		margin-bottom: var(--section-rhythm);
-	}
-
-	.splash-container {
-		position: relative;
-		width: 100%;
-		max-width: 440px;
-		aspect-ratio: 1 / 1.4;
-		overflow: hidden;
-		border: 1px solid var(--hairline-strong);
-		border-radius: var(--radius-interactive);
-		background: var(--surface-dark);
-		cursor: default;
-	}
-
 	.splash-image {
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
-		background: #000;
 		transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-	}
-
-	.splash-container:hover .splash-image {
-		transform: scale(1.08);
-	}
-
-	.splash-overlay {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		padding: 3rem 1.5rem 1.5rem;
-		background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-		color: white;
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-end;
-		pointer-events: none;
-	}
-
-	.badge {
-		display: inline-block;
-		padding: 0.15rem 0.5rem;
-		background: var(--danger);
-		color: white;
-		font-size: 0.65rem;
-		font-weight: 700;
-		letter-spacing: 0.05em;
-		border-radius: 2px;
-		margin-bottom: 0.75rem;
-		width: fit-content;
-	}
-
-	.splash-meta {
-		font-size: var(--fs-caption-md);
-		opacity: 0.7;
-		margin: 0;
-		font-weight: 400;
-	}
-
-	@media (max-width: 768px) {
-		.splash-container {
-			max-width: 100%;
-		}
 	}
 
 	.section-header {
@@ -231,5 +165,27 @@
 		margin-top: 2rem;
 		padding-top: 2rem;
 		border-top: 1px solid var(--hairline);
+	}
+
+	.media-preview-row {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 2rem;
+	}
+
+	.preview-media {
+		border-radius: var(--radius-interactive);
+		overflow: hidden;
+		aspect-ratio: 1/1;
+		background: var(--surface-dark);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.preview-media img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 </style>

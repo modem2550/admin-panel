@@ -1,5 +1,5 @@
 import "../../../../chunks/index-server.js";
-import { R as attr, i as ensure_array_like, n as attr_class, r as derived, z as escape_html } from "../../../../chunks/dev.js";
+import { B as escape_html, a as ensure_array_like, i as derived, n as attr_class, z as attr } from "../../../../chunks/dev.js";
 import "../../../../chunks/supabase.js";
 import { t as toasts } from "../../../../chunks/toasts.js";
 //#region src/routes/(app)/assets/+page.svelte
@@ -155,7 +155,7 @@ function _page($$renderer, $$props) {
 			return asset.url;
 		}
 		let jumpToId = "";
-		const loadMoreLabel = () => sortOrder === "asc" ? "โหลดเพิ่ม (รุ่นเก่า)" : "โหลดรุ่นเก่าต่อ";
+		const loadMoreLabel = () => sortOrder === "asc" ? "โหลดเพิ่ม (รุ่นเก่า)" : "Load More";
 		let visibleStart = 0;
 		let visibleEnd = 100;
 		derived(() => assets.slice(visibleStart, visibleEnd));
@@ -198,7 +198,7 @@ function _page($$renderer, $$props) {
 			$$renderer.push("<!--[0-->");
 			$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" width="100%"${attr("height", (assets.length - visibleEnd) * 2)} aria-hidden="true" role="presentation"></svg>`);
 		} else $$renderer.push("<!--[-1-->");
-		$$renderer.push(`<!--]--></div> <div class="pagination-footer"><button class="button-pill-outline px-5"${attr("disabled", loading, true)}>${escape_html(loadMoreLabel())}</button></div></div> `);
+		$$renderer.push(`<!--]--></div> <div class="load-more-container"><button class="button-secondary load-more-container"${attr("disabled", loading, true)}>${escape_html(loadMoreLabel())}</button></div></div> `);
 		$$renderer.push("<!--[-1-->");
 		$$renderer.push(`<!--]-->`);
 	});

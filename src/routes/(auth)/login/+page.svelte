@@ -8,41 +8,28 @@
 	let loading = $state(false);
 
 	async function handleLogin() {
-
-		
-		// Manual sync for some password managers that don't trigger events
-		const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
-		const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement;
-		
-		const currentEmail = email.trim() || (emailInput?.value || "").trim();
-		const currentPassword = password.trim() || (passwordInput?.value || "").trim();
-
-
-
-		if (!currentEmail || !currentPassword) {
-
-			error = "Identification and security token required.";
-			return;
-		}
-
 		loading = true;
 		error = "";
 
 		try {
-
-			const { data, error: err } = await supabase.auth.signInWithPassword({
-				email: currentEmail,
-				password: currentPassword
-			});
+			const { data, error: err } = await supabase.auth.signInWithPassword(
+				{
+					email: email.trim(),
+					password: password.trim(),
+				},
+			);
 
 			if (err) {
-
 				error = err.message;
-			} else {
+				return;
+			}
 
-				
-				if (data.session) {
+			if (data.session) {
+				console.log("✅ Login successful");
 
+				// วิธีแก้ค้าง — ใช้ window.location แรง ๆ แทน goto
+				try {
+					// Sync cookies ก่อน (ถ้ามี API นี้)
 					const res = await fetch("/api/auth/session", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -51,23 +38,23 @@
 							refresh_token: data.session.refresh_token,
 						}),
 					});
-					
-					if (res.ok) {
 
-					} else {
-
-						error = "Could not establish server session. Try again.";
-						return;
+					if (!res.ok) {
+						console.warn("Failed to sync session cookie");
 					}
+				} catch (e) {
+					console.warn("Cookie sync failed (normal in Tauri):", e);
 				}
 
-
-				await goto("/dashboard", { invalidateAll: true });
-
+				// Redirect แบบแรง ๆ
+				console.log("🔄 Redirecting to dashboard...");
+				window.location.href = "/dashboard";
+				// หรือใช้ goto แบบนี้ถ้าต้องการ
+				// await goto("/dashboard", { replaceState: true, invalidateAll: true });
 			}
-		} catch (e) {
-
-			error = "An unexpected error occurred.";
+		} catch (e: any) {
+			console.error(e);
+			error = e.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
 		} finally {
 			loading = false;
 		}
@@ -125,7 +112,11 @@
 				</div>
 			</div>
 
-			<button class="button-primary login-submit" type="submit" disabled={loading}>
+			<button
+				class="button-primary login-submit"
+				type="submit"
+				disabled={loading}
+			>
 				{#if loading}
 					<i class="fa-solid fa-spinner fa-spin me-2"></i>
 					Signing in…

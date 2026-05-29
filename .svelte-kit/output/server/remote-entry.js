@@ -1,6 +1,6 @@
 import { c as unfriendly_hydratable, i as parse_remote_arg, o as stringify, r as create_remote_key, s as stringify_remote_arg, y as noop } from "./chunks/shared.js";
 import { a as app_dir, s as base, t as prerendering } from "./chunks/environment.js";
-import { S as set_nested_value, T as MUTATIVE_METHODS, _ as create_field_proxy, b as flatten_issues, o as handle_error_and_jsonify, v as deep_set, x as normalize_issue } from "./chunks/utils.js";
+import { C as set_nested_value, E as MUTATIVE_METHODS, S as normalize_issue, s as handle_error_and_jsonify, v as create_field_proxy, x as flatten_issues, y as deep_set } from "./chunks/utils.js";
 import { error, json } from "@sveltejs/kit";
 import { HttpError, SvelteKitError, ValidationError } from "@sveltejs/kit/internal";
 import { get_request_store, with_request_store } from "@sveltejs/kit/internal/server";
@@ -385,6 +385,10 @@ function form(validate_or_fn, maybe_fn) {
 		Object.defineProperty(instance, "validate", { value: () => {
 			throw new Error("Cannot call validate() on the server");
 		} });
+		Object.defineProperty(instance, "submit", { value: () => {
+			throw new Error("Cannot call submit() on the server");
+		} });
+		Object.defineProperty(instance, "element", { get: () => null });
 		if (key == void 0) Object.defineProperty(instance, "for", { 
 		/** @type {RemoteForm<any, any>['for']} */
 value: (key) => {
@@ -584,6 +588,204 @@ function prerender(validate_or_fn, fn_or_options, maybe_options) {
 	return wrapper;
 }
 //#endregion
+//#region node_modules/@sveltejs/kit/src/utils/shared-iterator.js
+/**
+* A pull-style async iterator that fans out a single stream of values to
+* multiple `for await (...)` consumers. Each subscriber gets its own
+* `AsyncGenerator` whose `.next()` resolves whenever a value is pushed via
+* `push(value)`. Multiple consumers see the same values without each one
+* driving an independent underlying source.
+*
+* Backpressure is **latest-wins**: if values arrive faster than a particular
+* consumer drains its iterator, only the most-recently-pushed value is kept
+* pending for that subscriber. Earlier undrained values are dropped. This is
+* appropriate for live data streams (reactive state replication), not for
+* event logs where every value must be delivered.
+*
+* Lifecycle hooks are exposed via the constructor:
+*
+*   - `start()` is called when the subscriber count transitions
+*     from 0 to 1 (e.g. to start a pump pulling from a real source).
+*   - `stop()` is called when the subscriber count transitions
+*     from non-zero back to 0 (e.g. to tear down that pump).
+*
+* Either hook may be omitted.
+*
+* The owner is responsible for calling `push(value)` to broadcast values,
+* `done()` to signal natural completion to all subscribers, and `fail(error)`
+* to broadcast a terminal error. After `done()` or `fail()`, the iterator
+* rejects further `subscribe()` calls with the terminal state appropriately.
+*
+* @template T
+*/
+var SharedIterator = class {
+	/**
+	* @typedef {object} Subscriber
+	* @property {{ value: any } | null} pending
+	* @property {{ error: unknown } | null} pending_error
+	* @property {boolean} finished
+	* @property {((result: IteratorResult<any, void>) => void) | null} waiting_resolve
+	* @property {((reason: unknown) => void) | null} waiting_reject
+	*/
+	/** @type {Set<Subscriber>} */
+	#subscribers = /* @__PURE__ */ new Set();
+	/** @type {((instance: SharedIterator<T>) => (() => void)) | undefined} */
+	#start = void 0;
+	/** @type {(() => void) | undefined} */
+	#stop = void 0;
+	/** Once `done()` or `fail()` has been broadcast, no new values are accepted. */
+	#closed = false;
+	/** @type {unknown} */
+	#terminal_error = void 0;
+	/**
+	* @param {(instance: SharedIterator<T>) => (() => void)} [start]
+	*/
+	constructor(start) {
+		this.#start = start;
+	}
+	/** @param {T} value */
+	push(value) {
+		if (this.#closed) return;
+		for (const subscriber of this.#subscribers) if (subscriber.waiting_resolve) {
+			const resolve = subscriber.waiting_resolve;
+			subscriber.waiting_resolve = null;
+			subscriber.waiting_reject = null;
+			resolve({
+				value,
+				done: false
+			});
+		} else subscriber.pending = { value };
+	}
+	/**
+	* Signal natural completion to all current subscribers, and to any future
+	* subscriber (which will receive an immediately-done iterator).
+	*/
+	done() {
+		if (this.#closed) return;
+		this.#closed = true;
+		for (const subscriber of this.#subscribers) {
+			subscriber.finished = true;
+			if (subscriber.waiting_resolve) {
+				const resolve = subscriber.waiting_resolve;
+				subscriber.waiting_resolve = null;
+				subscriber.waiting_reject = null;
+				resolve({
+					value: void 0,
+					done: true
+				});
+			}
+		}
+		this.#subscribers.clear();
+	}
+	/**
+	* Broadcast a terminal error. All current subscribers will reject their
+	* next `.next()` call with `error`. Future subscribers will also reject
+	* their first `.next()`.
+	*
+	* @param {unknown} error
+	*/
+	fail(error) {
+		if (this.#closed) return;
+		this.#closed = true;
+		this.#terminal_error = error;
+		for (const subscriber of this.#subscribers) {
+			subscriber.finished = true;
+			if (subscriber.waiting_reject) {
+				const reject = subscriber.waiting_reject;
+				subscriber.waiting_resolve = null;
+				subscriber.waiting_reject = null;
+				reject(error);
+			} else subscriber.pending_error = { error };
+		}
+		this.#subscribers.clear();
+	}
+	/**
+	* Subscribe to the shared stream. Returns an `AsyncGenerator<T>` that
+	* yields every value pushed after this call (and, if `initial_value` is
+	* provided, that value as the first yield).
+	*
+	* @param {{ initial_value?: { value: T } }} [options]
+	*   `initial_value` lets the caller seed the iterator with a synchronously-
+	*   available current value before any new pushes arrive (e.g. the
+	*   "last-seen value" of a reactive resource). Pass it wrapped in an
+	*   object so `undefined` can be distinguished from "no initial value".
+	* @returns {AsyncGenerator<T, void, void>}
+	*/
+	subscribe(options) {
+		/** @type {Subscriber} */
+		const subscriber = {
+			pending: options?.initial_value ? { value: options.initial_value.value } : null,
+			pending_error: this.#closed && this.#terminal_error !== void 0 ? { error: this.#terminal_error } : null,
+			finished: this.#closed && this.#terminal_error === void 0,
+			waiting_resolve: null,
+			waiting_reject: null
+		};
+		if (!subscriber.finished && subscriber.pending_error === null) this.#subscribers.add(subscriber);
+		if (!this.#closed) this.#stop ??= this.#start?.(this);
+		const unsubscribe = () => {
+			subscriber.finished = true;
+			if (this.#subscribers.delete(subscriber) && this.#subscribers.size === 0) this.#stop?.();
+		};
+		/** @type {AsyncGenerator<T, void, void>} */
+		const iterator = {
+			next() {
+				if (subscriber.pending_error) {
+					const { error } = subscriber.pending_error;
+					subscriber.pending_error = null;
+					unsubscribe();
+					return Promise.reject(error);
+				}
+				if (subscriber.pending) {
+					const { value } = subscriber.pending;
+					subscriber.pending = null;
+					return Promise.resolve({
+						value,
+						done: false
+					});
+				}
+				if (subscriber.finished) return Promise.resolve({
+					value: void 0,
+					done: true
+				});
+				return new Promise((resolve, reject) => {
+					subscriber.waiting_resolve = resolve;
+					subscriber.waiting_reject = reject;
+				});
+			},
+			return(value) {
+				unsubscribe();
+				if (subscriber.waiting_resolve) {
+					const resolve = subscriber.waiting_resolve;
+					subscriber.waiting_resolve = null;
+					subscriber.waiting_reject = null;
+					resolve({
+						value: void 0,
+						done: true
+					});
+				}
+				return Promise.resolve({
+					value,
+					done: true
+				});
+			},
+			throw(error) {
+				unsubscribe();
+				if (subscriber.waiting_reject) {
+					const reject = subscriber.waiting_reject;
+					subscriber.waiting_resolve = null;
+					subscriber.waiting_reject = null;
+					reject(error);
+				}
+				return Promise.reject(error);
+			},
+			[Symbol.asyncIterator]() {
+				return iterator;
+			}
+		};
+		return iterator;
+	}
+};
+//#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/server/remote/query.js
 /** @import { RemoteLiveQuery, RemoteLiveQueryFunction, RemoteQuery, RemoteQueryFunction } from '@sveltejs/kit' */
 /** @import { RemoteInternals, MaybePromise, RequestState, RemoteQueryLiveInternals, RemoteQueryBatchInternals, RemoteQueryInternals, RemoteLiveQueryUserFunctionReturnType } from 'types' */
@@ -704,19 +906,6 @@ function live(validate_or_fn, maybe_fn) {
 	* @param {any} get_input
 	*/
 	const run = (event, state, get_input) => run_remote_generator(event, state, false, get_input, fn, __.name);
-	/**
-	* @param {any} generator
-	* @returns {Promise<any>}
-	*/
-	const first_value = async (generator) => {
-		try {
-			const { value, done } = await generator.next();
-			if (done) throw new Error(`query.live '${__.name}' did not yield a value`);
-			return value;
-		} finally {
-			await generator.return(void 0);
-		}
-	};
 	/** @type {RemoteQueryLiveInternals} */
 	const __ = {
 		type: "query_live",
@@ -726,14 +915,14 @@ function live(validate_or_fn, maybe_fn) {
 		validate,
 		bind(payload, validated_arg) {
 			const { event, state } = get_request_store();
-			return create_live_query_resource(__, payload, state, () => first_value(run(event, state, () => validated_arg)));
+			return create_live_query_resource(__, payload, state, event.request.signal, () => run(event, state, () => validated_arg));
 		}
 	};
 	/** @type {RemoteLiveQueryFunction<Input, Output> & { __: RemoteQueryLiveInternals }} */
 	const wrapper = (arg) => {
 		if (prerendering) throw new Error(`Cannot call query.live '${__.name}' while prerendering, as prerendered pages need static data. Use 'prerender' from $app/server instead`);
 		const { event, state } = get_request_store();
-		return create_live_query_resource(__, stringify_remote_arg(arg, state.transport), state, () => first_value(run(event, state, () => validate(arg))));
+		return create_live_query_resource(__, stringify_remote_arg(arg, state.transport), state, event.request.signal, () => run(event, state, () => validate(arg)));
 	};
 	Object.defineProperty(wrapper, "__", { value: __ });
 	return wrapper;
@@ -778,8 +967,6 @@ function batch(validate_or_fn, maybe_fn) {
 	const fn = maybe_fn ?? validate_or_fn;
 	/** @type {(arg?: any) => MaybePromise<Input>} */
 	const validate = create_validator(validate_or_fn, maybe_fn);
-	/** @type {Map<string, { get_validated: () => MaybePromise<any>, resolvers: Array<{resolve: (value: any) => void, reject: (error: any) => void}> }>} */
-	let batching = /* @__PURE__ */ new Map();
 	/**
 	* Enqueues a single call into the current batch (creating one if necessary)
 	* and returns a promise that resolves with the result for this entry.
@@ -791,7 +978,13 @@ function batch(validate_or_fn, maybe_fn) {
 	const enqueue = (payload, get_validated) => {
 		const { event, state } = get_request_store();
 		return new Promise((resolve, reject) => {
-			const entry = batching.get(payload);
+			const batches = state.remote.batches ??= /* @__PURE__ */ new Map();
+			let batched = batches.get(__.id);
+			if (!batched) {
+				batched = /* @__PURE__ */ new Map();
+				batches.set(__.id, batched);
+			}
+			const entry = batched.get(payload);
 			if (entry) {
 				entry.resolvers.push({
 					resolve,
@@ -799,17 +992,16 @@ function batch(validate_or_fn, maybe_fn) {
 				});
 				return;
 			}
-			batching.set(payload, {
+			batched.set(payload, {
 				get_validated,
 				resolvers: [{
 					resolve,
 					reject
 				}]
 			});
-			if (batching.size > 1) return;
+			if (batched.size > 1) return;
 			setTimeout(async () => {
-				const batched = batching;
-				batching = /* @__PURE__ */ new Map();
+				batches.delete(__.id);
 				const entries = Array.from(batched.values());
 				try {
 					return await run_remote_function(event, state, false, async () => Promise.all(entries.map((entry) => entry.get_validated())), async (input) => {
@@ -908,17 +1100,18 @@ function create_query_resource(__, payload, state, fn) {
 			return false;
 		},
 		refresh() {
+			const { event } = get_request_store();
+			if (!event.isRemoteRequest) return Promise.resolve();
 			const refresh_context = get_refresh_context(__, "refresh", payload);
 			const is_immediate_refresh = !refresh_context.cache[refresh_context.payload];
 			return update_refresh_value(refresh_context, is_immediate_refresh ? get_promise() : fn(), is_immediate_refresh);
 		},
-		run() {
-			if (!state.is_in_universal_load) throw new Error("On the server, .run() can only be called in universal `load` functions. Anywhere else, just await the query directly");
-			return get_response(__, payload, state, fn);
-		},
 		/** @param {any} value */
 		set(value) {
 			return update_refresh_value(get_refresh_context(__, "set", payload), value);
+		},
+		run() {
+			throw new Error(`\`myQuery().run()\` has been removed — please replace it with \`myQuery()\`. See https://github.com/sveltejs/kit/pull/15779 for more details`);
 		},
 		/** @type {Promise<any>['then']} */
 		then(onfulfilled, onrejected) {
@@ -936,12 +1129,17 @@ function create_query_resource(__, payload, state, fn) {
 * @param {RemoteQueryLiveInternals} __
 * @param {string} payload — the stringified raw argument (i.e. the cache key the client will use)
 * @param {RequestState} state
-* @param {() => Promise<any>} get_first_value
+* @param {AbortSignal} signal — the request signal; aborts in-flight iteration when the client disconnects
+* @param {() => AsyncGenerator<any, void, void>} get_generator
 * @returns {RemoteLiveQuery<any>}
 */
-function create_live_query_resource(__, payload, state, get_first_value) {
+function create_live_query_resource(__, payload, state, signal, get_generator) {
 	/** @type {Promise<any> | null} */
 	let promise = null;
+	const get_first_value = async () => {
+		for await (const value of get_generator()) return value;
+		throw new Error(`query.live '${__.name}' did not yield a value`);
+	};
 	const get_promise = () => {
 		return promise ??= get_response(__, payload, state, get_first_value);
 	};
@@ -985,17 +1183,75 @@ function create_live_query_resource(__, payload, state, get_first_value) {
 			reconnects.set(create_remote_key(__.id, payload), get_promise());
 			return Promise.resolve();
 		},
+		/** @ts-expect-error This method no longer exists */
 		run() {
-			throw new Error("Cannot call .run() on a live query on the server");
+			throw new Error("`.run()` has been removed from live queries. Use `for await (const value of liveQuery())` instead.");
 		},
 		/** @type {Promise<any>['then']} */
 		then(onfulfilled, onrejected) {
 			return get_promise().then(onfulfilled, onrejected);
 		},
+		[Symbol.asyncIterator]() {
+			const key = create_remote_key(__.id, payload);
+			const cache = state.remote.live_iterators ??= /* @__PURE__ */ new Map();
+			let cached = cache.get(key);
+			if (!cached) {
+				cached = create_shared_live_iterator(signal, get_generator);
+				cache.set(key, cached);
+			}
+			return cached.subscribe();
+		},
 		get [Symbol.toStringTag]() {
 			return "LiveQueryResource";
 		}
 	};
+}
+/**
+* Wraps a lazily-created live-query generator so that multiple `for await`
+* consumers within the same request share one underlying iteration. The first
+* subscriber starts the generator; values are broadcast to all subscribers
+* via a `SharedIterator`. When the last subscriber unsubscribes, the generator
+* is closed via `generator.return(undefined)`.
+*
+* If `signal` aborts (typically because the client has disconnected), the
+* pump is torn down and any in-flight `next()` calls on consumer iterators
+* resolve with `{ done: true }`, so suspended `for await` loops unwind
+* cleanly rather than leaking.
+*
+* @param {AbortSignal} signal
+* @param {() => AsyncGenerator<any, void, void>} get_generator
+*/
+function create_shared_live_iterator(signal, get_generator) {
+	return new SharedIterator((instance) => {
+		if (signal.aborted) {
+			instance.done();
+			return noop;
+		}
+		const generator = get_generator();
+		let aborted = false;
+		const close = () => {
+			aborted = true;
+			generator.return().catch(noop);
+		};
+		signal.addEventListener("abort", () => (close(), instance.done()), { once: true });
+		(async () => {
+			try {
+				while (true) {
+					const result = await generator.next();
+					if (result.done) {
+						instance.done();
+						return;
+					}
+					instance.push(result.value);
+				}
+			} catch (error) {
+				if (!aborted) instance.fail(error);
+			} finally {
+				close();
+			}
+		})();
+		return close;
+	});
 }
 Object.defineProperty(query, "batch", {
 	value: batch,

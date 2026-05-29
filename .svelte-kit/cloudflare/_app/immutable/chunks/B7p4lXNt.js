@@ -1,1 +1,0 @@
-import{W as e}from"./DBgZ8ocX.js";import"./BQ0_JU6i.js";var{subscribe:t,update:n}=e([]),r=0;function i(e){n(t=>t.filter(t=>t.id!==e))}var a={subscribe:t,_remove:i,add:(e,t=`info`)=>{let a=r++;n(n=>[...n,{id:a,message:e,type:t}]),setTimeout(()=>i(a),3e3)}};export{a as t};
