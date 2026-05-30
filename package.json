@@ -9,7 +9,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "build:tauri": "npx vite build"
+    "build:tauri": "npx vite build",
+    "build:bundle": "node build-bundle.js"
   },
   "type": "module",
   "devDependencies": {

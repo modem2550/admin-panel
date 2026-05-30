@@ -93,11 +93,10 @@ jobs:
 
       # ── Build SvelteKit (frontend + server) ───────────────────────────────────
       - name: Build SvelteKit
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_TAURI: '1'
         run: npm run build:tauri
+
+      - name: Bundle server dependencies
+        run: node build-bundle.js
 
       # ── สร้าง .env สำหรับ runtime (bundle เข้า app) ──────────────────────────
       - name: Create runtime .env

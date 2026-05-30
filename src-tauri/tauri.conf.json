@@ -43,7 +43,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../build/": "app-server/",
+      "../build-bundled/": "app-server/",
       "../.env": ".env"
     },
     "externalBin": [
