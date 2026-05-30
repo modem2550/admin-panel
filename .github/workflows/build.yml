@@ -1,0 +1,129 @@
+name: Build 48cms
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            target: aarch64-apple-darwin
+          - platform: macos-13
+            args: '--target x86_64-apple-darwin'
+            target: x86_64-apple-darwin
+          - platform: windows-latest
+            args: ''
+            target: x86_64-pc-windows-msvc
+          - platform: ubuntu-22.04
+            args: ''
+            target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Node.js ──────────────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # ── Rust ─────────────────────────────────────────────────────────────────
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ── Linux deps ───────────────────────────────────────────────────────────
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            pkg-config
+
+      # ── Node binaries (embedded server) ──────────────────────────────────────
+      - name: Download Node binary for target platform
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          NODE_VERSION=22.16.0
+
+          if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
+            curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-darwin-arm64.tar.gz" | tar -xz
+            cp "node-v${NODE_VERSION}-darwin-arm64/bin/node" src-tauri/binaries/node-aarch64-apple-darwin
+          elif [[ "${{ matrix.platform }}" == "macos-13" ]]; then
+            curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-darwin-x64.tar.gz" | tar -xz
+            cp "node-v${NODE_VERSION}-darwin-x64/bin/node" src-tauri/binaries/node-x86_64-apple-darwin
+          elif [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
+            curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" | tar -xz
+            cp "node-v${NODE_VERSION}-linux-x64/bin/node" src-tauri/binaries/node-x86_64-unknown-linux-gnu
+          fi
+
+      - name: Download Node binary for Windows
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $NODE_VERSION = "22.16.0"
+          New-Item -ItemType Directory -Force src-tauri/binaries
+          Invoke-WebRequest "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-win-x64.zip" -OutFile node.zip
+          Expand-Archive node.zip -DestinationPath .
+          Copy-Item "node-v$NODE_VERSION-win-x64\node.exe" "src-tauri\binaries\node-x86_64-pc-windows-msvc.exe"
+
+      # ── npm install ───────────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Build SvelteKit (frontend + server) ───────────────────────────────────
+      - name: Build SvelteKit
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_TAURI: '1'
+        run: npm run build:tauri
+
+      # ── สร้าง .env สำหรับ runtime (bundle เข้า app) ──────────────────────────
+      - name: Create runtime .env
+        shell: bash
+        run: |
+          cat > .env << 'EOF'
+          BNK48_EMAIL=${{ secrets.BNK48_EMAIL }}
+          BNK48_PASSWORD=${{ secrets.BNK48_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}
+          EOF
+
+      # ── Tauri Build ───────────────────────────────────────────────────────────
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: '48cms ${{ github.ref_name }}'
+          releaseBody: |
+            See the assets below to download the app for your platform.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
