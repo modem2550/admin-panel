@@ -63,6 +63,7 @@ jobs:
 
       # ── Node binaries (embedded server) ──────────────────────────────────────
       - name: Download Node binary for target platform
+        if: matrix.platform != 'windows-latest'
         shell: bash
         run: |
           mkdir -p src-tauri/binaries
@@ -102,11 +103,13 @@ jobs:
       - name: Create runtime .env
         shell: bash
         run: |
-          cat > .env << 'EOF'
-          BNK48_EMAIL=${{ secrets.BNK48_EMAIL }}
-          BNK48_PASSWORD=${{ secrets.BNK48_PASSWORD }}
-          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}
+          cat > .env << EOF
+          VITE_SUPABASE_URL="${{ secrets.VITE_SUPABASE_URL }}"
+          VITE_SUPABASE_ANON_KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+          BNK48_EMAIL="${{ secrets.BNK48_EMAIL }}"
+          BNK48_PASSWORD="${{ secrets.BNK48_PASSWORD }}"
+          SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          ADMIN_TOKEN="${{ secrets.ADMIN_TOKEN }}"
           EOF
 
       # ── Tauri Build ───────────────────────────────────────────────────────────
@@ -124,3 +127,11 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Ad-hoc sign app (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          find src-tauri/target/aarch64-apple-darwin/release/bundle/macos \
+            -name "*.app" -print0 | xargs -0 -I{} codesign --force --deep --sign - "{}"
+          find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg \
+            -name "*.dmg" -print0 | xargs -0 -I{} codesign --force --sign - "{}"
