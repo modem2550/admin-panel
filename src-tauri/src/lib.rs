@@ -18,6 +18,24 @@ const SERVER_PORT: u16 = 17348;
 struct ServerState(Mutex<Option<Child>>);
 
 #[cfg(not(debug_assertions))]
+fn load_env_file(path: &std::path::Path) -> Vec<(String, String)> {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return vec![];
+    };
+    content
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+        .filter_map(|l| {
+            let (k, v) = l.split_once('=')?;
+            Some((
+                k.trim().to_string(),
+                v.trim().trim_matches('"').to_string(),
+            ))
+        })
+        .collect()
+}
+
+#[cfg(not(debug_assertions))]
 fn start_embedded_server(app: &tauri::App) -> Result<(), String> {
     let resource_dir = app
         .path()
@@ -39,20 +57,16 @@ fn start_embedded_server(app: &tauri::App) -> Result<(), String> {
 
     let origin = format!("http://{SERVER_HOST}:{SERVER_PORT}");
 
-    let mut sidecar_cmd = app
+    let sidecar_cmd = app
         .shell()
         .sidecar("node")
         .map_err(|e| format!("failed to find sidecar node: {e}"))?
-        ;
+        .arg("index.js");
 
     let mut env_file = resource_dir.join(".env");
     if !env_file.exists() {
         env_file = resource_dir.join("../.env");
     }
-    if env_file.is_file() {
-        sidecar_cmd = sidecar_cmd.arg(format!("--env-file={}", env_file.display()));
-    }
-    sidecar_cmd = sidecar_cmd.arg("index.js");
 
     let mut std_cmd = std::process::Command::from(sidecar_cmd);
     std_cmd
@@ -61,7 +75,15 @@ fn start_embedded_server(app: &tauri::App) -> Result<(), String> {
         .env("HOST", SERVER_HOST)
         .env("ORIGIN", &origin)
         .env("NODE_ENV", "production")
-        .env("TAURI_DESKTOP", "1")
+        .env("TAURI_DESKTOP", "1");
+
+    if env_file.is_file() {
+        for (k, v) in load_env_file(&env_file) {
+            std_cmd.env(k, v);
+        }
+    }
+
+    std_cmd
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
