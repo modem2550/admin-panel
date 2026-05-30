@@ -9,6 +9,12 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": ""
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEwQzdGQTc2MzBCMjcwMjMKUldRamNMSXdkdnJIb0FxY3U2LysveWNINGdQQkh1YjZBL20yVWlsOEV3V2o0RnI4NHFJazhDSXkK",
+      "endpoints": []
+    }
+  },
   "app": {
     "windows": [
       {
