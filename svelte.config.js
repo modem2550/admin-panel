@@ -1,8 +1,5 @@
 import adapterNode from '@sveltejs/adapter-node';
-import adapterStatic from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-
-const isTauri = process.env.VITE_TAURI === '1';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -13,14 +10,8 @@ const config = {
 	},
 	kit: {
 		paths: { relative: false },
-		adapter: isTauri
-			? adapterStatic({
-				pages: 'build',
-				assets: 'build',
-				fallback: 'index.html',
-				precompress: false
-			})
-			: adapterNode({ out: 'build' }),
+		// Tauri bundles this output as the embedded Node sidecar (see src-tauri/lib.rs).
+		adapter: adapterNode({ out: 'build' }),
 		prerender: {
 			handleHttpError: ({ path, message }) => {
 				if (path.startsWith('/api/')) return;
