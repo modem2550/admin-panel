@@ -1,13 +1,17 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "48cms",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.demmo.48cms",
   "build": {
     "frontendDist": "http://127.0.0.1:17348",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": ""
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "glob": "^11.0.0"
   },
   "plugins": {},
   "app": {
@@ -34,7 +38,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "msi", "nsis", "deb", "appimage"],
+    "targets": [
+      "app",
+      "dmg",
+      "msi",
+      "nsis",
+      "deb",
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
