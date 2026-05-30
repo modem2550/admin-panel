@@ -9,10 +9,6 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": ""
   },
-  "devDependencies": {
-    "esbuild": "^0.25.0",
-    "glob": "^11.0.0"
-  },
   "plugins": {},
   "app": {
     "windows": [
