@@ -116,8 +116,8 @@ jobs:
         shell: pwsh
         run: |
           npm install esbuild glob
+          Remove-Item -Recurse -Force build-bundled -ErrorAction SilentlyContinue
           node build-bundle.js
-          Copy-Item -Recurse build/server build-bundled/server
           Copy-Item -Recurse build/client build-bundled/client
           if (Test-Path build/handler.js) { Copy-Item build/handler.js build-bundled/ }
           if (Test-Path build/shims.js) { Copy-Item build/shims.js build-bundled/ }
