@@ -118,6 +118,7 @@ jobs:
           npm install esbuild glob
           Remove-Item -Recurse -Force build-bundled -ErrorAction SilentlyContinue
           node build-bundle.js
+          Remove-Item -Recurse -Force build-bundled/client -ErrorAction SilentlyContinue
           Copy-Item -Recurse build/client build-bundled/client
           if (Test-Path build/handler.js) { Copy-Item build/handler.js build-bundled/ }
           if (Test-Path build/shims.js) { Copy-Item build/shims.js build-bundled/ }
