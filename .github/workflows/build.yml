@@ -103,7 +103,11 @@ jobs:
         run: |
           npm install esbuild glob
           node build-bundle.js
+          cp -r build/server build-bundled/server
           cp -r build/client build-bundled/client
+          cp build/handler.js build-bundled/handler.js 2>/dev/null || true
+          cp build/shims.js build-bundled/shims.js 2>/dev/null || true
+          cp build/env.js build-bundled/env.js 2>/dev/null || true
 
       # ── สร้าง .env สำหรับ runtime (bundle เข้า app) ──────────────────────────
       - name: Create runtime .env

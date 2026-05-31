@@ -1,16 +1,12 @@
 import { build } from 'esbuild';
-import { glob } from 'glob';
-
-const serverFiles = await glob('build/server/**/*.js');
 
 await build({
-  entryPoints: ['build/index.js', ...serverFiles],
+  entryPoints: ['build/index.js'],
   bundle: true,
   platform: 'node',
   target: 'node22',
-  outdir: 'build-bundled',
-  splitting: true,
+  outfile: 'build-bundled/index.js',
   format: 'esm',
   allowOverwrite: true,
-  external: ['fsevents', 'sharp'],
+  external: ['fsevents', 'sharp', './server/*', '../server/*'],
 });
