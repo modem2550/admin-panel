@@ -104,7 +104,8 @@ fn start_embedded_server(app: &tauri::App) -> Result<(), String> {
     }
 
     if let Some(window) = app.get_webview_window("main") {
-        let url = Url::parse(&origin).map_err(|e| format!("invalid server URL: {e}"))?;
+        let url = Url::parse(&format!("{}/login", origin))
+            .map_err(|e| format!("invalid server URL: {e}"))?;
         let _ = window.navigate(url);
         std::thread::sleep(std::time::Duration::from_millis(1500));
         let _ = window.show();
