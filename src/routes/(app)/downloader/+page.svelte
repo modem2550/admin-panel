@@ -1113,6 +1113,7 @@
 	}
 
 	.media-card-co {
+		max-height: 400px;
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
@@ -1120,13 +1121,14 @@
 
 	.card-media {
 		position: relative;
-		aspect-ratio: 16 / 10;
+		aspect-ratio: 4 / 5;
 		background: var(--surface-soft);
 	}
 
 	.card-media img {
 		width: 100%;
 		height: 100%;
+		position: absolute;
 		object-fit: cover;
 		display: block;
 	}

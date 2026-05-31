@@ -5,7 +5,6 @@ use std::process::{Child, Stdio};
 #[cfg(not(debug_assertions))]
 use tauri_plugin_shell::ShellExt;
 use tauri::Manager;
-use tauri::Emitter;
 #[cfg(not(debug_assertions))]
 use url::Url;
 
@@ -27,10 +26,14 @@ fn load_env_file(path: &std::path::Path) -> Vec<(String, String)> {
         .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
         .filter_map(|l| {
             let (k, v) = l.split_once('=')?;
-            Some((
-                k.trim().to_string(),
-                v.trim().trim_matches('"').to_string(),
-            ))
+            let raw = v.trim();
+            // ลบ quotes รอบนอกแต่ไม่แตะ quotes ข้างใน เช่น password ที่มี " อยู่
+            let value = if raw.starts_with('"') && raw.ends_with('"') && raw.len() > 1 {
+                raw[1..raw.len() - 1].to_string()
+            } else {
+                raw.to_string()
+            };
+            Some((k.trim().to_string(), value))
         })
         .collect()
 }
@@ -138,54 +141,35 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-    println!("🚀 Tauri Application Starting...");
+            println!("🚀 Tauri Application Starting...");
 
-    #[cfg(debug_assertions)]
-    {
-        println!("🔧 DEVELOPMENT Mode - Forcing window visibility");
-
-        if let Some(window) = app.get_webview_window("main") {
-            println!("✅ Found main window");
-
-            // แรงสุดสำหรับ macOS
-            let _ = window.show();
-            let _ = window.set_focus();
-            let _ = window.set_decorations(true);
-            let _ = window.center();
-
-            #[cfg(target_os = "macos")]
+            #[cfg(debug_assertions)]
             {
-                use tauri::Manager;
-use tauri::Emitter;
-                
-                // วิธี 1: Always on top ชั่วคราว
-                let _ = window.set_always_on_top(true);
-                std::thread::sleep(std::time::Duration::from_millis(300));
-                let _ = window.set_always_on_top(false);
-
-                // วิธี 2: บังคับให้ขึ้นด้านหน้า
-                let _ = app.emit_to(tauri::EventTarget::App, "tauri://focus", ());
-                
-                println!("✅ Applied maximum visibility force on macOS");
+                println!("🔧 DEVELOPMENT Mode");
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = window.center();
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = window.set_always_on_top(true);
+                        std::thread::sleep(std::time::Duration::from_millis(300));
+                        let _ = window.set_always_on_top(false);
+                    }
+                }
             }
 
-            println!("✅ Window should be visible now!");
-        } else {
-            eprintln!("❌ Cannot find main window");
-        }
-    }
+            #[cfg(not(debug_assertions))]
+            {
+                println!("📦 PRODUCTION Mode");
+                if let Err(e) = start_embedded_server(app) {
+                    eprintln!("FATAL ERROR: {}", e);
+                    std::process::exit(1);
+                }
+            }
 
-    #[cfg(not(debug_assertions))]
-    {
-        println!("📦 PRODUCTION Mode");
-        if let Err(e) = start_embedded_server(app) {
-            eprintln!("FATAL ERROR: {}", e);
-            std::process::exit(1);
-        }
-    }
-
-    Ok(())
-})
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
