@@ -26,7 +26,7 @@ export interface DownloadJob {
     startedAt?: number;
     completedAt?: number;
 
-    encoder?: 'h264_videotoolbox' | 'libx264';
+    encoder?: VideoEncoder;
 
     ffmpegPid?: number;
 }
@@ -52,6 +52,28 @@ interface QueueItem {
 const pendingQueue: QueueItem[] = [];
 
 let activeJobs = 0;
+
+type VideoEncoder =
+    | 'h264_videotoolbox'
+    | 'h264_nvenc'
+    | 'h264_amf'
+    | 'h264_qsv'
+    | 'h264_vaapi'
+    | 'libx264';
+
+function getEncoderPriority(): VideoEncoder[] {
+    if (process.platform === 'darwin') {
+        return ['h264_videotoolbox', 'libx264'];
+    }
+    if (process.platform === 'win32') {
+        return ['h264_nvenc', 'h264_amf', 'h264_qsv', 'libx264'];
+    }
+    return ['h264_nvenc', 'h264_vaapi', 'libx264'];
+}
+
+function isHardwareEncoder(encoder: VideoEncoder): boolean {
+    return encoder !== 'libx264';
+}
 
 /* -------------------------------------------------------------------------- */
 /*                                  STARTUP                                   */
@@ -176,36 +198,24 @@ function buildFfmpegArgs(
     url: string,
     token: string,
     outputPath: string,
-    encoder: 'h264_videotoolbox' | 'libx264'
+    encoder: VideoEncoder
 ): string[] {
-    const videoArgs =
-        encoder === 'h264_videotoolbox'
-            ? [
-                '-c:v',
-                'h264_videotoolbox',
-
-                '-b:v',
-                '3M',
-
-                '-maxrate:v',
-                '3.5M',
-
-                '-bufsize:v',
-                '6M',
-            ]
-            : [
-                '-c:v',
-                'libx264',
-
-                '-preset',
-                'fast',
-
-                '-crf',
-                '22',
-
-                '-movflags',
-                '+faststart',
-            ];
+    const videoArgs: string[] = (() => {
+        switch (encoder) {
+            case 'h264_videotoolbox':
+                return ['-c:v', 'h264_videotoolbox', '-b:v', '3M', '-maxrate:v', '3.5M', '-bufsize:v', '6M'];
+            case 'h264_nvenc':
+                return ['-c:v', 'h264_nvenc', '-preset', 'p4', '-b:v', '3M', '-maxrate:v', '3.5M'];
+            case 'h264_amf':
+                return ['-c:v', 'h264_amf', '-quality', 'balanced', '-b:v', '3M'];
+            case 'h264_qsv':
+                return ['-c:v', 'h264_qsv', '-preset', 'medium', '-b:v', '3M'];
+            case 'h264_vaapi':
+                return ['-vaapi_device', '/dev/dri/renderD128', '-c:v', 'h264_vaapi', '-b:v', '3M'];
+            case 'libx264':
+                return ['-c:v', 'libx264', '-preset', 'fast', '-crf', '22'];
+        }
+    })();
 
     return [
         '-headers',
@@ -374,8 +384,14 @@ function isRecoverableHardwareError(message: string): boolean {
         'Unknown encoder',
         'Error initializing output stream',
         'videotoolbox',
+        'nvenc',
+        'amf',
+        'qsv',
+        'vaapi',
         'hardware accelerator',
         'Cannot load libcuda',
+        'No device available',
+        'Device creation failed',
     ];
 
     return knownErrors.some((err) =>
@@ -442,10 +458,7 @@ async function runJob(
 
         /* --------------------------- Encoder Attempt -------------------------- */
 
-        const encoders: (
-            | 'h264_videotoolbox'
-            | 'libx264'
-        )[] = ['h264_videotoolbox', 'libx264'];
+        const encoders = getEncoderPriority();
 
         let success = false;
         let lastError = '';
@@ -453,8 +466,6 @@ async function runJob(
         for (const encoder of encoders) {
             try {
                 job.encoder = encoder;
-
-
 
                 const args = buildFfmpegArgs(
                     realUrl,
@@ -476,18 +487,10 @@ async function runJob(
 
                 lastError = message;
 
-
-
                 removeTempFile(tempFilePath);
 
-                if (
-                    encoder === 'h264_videotoolbox' &&
-                    isRecoverableHardwareError(message)
-                ) {
-
-
+                if (isHardwareEncoder(encoder) && isRecoverableHardwareError(message)) {
                     job.progress = 0;
-
                     continue;
                 }
 

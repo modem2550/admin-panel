@@ -269,6 +269,9 @@
 								{/if}
 							</td>
 							<td>
+								<h3 class="data-table__title">{member.name}</h3>
+							</td>
+							<td>
 								<span
 									class="data-table__chip {member.graduated_at
 										? 'data-table__chip--muted'
@@ -283,9 +286,6 @@
 								<span>{member.gen}</span>
 								<span class="sep">/</span>
 								<span>{member.team}</span>
-							</td>
-							<td>
-								<h3 class="data-table__title">{member.name}</h3>
 							</td>
 							<td class="data-table__actions">
 								<div class="data-table__ops">

@@ -70,6 +70,8 @@ function replyWebviewIconProbe(pathname) {
 }
 function applySecurityHeaders(response, isHttps) {
 	response.headers.set("Content-Security-Policy", buildContentSecurityPolicy(isHttps));
+	const contentType = response.headers.get("content-type") ?? "";
+	if (process.env.TAURI_DESKTOP === "1" && contentType.includes("text/html")) response.headers.set("Cache-Control", "no-store");
 	if (isHttps) response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
 	response.headers.set("X-Content-Type-Options", "nosniff");
 	response.headers.set("X-Frame-Options", "DENY");

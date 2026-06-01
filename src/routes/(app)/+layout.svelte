@@ -47,6 +47,9 @@
 				})
 				.then(() => {
 					console.log("✅ Session synced in layout");
+				})
+				.catch((e) => {
+					console.warn("Session sync failed:", e);
 				});
 		}
 

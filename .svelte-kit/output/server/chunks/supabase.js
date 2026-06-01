@@ -77,6 +77,30 @@ function installFetchOverride() {
 	_fetchPatched = true;
 }
 //#endregion
+//#region src/lib/supabase-storage.ts
+/** Persist Supabase auth tokens via tauri-plugin-store (survives WebView restarts). */
+function createTauriAuthStorage() {
+	let storePromise = null;
+	const getStore = () => {
+		if (!storePromise) storePromise = import("@tauri-apps/plugin-store").then(({ load }) => load("supabase-auth.json", {
+			autoSave: true,
+			defaults: {}
+		}));
+		return storePromise;
+	};
+	return {
+		getItem: async (key) => {
+			return await (await getStore()).get(key) ?? null;
+		},
+		setItem: async (key, value) => {
+			await (await getStore()).set(key, value);
+		},
+		removeItem: async (key) => {
+			await (await getStore()).delete(key);
+		}
+	};
+}
+//#endregion
 //#region src/lib/supabase.ts
 installFetchOverride();
 var supabaseUrl = "https://kqfnhyaktxgulhitdvqq.supabase.co";
@@ -95,7 +119,8 @@ function getClient() {
 		_client = createClient(supabaseUrl, supabaseAnonKey, { auth: {
 			persistSession: runningInTauri,
 			autoRefreshToken: runningInTauri,
-			detectSessionInUrl: false
+			detectSessionInUrl: false,
+			...runningInTauri ? { storage: createTauriAuthStorage() } : {}
 		} });
 		if (typeof window !== "undefined") _client.auth.onAuthStateChange((event, session) => {
 			if (event === "SIGNED_IN") {} else if (event === "SIGNED_OUT") {

@@ -10072,7 +10072,7 @@ var require_phoenix_cjs = __commonJS({
     var __toCommonJS2 = (mod) => __copyProps2(__defProp3({}, "__esModule", { value: true }), mod);
     var phoenix_exports = {};
     __export2(phoenix_exports, {
-      Channel: () => Channel,
+      Channel: () => Channel2,
       LongPoll: () => LongPoll,
       Presence: () => Presence,
       Push: () => Push,
@@ -10279,7 +10279,7 @@ var require_phoenix_cjs = __commonJS({
         }, this.timerCalc(this.tries + 1));
       }
     };
-    var Channel = class {
+    var Channel2 = class {
       /**
        * @param {string} topic
        * @param {Params | (() => Params)} params
@@ -11730,7 +11730,7 @@ var require_phoenix_cjs = __commonJS({
        * @returns {Channel}
        */
       channel(topic, chanParams = {}) {
-        let chan = new Channel(topic, chanParams, this);
+        let chan = new Channel2(topic, chanParams, this);
         this.channels.push(chan);
         return chan;
       }
@@ -25373,9 +25373,9 @@ var init_dist4 = __esm({
   }
 });
 
-// build/server/chunks/hooks.server-C7EyNLFq.js
-var hooks_server_C7EyNLFq_exports = {};
-__export(hooks_server_C7EyNLFq_exports, {
+// build/server/chunks/hooks.server-DJ-HZvq-.js
+var hooks_server_DJ_HZvq_exports = {};
+__export(hooks_server_DJ_HZvq_exports, {
   handle: () => handle,
   handleError: () => handleError2
 });
@@ -25435,6 +25435,8 @@ function replyWebviewIconProbe(pathname) {
 }
 function applySecurityHeaders(response, isHttps) {
   response.headers.set("Content-Security-Policy", buildContentSecurityPolicy(isHttps));
+  const contentType = response.headers.get("content-type") ?? "";
+  if (process.env.TAURI_DESKTOP === "1" && contentType.includes("text/html")) response.headers.set("Cache-Control", "no-store");
   if (isHttps) response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
@@ -25444,8 +25446,8 @@ function applySecurityHeaders(response, isHttps) {
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
 }
 var supabaseUrl, supabaseAnonKey, supabaseClient, didValidateEnv, WEBVIEW_ICON_PATHS, handle, isDesktopBundle, handleError2;
-var init_hooks_server_C7EyNLFq = __esm({
-  "build/server/chunks/hooks.server-C7EyNLFq.js"() {
+var init_hooks_server_DJ_HZvq = __esm({
+  "build/server/chunks/hooks.server-DJ-HZvq-.js"() {
     "use strict";
     init_session_cookies_server_DL0R7mYS();
     init_index_Bd4EiwBH();
@@ -25548,7 +25550,7 @@ var init_hooks_server_C7EyNLFq = __esm({
   }
 });
 
-// build/server/chunks/internal-CWmLilQ4.js
+// build/server/chunks/internal-BqNdYVFp.js
 function encode_native(array_buffer) {
   return new Uint8Array(array_buffer).toBase64();
 }
@@ -26595,7 +26597,7 @@ async function get_hooks() {
   let handleError3;
   let handleValidationError;
   let init2;
-  ({ handle: handle2, handleFetch, handleError: handleError3, handleValidationError, init: init2 } = await Promise.resolve().then(() => (init_hooks_server_C7EyNLFq(), hooks_server_C7EyNLFq_exports)));
+  ({ handle: handle2, handleFetch, handleError: handleError3, handleValidationError, init: init2 } = await Promise.resolve().then(() => (init_hooks_server_DJ_HZvq(), hooks_server_DJ_HZvq_exports)));
   let reroute;
   let transport;
   return {
@@ -26609,8 +26611,8 @@ async function get_hooks() {
   };
 }
 var native, buffer2, encode64, decode64, text_encoder3, INVALIDATED_PARAM, TRAILING_SLASH_PARAM, remote_object, remote_map, remote_set, IN_WEBCONTAINER, sync_store, als2, DATA_SUFFIX, HTML_DATA_SUFFIX, ROUTE_SUFFIX, noop_span, noop_span_context, internal, valid_layout_exports, valid_page_exports, valid_layout_server_exports, valid_page_server_exports, valid_server_exports, validate_layout_exports, validate_page_exports, validate_layout_server_exports, validate_page_server_exports, read_implementation, event_symbol, all_registered_events, root_event_handles, last_propagated_event, listeners, mounted_components, Svelte4Component, options;
-var init_internal_CWmLilQ4 = __esm({
-  "build/server/chunks/internal-CWmLilQ4.js"() {
+var init_internal_BqNdYVFp = __esm({
+  "build/server/chunks/internal-BqNdYVFp.js"() {
     "use strict";
     init_index_DBqjc0Yf();
     init_dev_DRV_q2AU();
@@ -26912,7 +26914,7 @@ var init_internal_CWmLilQ4 = __esm({
 		<div class="error">
 			<span class="status">` + status + '</span>\n			<div class="message">\n				<h1>' + message + "</h1>\n			</div>\n		</div>\n	</body>\n</html>\n"
       },
-      version_hash: "8gfajj"
+      version_hash: "377f8b"
     };
   }
 });
@@ -26970,7 +26972,7 @@ var init_BqbiLtSi = __esm({
   }
 });
 
-// build/server/chunks/client-Bx1jeKXJ.js
+// build/server/chunks/client-CIBgULNi.js
 function hydratable(key2, fn) {
   experimental_async_required();
   const { hydratable: hydratable2 } = get_render_context();
@@ -27039,11 +27041,11 @@ async function tick$1() {
 async function settled() {
 }
 var __defProp2, __exportAll, index_server_exports, is_legacy, placeholder_url, onMount, tick;
-var init_client_Bx1jeKXJ = __esm({
-  "build/server/chunks/client-Bx1jeKXJ.js"() {
+var init_client_CIBgULNi = __esm({
+  "build/server/chunks/client-CIBgULNi.js"() {
     "use strict";
     init_dev_DRV_q2AU();
-    init_internal_CWmLilQ4();
+    init_internal_BqNdYVFp();
     __defProp2 = Object.defineProperty;
     __exportAll = (all, no_symbols) => {
       let target = {};
@@ -27095,9 +27097,9 @@ var init_client_Bx1jeKXJ = __esm({
   }
 });
 
-// build/server/chunks/error.svelte-Cxb_zkeY.js
-var error_svelte_Cxb_zkeY_exports = {};
-__export(error_svelte_Cxb_zkeY_exports, {
+// build/server/chunks/error.svelte-DbwTiXgE.js
+var error_svelte_DbwTiXgE_exports = {};
+__export(error_svelte_DbwTiXgE_exports, {
   default: () => Error$1
 });
 function context() {
@@ -27109,12 +27111,12 @@ function Error$1($$renderer, $$props) {
   });
 }
 var page;
-var init_error_svelte_Cxb_zkeY = __esm({
-  "build/server/chunks/error.svelte-Cxb_zkeY.js"() {
+var init_error_svelte_DbwTiXgE = __esm({
+  "build/server/chunks/error.svelte-DbwTiXgE.js"() {
     "use strict";
     init_dev_DRV_q2AU();
-    init_client_Bx1jeKXJ();
-    init_internal_CWmLilQ4();
+    init_client_CIBgULNi();
+    init_internal_BqNdYVFp();
     init_index_DBqjc0Yf();
     page = {
       get error() {
@@ -27127,9 +27129,9 @@ var init_error_svelte_Cxb_zkeY = __esm({
   }
 });
 
-// build/server/chunks/1-CcH5mYJ4.js
-var CcH5mYJ4_exports = {};
-__export(CcH5mYJ4_exports, {
+// build/server/chunks/1-BxU5sqdq.js
+var BxU5sqdq_exports = {};
+__export(BxU5sqdq_exports, {
   component: () => component2,
   fonts: () => fonts2,
   imports: () => imports2,
@@ -27137,18 +27139,367 @@ __export(CcH5mYJ4_exports, {
   stylesheets: () => stylesheets2
 });
 var index2, component_cache2, component2, imports2, stylesheets2, fonts2;
-var init_CcH5mYJ4 = __esm({
-  "build/server/chunks/1-CcH5mYJ4.js"() {
+var init_BxU5sqdq = __esm({
+  "build/server/chunks/1-BxU5sqdq.js"() {
     "use strict";
     index2 = 1;
-    component2 = async () => component_cache2 ??= (await Promise.resolve().then(() => (init_error_svelte_Cxb_zkeY(), error_svelte_Cxb_zkeY_exports))).default;
-    imports2 = ["_app/immutable/nodes/1.tYHZR0zm.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CWEq1J-G.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/CP97kCR3.js"];
+    component2 = async () => component_cache2 ??= (await Promise.resolve().then(() => (init_error_svelte_DbwTiXgE(), error_svelte_DbwTiXgE_exports))).default;
+    imports2 = ["_app/immutable/nodes/1.BGLY-ZaB.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CNOFxbK8.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/CP97kCR3.js"];
     stylesheets2 = [];
     fonts2 = [];
   }
 });
 
-// build/server/chunks/supabase-xVMvudN0.js
+// node_modules/@tauri-apps/api/external/tslib/tslib.es6.js
+function __classPrivateFieldGet2(receiver, state2, kind, f) {
+  if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+  if (typeof state2 === "function" ? receiver !== state2 || !f : !state2.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+  return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state2.get(receiver);
+}
+function __classPrivateFieldSet2(receiver, state2, value, kind, f) {
+  if (kind === "m") throw new TypeError("Private method is not writable");
+  if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+  if (typeof state2 === "function" ? receiver !== state2 || !f : !state2.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+  return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state2.set(receiver, value), value;
+}
+var init_tslib_es62 = __esm({
+  "node_modules/@tauri-apps/api/external/tslib/tslib.es6.js"() {
+  }
+});
+
+// node_modules/@tauri-apps/api/core.js
+function transformCallback(callback, once3 = false) {
+  return window.__TAURI_INTERNALS__.transformCallback(callback, once3);
+}
+async function invoke(cmd, args = {}, options2) {
+  return window.__TAURI_INTERNALS__.invoke(cmd, args, options2);
+}
+var _Channel_onmessage, _Channel_nextMessageIndex, _Channel_pendingMessages, _Channel_messageEndIndex, _Resource_rid, SERIALIZE_TO_IPC_FN, Channel, Resource;
+var init_core = __esm({
+  "node_modules/@tauri-apps/api/core.js"() {
+    init_tslib_es62();
+    SERIALIZE_TO_IPC_FN = "__TAURI_TO_IPC_KEY__";
+    Channel = class {
+      constructor(onmessage) {
+        _Channel_onmessage.set(this, void 0);
+        _Channel_nextMessageIndex.set(this, 0);
+        _Channel_pendingMessages.set(this, []);
+        _Channel_messageEndIndex.set(this, void 0);
+        __classPrivateFieldSet2(this, _Channel_onmessage, onmessage || (() => {
+        }), "f");
+        this.id = transformCallback((rawMessage) => {
+          const index13 = rawMessage.index;
+          if ("end" in rawMessage) {
+            if (index13 == __classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f")) {
+              this.cleanupCallback();
+            } else {
+              __classPrivateFieldSet2(this, _Channel_messageEndIndex, index13, "f");
+            }
+            return;
+          }
+          const message = rawMessage.message;
+          if (index13 == __classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f")) {
+            __classPrivateFieldGet2(this, _Channel_onmessage, "f").call(this, message);
+            __classPrivateFieldSet2(this, _Channel_nextMessageIndex, __classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f") + 1, "f");
+            while (__classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f") in __classPrivateFieldGet2(this, _Channel_pendingMessages, "f")) {
+              const message2 = __classPrivateFieldGet2(this, _Channel_pendingMessages, "f")[__classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f")];
+              __classPrivateFieldGet2(this, _Channel_onmessage, "f").call(this, message2);
+              delete __classPrivateFieldGet2(this, _Channel_pendingMessages, "f")[__classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f")];
+              __classPrivateFieldSet2(this, _Channel_nextMessageIndex, __classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f") + 1, "f");
+            }
+            if (__classPrivateFieldGet2(this, _Channel_nextMessageIndex, "f") === __classPrivateFieldGet2(this, _Channel_messageEndIndex, "f")) {
+              this.cleanupCallback();
+            }
+          } else {
+            __classPrivateFieldGet2(this, _Channel_pendingMessages, "f")[index13] = message;
+          }
+        });
+      }
+      cleanupCallback() {
+        window.__TAURI_INTERNALS__.unregisterCallback(this.id);
+      }
+      set onmessage(handler2) {
+        __classPrivateFieldSet2(this, _Channel_onmessage, handler2, "f");
+      }
+      get onmessage() {
+        return __classPrivateFieldGet2(this, _Channel_onmessage, "f");
+      }
+      [(_Channel_onmessage = /* @__PURE__ */ new WeakMap(), _Channel_nextMessageIndex = /* @__PURE__ */ new WeakMap(), _Channel_pendingMessages = /* @__PURE__ */ new WeakMap(), _Channel_messageEndIndex = /* @__PURE__ */ new WeakMap(), SERIALIZE_TO_IPC_FN)]() {
+        return `__CHANNEL__:${this.id}`;
+      }
+      toJSON() {
+        return this[SERIALIZE_TO_IPC_FN]();
+      }
+    };
+    Resource = class {
+      get rid() {
+        return __classPrivateFieldGet2(this, _Resource_rid, "f");
+      }
+      constructor(rid) {
+        _Resource_rid.set(this, void 0);
+        __classPrivateFieldSet2(this, _Resource_rid, rid, "f");
+      }
+      /**
+       * Destroys and cleans up this resource from memory.
+       * **You should not call any method on this object anymore and should drop any reference to it.**
+       */
+      async close() {
+        return invoke("plugin:resources|close", {
+          rid: this.rid
+        });
+      }
+    };
+    _Resource_rid = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// node_modules/@tauri-apps/api/event.js
+async function _unlisten(event, eventId) {
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener(event, eventId);
+  await invoke("plugin:event|unlisten", {
+    event,
+    eventId
+  });
+}
+async function listen(event, handler2, options2) {
+  var _a;
+  const target = typeof (options2 === null || options2 === void 0 ? void 0 : options2.target) === "string" ? { kind: "AnyLabel", label: options2.target } : (_a = options2 === null || options2 === void 0 ? void 0 : options2.target) !== null && _a !== void 0 ? _a : { kind: "Any" };
+  return invoke("plugin:event|listen", {
+    event,
+    target,
+    handler: transformCallback(handler2)
+  }).then((eventId) => {
+    return async () => _unlisten(event, eventId);
+  });
+}
+var TauriEvent;
+var init_event = __esm({
+  "node_modules/@tauri-apps/api/event.js"() {
+    init_core();
+    (function(TauriEvent2) {
+      TauriEvent2["WINDOW_RESIZED"] = "tauri://resize";
+      TauriEvent2["WINDOW_MOVED"] = "tauri://move";
+      TauriEvent2["WINDOW_CLOSE_REQUESTED"] = "tauri://close-requested";
+      TauriEvent2["WINDOW_DESTROYED"] = "tauri://destroyed";
+      TauriEvent2["WINDOW_FOCUS"] = "tauri://focus";
+      TauriEvent2["WINDOW_BLUR"] = "tauri://blur";
+      TauriEvent2["WINDOW_SCALE_FACTOR_CHANGED"] = "tauri://scale-change";
+      TauriEvent2["WINDOW_THEME_CHANGED"] = "tauri://theme-changed";
+      TauriEvent2["WINDOW_CREATED"] = "tauri://window-created";
+      TauriEvent2["WINDOW_SUSPENDED"] = "tauri://suspended";
+      TauriEvent2["WINDOW_RESUMED"] = "tauri://resumed";
+      TauriEvent2["WEBVIEW_CREATED"] = "tauri://webview-created";
+      TauriEvent2["DRAG_ENTER"] = "tauri://drag-enter";
+      TauriEvent2["DRAG_OVER"] = "tauri://drag-over";
+      TauriEvent2["DRAG_DROP"] = "tauri://drag-drop";
+      TauriEvent2["DRAG_LEAVE"] = "tauri://drag-leave";
+    })(TauriEvent || (TauriEvent = {}));
+  }
+});
+
+// node_modules/@tauri-apps/plugin-store/dist-js/index.js
+var dist_js_exports = {};
+__export(dist_js_exports, {
+  LazyStore: () => LazyStore,
+  Store: () => Store,
+  getStore: () => getStore,
+  load: () => load
+});
+async function load(path4, options2) {
+  return await Store.load(path4, options2);
+}
+async function getStore(path4) {
+  return await Store.get(path4);
+}
+var LazyStore, Store;
+var init_dist_js = __esm({
+  "node_modules/@tauri-apps/plugin-store/dist-js/index.js"() {
+    init_event();
+    init_core();
+    LazyStore = class {
+      get store() {
+        if (!this._store) {
+          this._store = load(this.path, this.options);
+        }
+        return this._store;
+      }
+      /**
+       * Note that the options are not applied if someone else already created the store
+       * @param path Path to save the store in `app_data_dir`
+       * @param options Store configuration options
+       */
+      constructor(path4, options2) {
+        this.path = path4;
+        this.options = options2;
+      }
+      /**
+       * Init/load the store if it's not loaded already
+       */
+      async init() {
+        await this.store;
+      }
+      async set(key2, value) {
+        return (await this.store).set(key2, value);
+      }
+      async get(key2) {
+        return (await this.store).get(key2);
+      }
+      async has(key2) {
+        return (await this.store).has(key2);
+      }
+      async delete(key2) {
+        return (await this.store).delete(key2);
+      }
+      async clear() {
+        await (await this.store).clear();
+      }
+      async reset() {
+        await (await this.store).reset();
+      }
+      async keys() {
+        return (await this.store).keys();
+      }
+      async values() {
+        return (await this.store).values();
+      }
+      async entries() {
+        return (await this.store).entries();
+      }
+      async length() {
+        return (await this.store).length();
+      }
+      async reload(options2) {
+        await (await this.store).reload(options2);
+      }
+      async save() {
+        await (await this.store).save();
+      }
+      async onKeyChange(key2, cb) {
+        return (await this.store).onKeyChange(key2, cb);
+      }
+      async onChange(cb) {
+        return (await this.store).onChange(cb);
+      }
+      async close() {
+        if (this._store) {
+          await (await this._store).close();
+        }
+      }
+    };
+    Store = class _Store extends Resource {
+      constructor(rid) {
+        super(rid);
+      }
+      /**
+       * Create a new Store or load the existing store with the path.
+       *
+       * @example
+       * ```typescript
+       * import { Store } from '@tauri-apps/api/store';
+       * const store = await Store.load('store.json');
+       * ```
+       *
+       * @param path Path to save the store in `app_data_dir`
+       * @param options Store configuration options
+       */
+      static async load(path4, options2) {
+        const rid = await invoke("plugin:store|load", {
+          path: path4,
+          options: options2
+        });
+        return new _Store(rid);
+      }
+      /**
+       * Gets an already loaded store.
+       *
+       * If the store is not loaded, returns `null`. In this case you must {@link Store.load load} it.
+       *
+       * This function is more useful when you already know the store is loaded
+       * and just need to access its instance. Prefer {@link Store.load} otherwise.
+       *
+       * @example
+       * ```typescript
+       * import { Store } from '@tauri-apps/api/store';
+       * let store = await Store.get('store.json');
+       * if (!store) {
+       *   store = await Store.load('store.json');
+       * }
+       * ```
+       *
+       * @param path Path of the store.
+       */
+      static async get(path4) {
+        return await invoke("plugin:store|get_store", { path: path4 }).then((rid) => rid ? new _Store(rid) : null);
+      }
+      async set(key2, value) {
+        await invoke("plugin:store|set", {
+          rid: this.rid,
+          key: key2,
+          value
+        });
+      }
+      async get(key2) {
+        const [value, exists] = await invoke("plugin:store|get", {
+          rid: this.rid,
+          key: key2
+        });
+        return exists ? value : void 0;
+      }
+      async has(key2) {
+        return await invoke("plugin:store|has", {
+          rid: this.rid,
+          key: key2
+        });
+      }
+      async delete(key2) {
+        return await invoke("plugin:store|delete", {
+          rid: this.rid,
+          key: key2
+        });
+      }
+      async clear() {
+        await invoke("plugin:store|clear", { rid: this.rid });
+      }
+      async reset() {
+        await invoke("plugin:store|reset", { rid: this.rid });
+      }
+      async keys() {
+        return await invoke("plugin:store|keys", { rid: this.rid });
+      }
+      async values() {
+        return await invoke("plugin:store|values", { rid: this.rid });
+      }
+      async entries() {
+        return await invoke("plugin:store|entries", { rid: this.rid });
+      }
+      async length() {
+        return await invoke("plugin:store|length", { rid: this.rid });
+      }
+      async reload(options2) {
+        await invoke("plugin:store|reload", { rid: this.rid, ...options2 });
+      }
+      async save() {
+        await invoke("plugin:store|save", { rid: this.rid });
+      }
+      async onKeyChange(key2, cb) {
+        return await listen("store://change", (event) => {
+          if (event.payload.resourceId === this.rid && event.payload.key === key2) {
+            cb(event.payload.exists ? event.payload.value : void 0);
+          }
+        });
+      }
+      async onChange(cb) {
+        return await listen("store://change", (event) => {
+          if (event.payload.resourceId === this.rid) {
+            cb(event.payload.key, event.payload.exists ? event.payload.value : void 0);
+          }
+        });
+      }
+    };
+  }
+});
+
+// build/server/chunks/supabase-BmQ7AslV.js
 function isTauri() {
   if (_isTauri !== null) return _isTauri;
   if (typeof window === "undefined") {
@@ -27195,13 +27546,35 @@ function installFetchOverride() {
   };
   _fetchPatched = true;
 }
+function createTauriAuthStorage() {
+  let storePromise = null;
+  const getStore2 = () => {
+    if (!storePromise) storePromise = Promise.resolve().then(() => (init_dist_js(), dist_js_exports)).then(({ load: load7 }) => load7("supabase-auth.json", {
+      autoSave: true,
+      defaults: {}
+    }));
+    return storePromise;
+  };
+  return {
+    getItem: async (key2) => {
+      return await (await getStore2()).get(key2) ?? null;
+    },
+    setItem: async (key2, value) => {
+      await (await getStore2()).set(key2, value);
+    },
+    removeItem: async (key2) => {
+      await (await getStore2()).delete(key2);
+    }
+  };
+}
 function getClient() {
   if (!_client) {
     const runningInTauri = isTauri();
     _client = createClient(supabaseUrl2, supabaseAnonKey2, { auth: {
       persistSession: runningInTauri,
       autoRefreshToken: runningInTauri,
-      detectSessionInUrl: false
+      detectSessionInUrl: false,
+      ...runningInTauri ? { storage: createTauriAuthStorage() } : {}
     } });
     if (typeof window !== "undefined") _client.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN") ;
@@ -27214,8 +27587,8 @@ function getClient() {
   return _client;
 }
 var STORAGE_KEY, DEFAULT_API_BASE_URL, _isTauri, _fetchPatched, supabaseUrl2, supabaseAnonKey2, dummy, _client, supabase;
-var init_supabase_xVMvudN0 = __esm({
-  "build/server/chunks/supabase-xVMvudN0.js"() {
+var init_supabase_BmQ7AslV = __esm({
+  "build/server/chunks/supabase-BmQ7AslV.js"() {
     "use strict";
     init_dist4();
     STORAGE_KEY = "tauri-api-base-url";
@@ -27264,9 +27637,9 @@ var init_toasts_eJOPe2vZ = __esm({
   }
 });
 
-// build/server/chunks/_layout.svelte-DT-Tlhbr.js
-var layout_svelte_DT_Tlhbr_exports = {};
-__export(layout_svelte_DT_Tlhbr_exports, {
+// build/server/chunks/_layout.svelte-BSfJze6e.js
+var layout_svelte_BSfJze6e_exports = {};
+__export(layout_svelte_BSfJze6e_exports, {
   default: () => _layout2
 });
 function Toast($$renderer, $$props) {
@@ -27297,14 +27670,14 @@ function _layout2($$renderer, $$props) {
   });
 }
 var getStores, page2;
-var init_layout_svelte_DT_Tlhbr = __esm({
-  "build/server/chunks/_layout.svelte-DT-Tlhbr.js"() {
+var init_layout_svelte_BSfJze6e = __esm({
+  "build/server/chunks/_layout.svelte-BSfJze6e.js"() {
     "use strict";
     init_dev_DRV_q2AU();
-    init_client_Bx1jeKXJ();
-    init_supabase_xVMvudN0();
+    init_client_CIBgULNi();
+    init_supabase_BmQ7AslV();
     init_toasts_eJOPe2vZ();
-    init_internal_CWmLilQ4();
+    init_internal_BqNdYVFp();
     init_index_DBqjc0Yf();
     init_dist4();
     getStores = () => {
@@ -27324,9 +27697,9 @@ var init_layout_svelte_DT_Tlhbr = __esm({
   }
 });
 
-// build/server/chunks/2-DmDFwP6K.js
-var DmDFwP6K_exports = {};
-__export(DmDFwP6K_exports, {
+// build/server/chunks/2-C_1LGrW_.js
+var C_1LGrW_exports = {};
+__export(C_1LGrW_exports, {
   component: () => component3,
   fonts: () => fonts3,
   imports: () => imports3,
@@ -27337,11 +27710,11 @@ __export(DmDFwP6K_exports, {
   universal: () => _layout_ts,
   universal_id: () => universal_id
 });
-var load$1, _layout_ts, load, _layout_server_ts, index3, component_cache3, component3, universal_id, server_id, imports3, stylesheets3, fonts3;
-var init_DmDFwP6K = __esm({
-  "build/server/chunks/2-DmDFwP6K.js"() {
+var load$1, _layout_ts, load2, _layout_server_ts, index3, component_cache3, component3, universal_id, server_id, imports3, stylesheets3, fonts3;
+var init_C_1LGrW = __esm({
+  "build/server/chunks/2-C_1LGrW_.js"() {
     "use strict";
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_index_Bd4EiwBH();
     init_dist4();
     init_index_DBqjc0Yf();
@@ -27353,7 +27726,7 @@ var init_DmDFwP6K = __esm({
       __proto__: null,
       load: load$1
     });
-    load = async ({ locals, url }) => {
+    load2 = async ({ locals, url }) => {
       if (!locals.session) throw redirect(302, `/login?redirectTo=${url.pathname}`);
       return { session: {
         access_token: locals.session.access_token,
@@ -27362,13 +27735,13 @@ var init_DmDFwP6K = __esm({
     };
     _layout_server_ts = Object.freeze({
       __proto__: null,
-      load
+      load: load2
     });
     index3 = 2;
-    component3 = async () => component_cache3 ??= (await Promise.resolve().then(() => (init_layout_svelte_DT_Tlhbr(), layout_svelte_DT_Tlhbr_exports))).default;
+    component3 = async () => component_cache3 ??= (await Promise.resolve().then(() => (init_layout_svelte_BSfJze6e(), layout_svelte_BSfJze6e_exports))).default;
     universal_id = "src/routes/(app)/+layout.ts";
     server_id = "src/routes/(app)/+layout.server.ts";
-    imports3 = ["_app/immutable/nodes/2.C4m6gPMV.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CWEq1J-G.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/7_I7lM8R.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/D72LGVUQ.js"];
+    imports3 = ["_app/immutable/nodes/2.CvctNQJ_.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CNOFxbK8.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/Dh_zmeKE.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/D72LGVUQ.js"];
     stylesheets3 = [];
     fonts3 = [];
   }
@@ -27412,30 +27785,30 @@ var init_QsYJP7TM = __esm({
   }
 });
 
-// build/server/chunks/_page.svelte-Cx3ay-h3.js
-var page_svelte_Cx3ay_h3_exports = {};
-__export(page_svelte_Cx3ay_h3_exports, {
+// build/server/chunks/_page.svelte-3H8R9nIU.js
+var page_svelte_3H8R9nIU_exports = {};
+__export(page_svelte_3H8R9nIU_exports, {
   default: () => _page
 });
 function _page($$renderer, $$props) {
   $$renderer.component(($$renderer2) => {
   });
 }
-var init_page_svelte_Cx3ay_h3 = __esm({
-  "build/server/chunks/_page.svelte-Cx3ay-h3.js"() {
+var init_page_svelte_3H8R9nIU = __esm({
+  "build/server/chunks/_page.svelte-3H8R9nIU.js"() {
     "use strict";
-    init_client_Bx1jeKXJ();
-    init_supabase_xVMvudN0();
+    init_client_CIBgULNi();
+    init_supabase_BmQ7AslV();
     init_dev_DRV_q2AU();
-    init_internal_CWmLilQ4();
+    init_internal_BqNdYVFp();
     init_index_DBqjc0Yf();
     init_dist4();
   }
 });
 
-// build/server/chunks/4-NBSRmMlv.js
-var NBSRmMlv_exports = {};
-__export(NBSRmMlv_exports, {
+// build/server/chunks/4-C8jR7QVd.js
+var C8jR7QVd_exports = {};
+__export(C8jR7QVd_exports, {
   component: () => component5,
   fonts: () => fonts5,
   imports: () => imports5,
@@ -27443,20 +27816,20 @@ __export(NBSRmMlv_exports, {
   stylesheets: () => stylesheets5
 });
 var index5, component_cache5, component5, imports5, stylesheets5, fonts5;
-var init_NBSRmMlv = __esm({
-  "build/server/chunks/4-NBSRmMlv.js"() {
+var init_C8jR7QVd = __esm({
+  "build/server/chunks/4-C8jR7QVd.js"() {
     "use strict";
     index5 = 4;
-    component5 = async () => component_cache5 ??= (await Promise.resolve().then(() => (init_page_svelte_Cx3ay_h3(), page_svelte_Cx3ay_h3_exports))).default;
-    imports5 = ["_app/immutable/nodes/4.CVwU2RDZ.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CWEq1J-G.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/7_I7lM8R.js", "_app/immutable/chunks/CP97kCR3.js"];
+    component5 = async () => component_cache5 ??= (await Promise.resolve().then(() => (init_page_svelte_3H8R9nIU(), page_svelte_3H8R9nIU_exports))).default;
+    imports5 = ["_app/immutable/nodes/4.BccIK18V.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CNOFxbK8.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/Dh_zmeKE.js", "_app/immutable/chunks/CP97kCR3.js"];
     stylesheets5 = [];
     fonts5 = [];
   }
 });
 
-// build/server/chunks/_page.svelte-BINRs8_V.js
-var page_svelte_BINRs8_V_exports = {};
-__export(page_svelte_BINRs8_V_exports, {
+// build/server/chunks/_page.svelte-P20AI2Ix.js
+var page_svelte_P20AI2Ix_exports = {};
+__export(page_svelte_P20AI2Ix_exports, {
   default: () => _page2
 });
 function _page2($$renderer, $$props) {
@@ -27520,19 +27893,19 @@ function _page2($$renderer, $$props) {
     $$renderer2.push(`<!--]-->`);
   });
 }
-var init_page_svelte_BINRs8_V = __esm({
-  "build/server/chunks/_page.svelte-BINRs8_V.js"() {
+var init_page_svelte_P20AI2Ix = __esm({
+  "build/server/chunks/_page.svelte-P20AI2Ix.js"() {
     "use strict";
     init_dev_DRV_q2AU();
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_toasts_eJOPe2vZ();
     init_dist4();
   }
 });
 
-// build/server/chunks/5-GFa9LSBv.js
-var GFa9LSBv_exports = {};
-__export(GFa9LSBv_exports, {
+// build/server/chunks/5-C4SWE4R1.js
+var C4SWE4R1_exports = {};
+__export(C4SWE4R1_exports, {
   component: () => component6,
   fonts: () => fonts6,
   imports: () => imports6,
@@ -27540,12 +27913,12 @@ __export(GFa9LSBv_exports, {
   stylesheets: () => stylesheets6
 });
 var index6, component_cache6, component6, imports6, stylesheets6, fonts6;
-var init_GFa9LSBv = __esm({
-  "build/server/chunks/5-GFa9LSBv.js"() {
+var init_C4SWE4R1 = __esm({
+  "build/server/chunks/5-C4SWE4R1.js"() {
     "use strict";
     index6 = 5;
-    component6 = async () => component_cache6 ??= (await Promise.resolve().then(() => (init_page_svelte_BINRs8_V(), page_svelte_BINRs8_V_exports))).default;
-    imports6 = ["_app/immutable/nodes/5.Cq5Kggod.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
+    component6 = async () => component_cache6 ??= (await Promise.resolve().then(() => (init_page_svelte_P20AI2Ix(), page_svelte_P20AI2Ix_exports))).default;
+    imports6 = ["_app/immutable/nodes/5.BqLIoCoR.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
     stylesheets6 = [];
     fonts6 = [];
   }
@@ -27632,7 +28005,7 @@ __export(kUVGR8Rb_exports, {
   server_id: () => server_id2,
   stylesheets: () => stylesheets7
 });
-var load2, _page_server_ts, index7, component_cache7, component7, server_id2, imports7, stylesheets7, fonts7;
+var load3, _page_server_ts, index7, component_cache7, component7, server_id2, imports7, stylesheets7, fonts7;
 var init_kUVGR8Rb = __esm({
   "build/server/chunks/6-kUVGR8Rb.js"() {
     "use strict";
@@ -27641,7 +28014,7 @@ var init_kUVGR8Rb = __esm({
     init_shared_server_BKxUl_5q();
     init_dist4();
     init_index_DBqjc0Yf();
-    load2 = async ({ parent }) => {
+    load3 = async ({ parent }) => {
       const { session } = await parent();
       if (!session) throw redirect(303, "/login");
       const [membersResult, eventsResult, nextEventResult, adsResponse] = await Promise.all([
@@ -27673,7 +28046,7 @@ var init_kUVGR8Rb = __esm({
     };
     _page_server_ts = Object.freeze({
       __proto__: null,
-      load: load2
+      load: load3
     });
     index7 = 6;
     component7 = async () => component_cache7 ??= (await Promise.resolve().then(() => (init_page_svelte_DAXTB_vk(), page_svelte_DAXTB_vk_exports))).default;
@@ -28028,9 +28401,9 @@ var init_page_svelte_Cd4_c6kt = __esm({
   }
 });
 
-// build/server/chunks/7-7EBA_gx2.js
-var EBA_gx2_exports = {};
-__export(EBA_gx2_exports, {
+// build/server/chunks/7-Cy05NACo.js
+var Cy05NACo_exports = {};
+__export(Cy05NACo_exports, {
   component: () => component8,
   fonts: () => fonts8,
   imports: () => imports8,
@@ -28039,12 +28412,12 @@ __export(EBA_gx2_exports, {
   universal: () => _page_ts,
   universal_id: () => universal_id2
 });
-var load3, _page_ts, index8, component_cache8, component8, universal_id2, imports8, stylesheets8, fonts8;
-var init_EBA_gx2 = __esm({
-  "build/server/chunks/7-7EBA_gx2.js"() {
+var load4, _page_ts, index8, component_cache8, component8, universal_id2, imports8, stylesheets8, fonts8;
+var init_Cy05NACo = __esm({
+  "build/server/chunks/7-Cy05NACo.js"() {
     "use strict";
     init_Member_DXguByGi();
-    load3 = async () => {
+    load4 = async () => {
       return { members: [...Member_default].map((m) => ({
         id: m.id,
         name: m.codeName,
@@ -28053,13 +28426,13 @@ var init_EBA_gx2 = __esm({
     };
     _page_ts = Object.freeze({
       __proto__: null,
-      load: load3
+      load: load4
     });
     index8 = 7;
     component8 = async () => component_cache8 ??= (await Promise.resolve().then(() => (init_page_svelte_Cd4_c6kt(), page_svelte_Cd4_c6kt_exports))).default;
     universal_id2 = "src/routes/(app)/downloader/+page.ts";
-    imports8 = ["_app/immutable/nodes/7.EcOQ1CN_.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
-    stylesheets8 = ["_app/immutable/assets/7.CVFKAlNR.css"];
+    imports8 = ["_app/immutable/nodes/7.CWSXjLJO.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
+    stylesheets8 = ["_app/immutable/assets/7.DOnSyX2G.css"];
     fonts8 = [];
   }
 });
@@ -28159,9 +28532,9 @@ var init_bnk48_BaJ4cKI = __esm({
   }
 });
 
-// build/server/chunks/_page.svelte-C8l-kDcq.js
-var page_svelte_C8l_kDcq_exports = {};
-__export(page_svelte_C8l_kDcq_exports, {
+// build/server/chunks/_page.svelte-C0GkZfjo.js
+var page_svelte_C0GkZfjo_exports = {};
+__export(page_svelte_C0GkZfjo_exports, {
   default: () => _page5
 });
 function _page5($$renderer, $$props) {
@@ -28212,20 +28585,20 @@ function _page5($$renderer, $$props) {
     $$renderer2.push(`<!--]-->`);
   });
 }
-var init_page_svelte_C8l_kDcq = __esm({
-  "build/server/chunks/_page.svelte-C8l-kDcq.js"() {
+var init_page_svelte_C0GkZfjo = __esm({
+  "build/server/chunks/_page.svelte-C0GkZfjo.js"() {
     "use strict";
     init_dev_DRV_q2AU();
     init_bnk48_BaJ4cKI();
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_toasts_eJOPe2vZ();
     init_dist4();
   }
 });
 
-// build/server/chunks/8-BdSi2RoJ.js
-var BdSi2RoJ_exports = {};
-__export(BdSi2RoJ_exports, {
+// build/server/chunks/8-Cl-A1lE5.js
+var Cl_A1lE5_exports = {};
+__export(Cl_A1lE5_exports, {
   component: () => component9,
   fonts: () => fonts9,
   imports: () => imports9,
@@ -28234,13 +28607,13 @@ __export(BdSi2RoJ_exports, {
   universal: () => _page_ts2,
   universal_id: () => universal_id3
 });
-var load4, _page_ts2, index9, component_cache9, component9, universal_id3, imports9, stylesheets9, fonts9;
-var init_BdSi2RoJ = __esm({
-  "build/server/chunks/8-BdSi2RoJ.js"() {
+var load5, _page_ts2, index9, component_cache9, component9, universal_id3, imports9, stylesheets9, fonts9;
+var init_Cl_A1lE5 = __esm({
+  "build/server/chunks/8-Cl-A1lE5.js"() {
     "use strict";
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_dist4();
-    load4 = async () => {
+    load5 = async () => {
       const { data: events, error: error2 } = await supabase.from("event_data").select("*").order("date", { ascending: false });
       if (error2) {
         console.error("Error fetching events:", error2);
@@ -28250,20 +28623,20 @@ var init_BdSi2RoJ = __esm({
     };
     _page_ts2 = Object.freeze({
       __proto__: null,
-      load: load4
+      load: load5
     });
     index9 = 8;
-    component9 = async () => component_cache9 ??= (await Promise.resolve().then(() => (init_page_svelte_C8l_kDcq(), page_svelte_C8l_kDcq_exports))).default;
+    component9 = async () => component_cache9 ??= (await Promise.resolve().then(() => (init_page_svelte_C0GkZfjo(), page_svelte_C0GkZfjo_exports))).default;
     universal_id3 = "src/routes/(app)/events/+page.ts";
-    imports9 = ["_app/immutable/nodes/8.05-qpDkf.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/CPeWpK56.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
+    imports9 = ["_app/immutable/nodes/8.C4ANuBR0.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/CPeWpK56.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
     stylesheets9 = [];
     fonts9 = [];
   }
 });
 
-// build/server/chunks/_page.svelte-BG87M1S5.js
-var page_svelte_BG87M1S5_exports = {};
-__export(page_svelte_BG87M1S5_exports, {
+// build/server/chunks/_page.svelte-Ch62Zgwp.js
+var page_svelte_Ch62Zgwp_exports = {};
+__export(page_svelte_Ch62Zgwp_exports, {
   default: () => _page6
 });
 function _page6($$renderer, $$props) {
@@ -28347,7 +28720,7 @@ function _page6($$renderer, $$props) {
           $$renderer2.push("<!--[-1-->");
           $$renderer2.push(`<div class="data-table__thumb-placeholder">${escape_html(member.name?.charAt(0) ?? "\u2014")}</div>`);
         }
-        $$renderer2.push(`<!--]--></td><td><span${attr_class(`data-table__chip ${stringify(member.graduated_at ? "data-table__chip--muted" : "data-table__chip--live")}`)}>${escape_html(member.graduated_at ? "Alumni" : "Active")}</span></td><td class="data-table__meta"><span>${escape_html(member.brand)}</span> <span class="sep">/</span> <span>${escape_html(member.gen)}</span> <span class="sep">/</span> <span>${escape_html(member.team)}</span></td><td><h3 class="data-table__title">${escape_html(member.name)}</h3></td><td class="data-table__actions"><div class="data-table__ops"><button type="button" class="action-icon-btn" aria-label="Edit entry"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" class="action-icon-btn danger" aria-label="Delete entry"><i class="fa-solid fa-trash"></i></button></div></td></tr>`);
+        $$renderer2.push(`<!--]--></td><td><h3 class="data-table__title">${escape_html(member.name)}</h3></td><td><span${attr_class(`data-table__chip ${stringify(member.graduated_at ? "data-table__chip--muted" : "data-table__chip--live")}`)}>${escape_html(member.graduated_at ? "Alumni" : "Active")}</span></td><td class="data-table__meta"><span>${escape_html(member.brand)}</span> <span class="sep">/</span> <span>${escape_html(member.gen)}</span> <span class="sep">/</span> <span>${escape_html(member.team)}</span></td><td class="data-table__actions"><div class="data-table__ops"><button type="button" class="action-icon-btn" aria-label="Edit entry"><i class="fa-solid fa-pen-to-square"></i></button> <button type="button" class="action-icon-btn danger" aria-label="Delete entry"><i class="fa-solid fa-trash"></i></button></div></td></tr>`);
       }
       $$renderer2.push(`<!--]--></tbody></table></div>`);
     }
@@ -28356,20 +28729,20 @@ function _page6($$renderer, $$props) {
     $$renderer2.push(`<!--]-->`);
   });
 }
-var init_page_svelte_BG87M1S5 = __esm({
-  "build/server/chunks/_page.svelte-BG87M1S5.js"() {
+var init_page_svelte_Ch62Zgwp = __esm({
+  "build/server/chunks/_page.svelte-Ch62Zgwp.js"() {
     "use strict";
     init_dev_DRV_q2AU();
     init_bnk48_BaJ4cKI();
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_toasts_eJOPe2vZ();
     init_dist4();
   }
 });
 
-// build/server/chunks/9-FLTxflTT.js
-var FLTxflTT_exports = {};
-__export(FLTxflTT_exports, {
+// build/server/chunks/9-g3Pj2B3X.js
+var g3Pj2B3X_exports = {};
+__export(g3Pj2B3X_exports, {
   component: () => component10,
   fonts: () => fonts10,
   imports: () => imports10,
@@ -28378,13 +28751,13 @@ __export(FLTxflTT_exports, {
   universal: () => _page_ts3,
   universal_id: () => universal_id4
 });
-var load5, _page_ts3, index10, component_cache10, component10, universal_id4, imports10, stylesheets10, fonts10;
-var init_FLTxflTT = __esm({
-  "build/server/chunks/9-FLTxflTT.js"() {
+var load6, _page_ts3, index10, component_cache10, component10, universal_id4, imports10, stylesheets10, fonts10;
+var init_g3Pj2B3X = __esm({
+  "build/server/chunks/9-g3Pj2B3X.js"() {
     "use strict";
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_dist4();
-    load5 = async () => {
+    load6 = async () => {
       const { data: members, error: error2 } = await supabase.from("members").select("*").order("id", { ascending: true });
       if (error2) {
         console.error("Error fetching members:", error2);
@@ -28394,20 +28767,20 @@ var init_FLTxflTT = __esm({
     };
     _page_ts3 = Object.freeze({
       __proto__: null,
-      load: load5
+      load: load6
     });
     index10 = 9;
-    component10 = async () => component_cache10 ??= (await Promise.resolve().then(() => (init_page_svelte_BG87M1S5(), page_svelte_BG87M1S5_exports))).default;
+    component10 = async () => component_cache10 ??= (await Promise.resolve().then(() => (init_page_svelte_Ch62Zgwp(), page_svelte_Ch62Zgwp_exports))).default;
     universal_id4 = "src/routes/(app)/members/+page.ts";
-    imports10 = ["_app/immutable/nodes/9.yt64bVQb.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/CPeWpK56.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
+    imports10 = ["_app/immutable/nodes/9.DAYmsWGW.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/CP97kCR3.js", "_app/immutable/chunks/CPeWpK56.js", "_app/immutable/chunks/D72LGVUQ.js", "_app/immutable/chunks/D1h2OxpE.js"];
     stylesheets10 = [];
     fonts10 = [];
   }
 });
 
-// build/server/chunks/_page.svelte-BKvJMKDI.js
-var page_svelte_BKvJMKDI_exports = {};
-__export(page_svelte_BKvJMKDI_exports, {
+// build/server/chunks/_page.svelte-B4wdWV6z.js
+var page_svelte_B4wdWV6z_exports = {};
+__export(page_svelte_B4wdWV6z_exports, {
   default: () => _page7
 });
 function _page7($$renderer, $$props) {
@@ -28418,17 +28791,17 @@ function _page7($$renderer, $$props) {
     $$renderer2.push(`<!--]--></div></div>`);
   });
 }
-var init_page_svelte_BKvJMKDI = __esm({
-  "build/server/chunks/_page.svelte-BKvJMKDI.js"() {
+var init_page_svelte_B4wdWV6z = __esm({
+  "build/server/chunks/_page.svelte-B4wdWV6z.js"() {
     "use strict";
-    init_supabase_xVMvudN0();
+    init_supabase_BmQ7AslV();
     init_dist4();
   }
 });
 
-// build/server/chunks/10-BF2C_qt4.js
-var BF2C_qt4_exports = {};
-__export(BF2C_qt4_exports, {
+// build/server/chunks/10-Dwtamiws.js
+var Dwtamiws_exports = {};
+__export(Dwtamiws_exports, {
   component: () => component11,
   fonts: () => fonts11,
   imports: () => imports11,
@@ -28436,20 +28809,20 @@ __export(BF2C_qt4_exports, {
   stylesheets: () => stylesheets11
 });
 var index11, component_cache11, component11, imports11, stylesheets11, fonts11;
-var init_BF2C_qt4 = __esm({
-  "build/server/chunks/10-BF2C_qt4.js"() {
+var init_Dwtamiws = __esm({
+  "build/server/chunks/10-Dwtamiws.js"() {
     "use strict";
     index11 = 10;
-    component11 = async () => component_cache11 ??= (await Promise.resolve().then(() => (init_page_svelte_BKvJMKDI(), page_svelte_BKvJMKDI_exports))).default;
-    imports11 = ["_app/immutable/nodes/10.Cyo00Xr7.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/CP97kCR3.js"];
+    component11 = async () => component_cache11 ??= (await Promise.resolve().then(() => (init_page_svelte_B4wdWV6z(), page_svelte_B4wdWV6z_exports))).default;
+    imports11 = ["_app/immutable/nodes/10.0DgDqxws.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/CP97kCR3.js"];
     stylesheets11 = [];
     fonts11 = [];
   }
 });
 
-// build/server/chunks/_page.svelte-DlJR0xZS.js
-var page_svelte_DlJR0xZS_exports = {};
-__export(page_svelte_DlJR0xZS_exports, {
+// build/server/chunks/_page.svelte-DWWU-PDB.js
+var page_svelte_DWWU_PDB_exports = {};
+__export(page_svelte_DWWU_PDB_exports, {
   default: () => _page8
 });
 function _page8($$renderer, $$props) {
@@ -28465,21 +28838,21 @@ function _page8($$renderer, $$props) {
     $$renderer2.push(`<!--]--></button></form></div> <footer class="login-footer"><p class="mono-label opacity-30">\xA9 2026 RESEARCH OPERATIONS \xB7 ALL ACCESS LOGGED</p></footer></div>`);
   });
 }
-var init_page_svelte_DlJR0xZS = __esm({
-  "build/server/chunks/_page.svelte-DlJR0xZS.js"() {
+var init_page_svelte_DWWU_PDB = __esm({
+  "build/server/chunks/_page.svelte-DWWU-PDB.js"() {
     "use strict";
     init_dev_DRV_q2AU();
-    init_client_Bx1jeKXJ();
-    init_supabase_xVMvudN0();
-    init_internal_CWmLilQ4();
+    init_client_CIBgULNi();
+    init_supabase_BmQ7AslV();
+    init_internal_BqNdYVFp();
     init_index_DBqjc0Yf();
     init_dist4();
   }
 });
 
-// build/server/chunks/11-C71EhE18.js
-var C71EhE18_exports = {};
-__export(C71EhE18_exports, {
+// build/server/chunks/11-CBr0NXCm.js
+var CBr0NXCm_exports = {};
+__export(CBr0NXCm_exports, {
   component: () => component12,
   fonts: () => fonts12,
   imports: () => imports12,
@@ -28487,12 +28860,12 @@ __export(C71EhE18_exports, {
   stylesheets: () => stylesheets12
 });
 var index12, component_cache12, component12, imports12, stylesheets12, fonts12;
-var init_C71EhE18 = __esm({
-  "build/server/chunks/11-C71EhE18.js"() {
+var init_CBr0NXCm = __esm({
+  "build/server/chunks/11-CBr0NXCm.js"() {
     "use strict";
     index12 = 11;
-    component12 = async () => component_cache12 ??= (await Promise.resolve().then(() => (init_page_svelte_DlJR0xZS(), page_svelte_DlJR0xZS_exports))).default;
-    imports12 = ["_app/immutable/nodes/11.yAvpzBVz.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/DUoziJeh.js", "_app/immutable/chunks/7_I7lM8R.js", "_app/immutable/chunks/CWEq1J-G.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/CP97kCR3.js"];
+    component12 = async () => component_cache12 ??= (await Promise.resolve().then(() => (init_page_svelte_DWWU_PDB(), page_svelte_DWWU_PDB_exports))).default;
+    imports12 = ["_app/immutable/nodes/11.COum8WYF.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/graejPsP.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/Dh_zmeKE.js", "_app/immutable/chunks/CNOFxbK8.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/chunks/CP97kCR3.js"];
     stylesheets12 = [];
     fonts12 = [];
   }
@@ -29832,12 +30205,29 @@ var require_ffprobe_static = __commonJS({
   }
 });
 
-// build/server/chunks/download-manager.server-D9irCJzq.js
+// build/server/chunks/download-manager.server-D4cHBOqg.js
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import os from "os";
 import crypto3 from "crypto";
+function getEncoderPriority() {
+  if (process.platform === "darwin") return ["h264_videotoolbox", "libx264"];
+  if (process.platform === "win32") return [
+    "h264_nvenc",
+    "h264_amf",
+    "h264_qsv",
+    "libx264"
+  ];
+  return [
+    "h264_nvenc",
+    "h264_vaapi",
+    "libx264"
+  ];
+}
+function isHardwareEncoder(encoder) {
+  return encoder !== "libx264";
+}
 function persistJobs() {
   try {
     const serializable = Array.from(jobs.entries()).map(([id, job]) => [id, {
@@ -29914,25 +30304,68 @@ function updateProgress(job, line) {
   if (progress > job.progress) job.progress = progress;
 }
 function buildFfmpegArgs(url, token, outputPath, encoder) {
-  const videoArgs = encoder === "h264_videotoolbox" ? [
-    "-c:v",
-    "h264_videotoolbox",
-    "-b:v",
-    "3M",
-    "-maxrate:v",
-    "3.5M",
-    "-bufsize:v",
-    "6M"
-  ] : [
-    "-c:v",
-    "libx264",
-    "-preset",
-    "fast",
-    "-crf",
-    "22",
-    "-movflags",
-    "+faststart"
-  ];
+  const videoArgs = (() => {
+    switch (encoder) {
+      case "h264_videotoolbox":
+        return [
+          "-c:v",
+          "h264_videotoolbox",
+          "-b:v",
+          "3M",
+          "-maxrate:v",
+          "3.5M",
+          "-bufsize:v",
+          "6M"
+        ];
+      case "h264_nvenc":
+        return [
+          "-c:v",
+          "h264_nvenc",
+          "-preset",
+          "p4",
+          "-b:v",
+          "3M",
+          "-maxrate:v",
+          "3.5M"
+        ];
+      case "h264_amf":
+        return [
+          "-c:v",
+          "h264_amf",
+          "-quality",
+          "balanced",
+          "-b:v",
+          "3M"
+        ];
+      case "h264_qsv":
+        return [
+          "-c:v",
+          "h264_qsv",
+          "-preset",
+          "medium",
+          "-b:v",
+          "3M"
+        ];
+      case "h264_vaapi":
+        return [
+          "-vaapi_device",
+          "/dev/dri/renderD128",
+          "-c:v",
+          "h264_vaapi",
+          "-b:v",
+          "3M"
+        ];
+      case "libx264":
+        return [
+          "-c:v",
+          "libx264",
+          "-preset",
+          "fast",
+          "-crf",
+          "22"
+        ];
+    }
+  })();
   return [
     "-headers",
     `Authorization: Bearer ${token}\r
@@ -30033,8 +30466,14 @@ function isRecoverableHardwareError(message) {
     "Unknown encoder",
     "Error initializing output stream",
     "videotoolbox",
+    "nvenc",
+    "amf",
+    "qsv",
+    "vaapi",
     "hardware accelerator",
-    "Cannot load libcuda"
+    "Cannot load libcuda",
+    "No device available",
+    "Device creation failed"
   ].some((err) => message.toLowerCase().includes(err.toLowerCase()));
 }
 async function processQueue() {
@@ -30055,7 +30494,7 @@ async function runJob(job, realUrl, token, tempFilePath) {
   persistJobs();
   try {
     if (!job.duration) job.duration = await probeDuration(realUrl, token);
-    const encoders = ["h264_videotoolbox", "libx264"];
+    const encoders = getEncoderPriority();
     let success = false;
     let lastError = "";
     for (const encoder of encoders) try {
@@ -30067,7 +30506,7 @@ async function runJob(job, realUrl, token, tempFilePath) {
       const message = err instanceof Error ? err.message : String(err);
       lastError = message;
       removeTempFile(tempFilePath);
-      if (encoder === "h264_videotoolbox" && isRecoverableHardwareError(message)) {
+      if (isHardwareEncoder(encoder) && isRecoverableHardwareError(message)) {
         job.progress = 0;
         continue;
       }
@@ -30131,8 +30570,8 @@ function cancelJob(jobId) {
   return true;
 }
 var ffmpegPath, ffprobeStatic, ffprobePath, jobs, TEMP_DIR, MAX_CONCURRENT_JOBS, JOB_RETENTION_MS, FILE_RETENTION_MS, FFMPEG_TIMEOUT_MS, pendingQueue, activeJobs, STATE_FILE, FFPROBE_TIMEOUT_MS;
-var init_download_manager_server_D9irCJzq = __esm({
-  async "build/server/chunks/download-manager.server-D9irCJzq.js"() {
+var init_download_manager_server_D4cHBOqg = __esm({
+  async "build/server/chunks/download-manager.server-D4cHBOqg.js"() {
     "use strict";
     init_bnk48_BaJ4cKI();
     init_bnk48_server_D_V4O0YD();
@@ -30155,17 +30594,17 @@ var init_download_manager_server_D9irCJzq = __esm({
   }
 });
 
-// build/server/chunks/_server.ts-KETA0Ps-.js
-var server_ts_KETA0Ps_exports = {};
-__export(server_ts_KETA0Ps_exports, {
+// build/server/chunks/_server.ts-DnLAt7GO.js
+var server_ts_DnLAt7GO_exports = {};
+__export(server_ts_DnLAt7GO_exports, {
   POST: () => POST5
 });
 var POST5;
-var init_server_ts_KETA0Ps = __esm({
-  async "build/server/chunks/_server.ts-KETA0Ps-.js"() {
+var init_server_ts_DnLAt7GO = __esm({
+  async "build/server/chunks/_server.ts-DnLAt7GO.js"() {
     "use strict";
     init_rate_limit_server_Btm_w4TP();
-    await init_download_manager_server_D9irCJzq();
+    await init_download_manager_server_D4cHBOqg();
     init_index_Bd4EiwBH();
     init_bnk48_BaJ4cKI();
     init_bnk48_server_D_V4O0YD();
@@ -30186,17 +30625,17 @@ var init_server_ts_KETA0Ps = __esm({
   }
 });
 
-// build/server/chunks/_server.ts-VV4LcAl2.js
-var server_ts_VV4LcAl2_exports = {};
-__export(server_ts_VV4LcAl2_exports, {
+// build/server/chunks/_server.ts-CpfKHhyu.js
+var server_ts_CpfKHhyu_exports = {};
+__export(server_ts_CpfKHhyu_exports, {
   DELETE: () => DELETE2,
   GET: () => GET8
 });
 var GET8, DELETE2;
-var init_server_ts_VV4LcAl2 = __esm({
-  async "build/server/chunks/_server.ts-VV4LcAl2.js"() {
+var init_server_ts_CpfKHhyu = __esm({
+  async "build/server/chunks/_server.ts-CpfKHhyu.js"() {
     "use strict";
-    await init_download_manager_server_D9irCJzq();
+    await init_download_manager_server_D4cHBOqg();
     init_index_Bd4EiwBH();
     init_bnk48_BaJ4cKI();
     init_bnk48_server_D_V4O0YD();
@@ -30219,17 +30658,17 @@ var init_server_ts_VV4LcAl2 = __esm({
   }
 });
 
-// build/server/chunks/_server.ts-DDyXgA4N.js
-var server_ts_DDyXgA4N_exports = {};
-__export(server_ts_DDyXgA4N_exports, {
+// build/server/chunks/_server.ts-Bq0J1N7o.js
+var server_ts_Bq0J1N7o_exports = {};
+__export(server_ts_Bq0J1N7o_exports, {
   GET: () => GET9
 });
 import fs2 from "fs";
 var GET9;
-var init_server_ts_DDyXgA4N = __esm({
-  async "build/server/chunks/_server.ts-DDyXgA4N.js"() {
+var init_server_ts_Bq0J1N7o = __esm({
+  async "build/server/chunks/_server.ts-Bq0J1N7o.js"() {
     "use strict";
-    await init_download_manager_server_D9irCJzq();
+    await init_download_manager_server_D4cHBOqg();
     init_index_Bd4EiwBH();
     init_bnk48_BaJ4cKI();
     init_bnk48_server_D_V4O0YD();
@@ -30467,7 +30906,7 @@ import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 
 // build/server/index.js
-init_internal_CWmLilQ4();
+init_internal_BqNdYVFp();
 init_index_Bd4EiwBH();
 init_index_DBqjc0Yf();
 init_dev_DRV_q2AU();
@@ -31637,9 +32076,9 @@ async function load_server_data({ event, event_state, state: state2, node, paren
     url: false,
     search_params: /* @__PURE__ */ new Set()
   };
-  const load6 = node.server.load;
+  const load7 = node.server.load;
   const slash = node.server.trailingSlash;
-  if (!load6) return {
+  if (!load7) return {
     type: "data",
     data: null,
     uses,
@@ -31665,7 +32104,7 @@ async function load_server_data({ event, event_state, state: state2, node, paren
         return await with_request_store({
           event: traced_event,
           state: event_state
-        }, () => load6.call(null, {
+        }, () => load7.call(null, {
           ...traced_event,
           fetch: (info, init2) => {
             new URL(info instanceof Request ? info.url : info, event.url);
@@ -31708,8 +32147,8 @@ async function load_server_data({ event, event_state, state: state2, node, paren
 }
 async function load_data({ event, event_state, fetched, node, parent, server_data_promise, state: state2, resolve_opts, csr }) {
   const server_data_node = await server_data_promise;
-  const load6 = node?.universal?.load;
-  if (!load6) return server_data_node?.data ?? null;
+  const load7 = node?.universal?.load;
+  if (!load7) return server_data_node?.data ?? null;
   return await record_span({
     name: "sveltekit.load",
     attributes: {
@@ -31725,7 +32164,7 @@ async function load_data({ event, event_state, fetched, node, parent, server_dat
           ...event_state,
           is_in_universal_load: true
         }
-      }, () => load6.call(null, {
+      }, () => load7.call(null, {
         url: event.url,
         params: event.params,
         data: server_data_node?.data ?? null,
@@ -34171,20 +34610,20 @@ var manifest = (() => {
     assets: /* @__PURE__ */ new Set([".assetsignore", "favicon.ico", "favicon.svg", "ffmpeg/ffmpeg-core.js", "ffmpeg/ffmpeg-core.wasm"]),
     mimeTypes: { ".svg": "image/svg+xml", ".js": "text/javascript", ".wasm": "application/wasm" },
     _: {
-      client: { start: "_app/immutable/entry/start.BrQ78I0j.js", app: "_app/immutable/entry/app.xJbnql48.js", imports: ["_app/immutable/entry/start.BrQ78I0j.js", "_app/immutable/chunks/CWEq1J-G.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/entry/app.xJbnql48.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/CP97kCR3.js"], stylesheets: [], fonts: [], uses_env_dynamic_public: false },
+      client: { start: "_app/immutable/entry/start.7y1iC2GL.js", app: "_app/immutable/entry/app.uwonodMR.js", imports: ["_app/immutable/entry/start.7y1iC2GL.js", "_app/immutable/chunks/CNOFxbK8.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/D1h2OxpE.js", "_app/immutable/entry/app.uwonodMR.js", "_app/immutable/chunks/DhkMvD30.js", "_app/immutable/chunks/CBB8d3n5.js", "_app/immutable/chunks/CP97kCR3.js"], stylesheets: [], fonts: [], uses_env_dynamic_public: false },
       nodes: [
         __memo(() => Promise.resolve().then(() => (init_BqbiLtSi(), BqbiLtSi_exports))),
-        __memo(() => Promise.resolve().then(() => (init_CcH5mYJ4(), CcH5mYJ4_exports))),
-        __memo(() => Promise.resolve().then(() => (init_DmDFwP6K(), DmDFwP6K_exports))),
+        __memo(() => Promise.resolve().then(() => (init_BxU5sqdq(), BxU5sqdq_exports))),
+        __memo(() => Promise.resolve().then(() => (init_C_1LGrW(), C_1LGrW_exports))),
         __memo(() => Promise.resolve().then(() => (init_QsYJP7TM(), QsYJP7TM_exports))),
-        __memo(() => Promise.resolve().then(() => (init_NBSRmMlv(), NBSRmMlv_exports))),
-        __memo(() => Promise.resolve().then(() => (init_GFa9LSBv(), GFa9LSBv_exports))),
+        __memo(() => Promise.resolve().then(() => (init_C8jR7QVd(), C8jR7QVd_exports))),
+        __memo(() => Promise.resolve().then(() => (init_C4SWE4R1(), C4SWE4R1_exports))),
         __memo(() => Promise.resolve().then(() => (init_kUVGR8Rb(), kUVGR8Rb_exports))),
-        __memo(() => Promise.resolve().then(() => (init_EBA_gx2(), EBA_gx2_exports))),
-        __memo(() => Promise.resolve().then(() => (init_BdSi2RoJ(), BdSi2RoJ_exports))),
-        __memo(() => Promise.resolve().then(() => (init_FLTxflTT(), FLTxflTT_exports))),
-        __memo(() => Promise.resolve().then(() => (init_BF2C_qt4(), BF2C_qt4_exports))),
-        __memo(() => Promise.resolve().then(() => (init_C71EhE18(), C71EhE18_exports)))
+        __memo(() => Promise.resolve().then(() => (init_Cy05NACo(), Cy05NACo_exports))),
+        __memo(() => Promise.resolve().then(() => (init_Cl_A1lE5(), Cl_A1lE5_exports))),
+        __memo(() => Promise.resolve().then(() => (init_g3Pj2B3X(), g3Pj2B3X_exports))),
+        __memo(() => Promise.resolve().then(() => (init_Dwtamiws(), Dwtamiws_exports))),
+        __memo(() => Promise.resolve().then(() => (init_CBr0NXCm(), CBr0NXCm_exports)))
       ],
       remotes: {},
       routes: [
@@ -34277,21 +34716,21 @@ var manifest = (() => {
           pattern: /^\/api\/downloads\/?$/,
           params: [],
           page: null,
-          endpoint: __memo(() => init_server_ts_KETA0Ps().then(() => server_ts_KETA0Ps_exports))
+          endpoint: __memo(() => init_server_ts_DnLAt7GO().then(() => server_ts_DnLAt7GO_exports))
         },
         {
           id: "/api/downloads/[id]",
           pattern: /^\/api\/downloads\/([^/]+?)\/?$/,
           params: [{ "name": "id", "optional": false, "rest": false, "chained": false }],
           page: null,
-          endpoint: __memo(() => init_server_ts_VV4LcAl2().then(() => server_ts_VV4LcAl2_exports))
+          endpoint: __memo(() => init_server_ts_CpfKHhyu().then(() => server_ts_CpfKHhyu_exports))
         },
         {
           id: "/api/downloads/[id]/file",
           pattern: /^\/api\/downloads\/([^/]+?)\/file\/?$/,
           params: [{ "name": "id", "optional": false, "rest": false, "chained": false }],
           page: null,
-          endpoint: __memo(() => init_server_ts_DDyXgA4N().then(() => server_ts_DDyXgA4N_exports))
+          endpoint: __memo(() => init_server_ts_Bq0J1N7o().then(() => server_ts_Bq0J1N7o_exports))
         },
         {
           id: "/api/image/[...path]",

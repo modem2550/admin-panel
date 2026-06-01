@@ -27,7 +27,6 @@ fn load_env_file(path: &std::path::Path) -> Vec<(String, String)> {
         .filter_map(|l| {
             let (k, v) = l.split_once('=')?;
             let raw = v.trim();
-            // ลบ quotes รอบนอกแต่ไม่แตะ quotes ข้างใน เช่น password ที่มี " อยู่
             let value = if raw.starts_with('"') && raw.ends_with('"') && raw.len() > 1 {
                 raw[1..raw.len() - 1].to_string()
             } else {
@@ -36,6 +35,22 @@ fn load_env_file(path: &std::path::Path) -> Vec<(String, String)> {
             Some((k.trim().to_string(), value))
         })
         .collect()
+}
+
+#[cfg(not(debug_assertions))]
+fn wait_for_port(host: &str, port: u16, retries: usize) -> bool {
+    use std::net::TcpStream;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    let address = format!("{host}:{port}");
+    for _ in 0..retries {
+        if TcpStream::connect(&address).is_ok() {
+            return true;
+        }
+        sleep(Duration::from_millis(100));
+    }
+    false
 }
 
 #[cfg(not(debug_assertions))]
@@ -104,67 +119,59 @@ fn start_embedded_server(app: &tauri::App) -> Result<(), String> {
     }
 
     if let Some(window) = app.get_webview_window("main") {
-        let url = Url::parse(&format!("{}/login", origin))
+        let url = Url::parse(&format!("{origin}/dashboard"))
             .map_err(|e| format!("invalid server URL: {e}"))?;
-        let _ = window.navigate(url);
-        std::thread::sleep(std::time::Duration::from_millis(1500));
-        let _ = window.show();
+        window
+            .navigate(url)
+            .map_err(|e| format!("failed to navigate webview: {e}"))?;
         let _ = window.set_focus();
-        #[cfg(target_os = "macos")]
-        {
-            let _ = window.set_always_on_top(true);
-            std::thread::sleep(std::time::Duration::from_millis(150));
-            let _ = window.set_always_on_top(false);
-        }
     }
 
     Ok(())
 }
 
-#[cfg(not(debug_assertions))]
-fn wait_for_port(host: &str, port: u16, retries: usize) -> bool {
-    use std::net::TcpStream;
-    use std::thread::sleep;
-    use std::time::Duration;
-
-    let address = format!("{host}:{port}");
-    for _ in 0..retries {
-        if TcpStream::connect(&address).is_ok() {
-            return true;
-        }
-        sleep(Duration::from_millis(100));
-    }
-    false
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
+    std::panic::set_hook(Box::new(|info| {
+        log::error!("panic: {info}");
+        eprintln!("PANIC: {info}");
+    }));
+
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("48cms".into()),
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                ])
+                .build(),
+        )
+        .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            println!("🚀 Tauri Application Starting...");
+            log::info!("Tauri application starting");
 
             #[cfg(debug_assertions)]
             {
-                println!("🔧 DEVELOPMENT Mode");
+                log::info!("development mode");
                 if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
                     let _ = window.set_focus();
                     let _ = window.center();
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = window.set_always_on_top(true);
-                        std::thread::sleep(std::time::Duration::from_millis(300));
-                        let _ = window.set_always_on_top(false);
-                    }
                 }
             }
 
             #[cfg(not(debug_assertions))]
             {
-                println!("📦 PRODUCTION Mode");
+                log::info!("production mode — starting embedded server");
                 if let Err(e) = start_embedded_server(app) {
-                    eprintln!("FATAL ERROR: {}", e);
+                    log::error!("embedded server failed: {e}");
+                    eprintln!("FATAL ERROR: {e}");
                     std::process::exit(1);
                 }
             }

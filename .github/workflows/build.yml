@@ -92,37 +92,12 @@ jobs:
         run: npm ci
 
       # ── Build SvelteKit (frontend + server) ───────────────────────────────────
-      - name: Build SvelteKit
+      - name: Build SvelteKit + bundle for Tauri
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_TAURI: '1'
         run: npm run build:tauri
-
-      - name: Bundle server dependencies (Unix)
-        if: matrix.platform != 'windows-latest'
-        shell: bash
-        run: |
-          npm install esbuild glob
-          node build-bundle.js
-          cp -r build/server build-bundled/server
-          cp -r build/client build-bundled/client
-          cp build/handler.js build-bundled/ 2>/dev/null || true
-          cp build/shims.js build-bundled/ 2>/dev/null || true
-          cp build/env.js build-bundled/ 2>/dev/null || true
-
-      - name: Bundle server dependencies (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          npm install esbuild glob
-          Remove-Item -Recurse -Force build-bundled -ErrorAction SilentlyContinue
-          node build-bundle.js
-          Remove-Item -Recurse -Force build-bundled/client -ErrorAction SilentlyContinue
-          Copy-Item -Recurse build/client build-bundled/client
-          if (Test-Path build/handler.js) { Copy-Item build/handler.js build-bundled/ }
-          if (Test-Path build/shims.js) { Copy-Item build/shims.js build-bundled/ }
-          if (Test-Path build/env.js) { Copy-Item build/env.js build-bundled/ }
 
       # ── สร้าง .env สำหรับ runtime (bundle เข้า app) ──────────────────────────
       - name: Create runtime .env

@@ -1,11 +1,18 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { isTauri, installFetchOverride } from '$lib/api';
+import { createTauriAuthStorage } from '$lib/supabase-storage';
 
 // Install fetch override as early as possible so all subsequent fetches are patched
 installFetchOverride();
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+if (typeof window !== 'undefined' && (!supabaseUrl || !supabaseAnonKey)) {
+	console.error(
+		'[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY — add them to .env and restart the dev server.'
+	);
+}
 
 // Safe dummy client สำหรับ build-time เมื่อไม่มี env vars
 const dummy: any = new Proxy({}, {
@@ -26,11 +33,10 @@ function getClient(): SupabaseClient {
 		const runningInTauri = isTauri();
 		_client = createClient(supabaseUrl, supabaseAnonKey, {
 			auth: {
-				// Tauri: persist session in localStorage (no server cookie jar)
-				// Web:   don't persist (managed via HttpOnly cookie)
 				persistSession: runningInTauri,
 				autoRefreshToken: runningInTauri,
 				detectSessionInUrl: false,
+				...(runningInTauri ? { storage: createTauriAuthStorage() } : {})
 			}
 		});
 

@@ -50,6 +50,11 @@ function replyWebviewIconProbe(pathname: string): Response | null {
 function applySecurityHeaders(response: Response, isHttps: boolean) {
 	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy(isHttps));
 
+	const contentType = response.headers.get('content-type') ?? '';
+	if (process.env.TAURI_DESKTOP === '1' && contentType.includes('text/html')) {
+		response.headers.set('Cache-Control', 'no-store');
+	}
+
 	if (!dev && isHttps) {
 		response.headers.set(
 			'Strict-Transport-Security',

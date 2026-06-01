@@ -5,7 +5,7 @@ fn project_root() -> PathBuf {
 }
 
 fn server_entry() -> PathBuf {
-	project_root().join("build").join("index.js")
+	project_root().join("build-bundled").join("index.js")
 }
 
 /// SvelteKit adapter-node output must exist before tauri-build validates bundle resources.
