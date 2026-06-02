@@ -1,14 +1,8 @@
 // @ts-nocheck
-import { redirect } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase.server';
-import type { PageServerLoad } from './$types';  // ← เปลี่ยน
+import type { PageServerLoad } from './$types';
 
-export const load = async ({ parent }: Parameters<PageServerLoad>[0]) => {  // ← เปลี่ยน
-	const { session } = await parent();
-	if (!session) {
-		throw redirect(303, '/login');
-	}
-
+export const load = async () => {
 	const [membersResult, eventsResult, nextEventResult, adsResponse] = await Promise.all([
 		supabaseAdmin.from('members').select('*', { count: 'exact', head: true }),
 		supabaseAdmin.from('event_data').select('*', { count: 'exact', head: true }),
@@ -19,7 +13,7 @@ export const load = async ({ parent }: Parameters<PageServerLoad>[0]) => {  // �
 			.order('date', { ascending: true })
 			.limit(1)
 			.maybeSingle(),
-		fetch('https://public.bnk48.io/ads')   // ← ไม่ต้องใส่ User-Agent ปลอมแล้ว
+		fetch('https://public.bnk48.io/ads')
 			.then((res) => res.json())
 			.catch(() => null)
 	]);
@@ -54,3 +48,4 @@ export const load = async ({ parent }: Parameters<PageServerLoad>[0]) => {  // �
 		champSplashUrl
 	};
 };
+;null as any as PageServerLoad;

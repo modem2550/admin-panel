@@ -55,6 +55,7 @@
 
 	let formData = $state({
 		name: "",
+		real_name: "",
 		brand: "BNK48",
 		gen: "Unknown",
 		team: "Trainee",
@@ -67,6 +68,7 @@
 		editingMember = null;
 		formData = {
 			name: "",
+			real_name: "",
 			brand: "BNK48",
 			gen: "Unknown",
 			team: "Trainee",
@@ -78,8 +80,10 @@
 
 	function openEditModal(member: Member) {
 		editingMember = member;
+		const memberWithRealName = member as Member & { real_name?: string | null };
 		formData = {
 			name: member.name,
+			real_name: memberWithRealName.real_name ?? "",
 			brand: member.brand,
 			gen: member.gen,
 			team: member.team,
@@ -246,7 +250,8 @@
 				<thead>
 					<tr>
 						<th scope="col" class="data-table__thumb">Visual</th>
-						<th scope="col">State</th>
+						<th scope="col">Nick Name</th>
+						<th scope="col">Real Name</th>
 						<th scope="col">Unit</th>
 						<th scope="col">Identity</th>
 						<th scope="col" class="data-table__actions">Actions</th>
@@ -272,12 +277,15 @@
 								<h3 class="data-table__title">{member.name}</h3>
 							</td>
 							<td>
+								<span class="data-table__meta">{(member as any).real_name}</span>
+							</td>
+							<td>
 								<span
 									class="data-table__chip {member.graduated_at
 										? 'data-table__chip--muted'
 										: 'data-table__chip--live'}"
 								>
-									{member.graduated_at ? "Alumni" : "Active"}
+									{member.graduated_at ? "Graduated" : "Active"}
 								</span>
 							</td>
 							<td class="data-table__meta">

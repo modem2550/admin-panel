@@ -18,13 +18,6 @@ function isAllowedContentType(contentType: string | null): boolean {
 }
 
 export const GET: RequestHandler = async ({ params, url, fetch, locals }) => {
-    if (!locals.session) {
-        return new Response(null, {
-            status: 401,
-            headers: { 'Cache-Control': 'no-store', 'WWW-Authenticate': 'session' }
-        });
-    }
-
     const assetPath = params.path;
     if (!assetPath) throw error(400, 'Missing image path');
 

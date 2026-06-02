@@ -4,9 +4,6 @@ import fs from 'fs';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-    if (!locals.session) {
-        throw error(401, 'Unauthorized');
-    }
 
     const { id } = params;
     const job = getJob(id);

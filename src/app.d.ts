@@ -1,12 +1,8 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
-import type { SupabaseClient, Session } from '@supabase/supabase-js';
 
 declare global {
 	namespace App {
-		interface Locals {
-			supabase: SupabaseClient | null;
-			session: Session | null;
-		}
+		interface Locals {}
 
 		interface Platform {
 			env: Env;

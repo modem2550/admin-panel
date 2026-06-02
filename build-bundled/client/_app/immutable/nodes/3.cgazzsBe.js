@@ -1,1 +1,0 @@
-import{F as e,X as t,m as n,x as r,y as i}from"../chunks/DhkMvD30.js";import"../chunks/CP97kCR3.js";var a=r(`<div class="auth-layout-bg"><!></div>`);function o(r,o){var s=a();n(e(s),()=>o.children),t(s),i(r,s)}export{o as component};

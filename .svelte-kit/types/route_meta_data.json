@@ -1,5 +1,4 @@
 {
-	"/(auth)": [],
 	"/(app)": [
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
@@ -22,9 +21,6 @@
 	],
 	"/api/assets/theater-archive": [
 		"src/routes/api/assets/theater-archive/+server.ts"
-	],
-	"/api/auth/session": [
-		"src/routes/api/auth/session/+server.ts"
 	],
 	"/api/check-assets": [
 		"src/routes/api/check-assets/+server.ts"
@@ -72,7 +68,6 @@
 		"src/routes/(app)/+layout.ts",
 		"src/routes/(app)/+layout.server.ts"
 	],
-	"/(auth)/login": [],
 	"/(app)/members": [
 		"src/routes/(app)/members/+page.ts",
 		"src/routes/(app)/+layout.ts",
@@ -80,9 +75,5 @@
 	],
 	"/robots.txt": [
 		"src/routes/robots.txt/+server.ts"
-	],
-	"/(app)/settings": [
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
 	]
 }

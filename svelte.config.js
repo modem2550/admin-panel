@@ -10,7 +10,6 @@ const config = {
 	},
 	kit: {
 		paths: { relative: false },
-		// Tauri bundles this output as the embedded Node sidecar (see src-tauri/lib.rs).
 		adapter: adapterNode({ out: 'build' }),
 		prerender: {
 			handleHttpError: ({ path, message }) => {

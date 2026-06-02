@@ -3,9 +3,6 @@ import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/supabase.server';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-    if (!locals.session) {
-        return json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const id = url.searchParams.get('id');
     if (!id) throw error(400, 'Missing id');

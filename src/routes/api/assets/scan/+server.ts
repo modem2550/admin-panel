@@ -1,7 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/supabase.server';
-import { timingSafeSecretMatch } from '$lib/secret-verify.server';
 import { getCDNDiscoveryUrls } from '$lib/bnk48';
 import https from 'node:https';
 
@@ -39,7 +38,7 @@ function getDiscoveryUrls(type: string, id: number): string[] {
 
 export const POST: RequestHandler = async ({ request }) => {
     const secret = request.headers.get('x-scan-secret');
-    if (!timingSafeSecretMatch(secret, SCAN_SECRET)) throw error(401, 'Unauthorized');
+    if (!secret || secret !== SCAN_SECRET) throw error(401, 'Unauthorized');
 
     const body = await request.json().catch(() => ({}));
     const type = body.type === 'group' ? 'group' : 'product';

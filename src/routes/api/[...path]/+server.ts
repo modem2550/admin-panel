@@ -27,15 +27,6 @@ function isAllowedContentType(contentType: string | null): boolean {
 }
 
 export const GET: RequestHandler = async ({ params, url, fetch, locals }) => {
-	// ถ้าไม่มี session → คืน 401 แบบ Response ธรรมดา (ไม่ throw error)
-	// เพราะ <img> tag ใน browser จะ silently fail อยู่แล้ว
-	// การ throw error() จะทำให้ SvelteKit render error page แทน ซึ่งไม่ถูกต้อง
-	if (!locals.session) {
-		return new Response(null, {
-			status: 401,
-			headers: { 'Cache-Control': 'no-store', 'WWW-Authenticate': 'session' }
-		});
-	}
 
 	const fullPath = params.path;
 	if (!fullPath) throw error(400, 'Missing path');

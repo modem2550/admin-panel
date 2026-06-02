@@ -3,9 +3,6 @@ import { getJob, cancelJob } from '$lib/download-manager.server';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-    if (!locals.session) {
-        return json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { id } = params;
     const job = getJob(id);
@@ -18,9 +15,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-    if (!locals.session) {
-        return json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { id } = params;
     const success = cancelJob(id);

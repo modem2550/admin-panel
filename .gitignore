@@ -6,7 +6,6 @@ node_modules
 .svelte-kit
 .netlify
 build
-src-tauri/binaries/
 
 # wrangler files
 .wrangler

@@ -1,28 +1,12 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { page } from "$app/stores";
 	import { onMount } from "svelte";
-	import { supabase } from "$lib/supabase";
 	import Toast from "$lib/components/Toast.svelte";
 	import { fade } from "svelte/transition";
 
-	type LayoutData = {
-		session?: {
-			access_token: string;
-			refresh_token: string;
-		};
-	};
-
-	let { data, children } = $props<{ data: LayoutData }>();
+	let { children } = $props();
 	let isMobileMenuOpen = $state(false);
 	let _toggleTheme: (() => void) | null = null;
-
-	// ตรวจสอบ session ทันทีเมื่อโหลดหน้า
-	$effect(() => {
-		if (!data.session) {
-			goto("/login");
-		}
-	});
 
 	function toggleTheme() {
 		if (_toggleTheme) _toggleTheme();
@@ -38,21 +22,6 @@
 	});
 
 	onMount(() => {
-		// Sync session
-		if (data.session) {
-			supabase.auth
-				.setSession({
-					access_token: data.session.access_token,
-					refresh_token: data.session.refresh_token,
-				})
-				.then(() => {
-					console.log("✅ Session synced in layout");
-				})
-				.catch((e) => {
-					console.warn("Session sync failed:", e);
-				});
-		}
-
 		// Theme Management
 		const storageKey = "cohere-theme-preference";
 		let theme = localStorage.getItem(storageKey) || "system";
@@ -88,18 +57,6 @@
 			localStorage.setItem(storageKey, next);
 			applyTheme(next);
 		};
-
-		// Auth listener
-		const {
-			data: { subscription },
-		} = supabase.auth.onAuthStateChange((event) => {
-			console.log("🔄 Auth event:", event);
-			if (event === "SIGNED_OUT") {
-				goto("/login");
-			}
-		});
-
-		return () => subscription.unsubscribe();
 	});
 </script>
 
@@ -158,13 +115,6 @@
 					>Downloader</a
 				>
 			</li>
-			<li>
-				<a
-					href="/settings"
-					class:active={$page.url.pathname === "/settings"}
-					>Settings</a
-				>
-			</li>
 		</ul>
 	</nav>
 
@@ -175,15 +125,6 @@
 			aria-label="Toggle Theme"
 		>
 			<i class="fa-solid fa-circle-half-stroke"></i>
-		</button>
-		<button
-			class="button-primary"
-			onclick={async () => {
-				await supabase.auth.signOut();
-				goto("/login");
-			}}
-		>
-			Sign Out
 		</button>
 	</div>
 </header>
@@ -238,25 +179,7 @@
 						>Downloader</a
 					>
 				</li>
-				<li>
-					<a
-						href="/settings"
-						class:active={$page.url.pathname === "/settings"}
-						>Settings</a
-					>
-				</li>
 			</ul>
-			<div class="mobile-footer">
-				<button
-					class="button-primary w-full"
-					onclick={async () => {
-						await supabase.auth.signOut();
-						goto("/login");
-					}}
-				>
-					Sign Out
-				</button>
-			</div>
 		</nav>
 	</div>
 {/if}
