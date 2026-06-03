@@ -1,38 +1,18 @@
 {
-	"/(app)": [
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
+	"/": [
+		"src/routes/+server.ts"
 	],
-	"/": [],
 	"/.well-known/security.txt": [
 		"src/routes/.well-known/security.txt/+server.ts"
 	],
-	"/api/assets/playback": [
-		"src/routes/api/assets/playback/+server.ts"
+	"/api/assets/[[action]]": [
+		"src/routes/api/assets/[[action]]/+server.ts"
 	],
-	"/api/assets/scan": [
-		"src/routes/api/assets/scan/+server.ts"
+	"/api/check-assets/[[mode]]": [
+		"src/routes/api/check-assets/[[mode]]/+server.ts"
 	],
-	"/api/assets/scan/status": [
-		"src/routes/api/assets/scan/status/+server.ts"
-	],
-	"/api/assets/scan/status/sku": [
-		"src/routes/api/assets/scan/status/sku/+server.ts"
-	],
-	"/api/assets/theater-archive": [
-		"src/routes/api/assets/theater-archive/+server.ts"
-	],
-	"/api/check-assets": [
-		"src/routes/api/check-assets/+server.ts"
-	],
-	"/api/check-assets/latest": [
-		"src/routes/api/check-assets/latest/+server.ts"
-	],
-	"/api/downloader/get-vod": [
-		"src/routes/api/downloader/get-vod/+server.ts"
-	],
-	"/api/downloader/search": [
-		"src/routes/api/downloader/search/+server.ts"
+	"/api/downloader": [
+		"src/routes/api/downloader/+server.ts"
 	],
 	"/api/downloads": [
 		"src/routes/api/downloads/+server.ts"
@@ -48,30 +28,6 @@
 	],
 	"/api/[...path]": [
 		"src/routes/api/[...path]/+server.ts"
-	],
-	"/(app)/assets": [
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
-	],
-	"/(app)/dashboard": [
-		"src/routes/(app)/dashboard/+page.server.ts",
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
-	],
-	"/(app)/downloader": [
-		"src/routes/(app)/downloader/+page.ts",
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
-	],
-	"/(app)/events": [
-		"src/routes/(app)/events/+page.ts",
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
-	],
-	"/(app)/members": [
-		"src/routes/(app)/members/+page.ts",
-		"src/routes/(app)/+layout.ts",
-		"src/routes/(app)/+layout.server.ts"
 	],
 	"/robots.txt": [
 		"src/routes/robots.txt/+server.ts"

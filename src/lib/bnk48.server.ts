@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import memberData from '../routes/(app)/members/Member.json';
+import memberData from './Member.json';
 import {
 	AUTH_URL, INFO_URL, M3U_URL, MEMBER_URL, TIMELINE_VIDEO_URL,
 	BATCH_THANKYOU_URL, TIMELINE_INFO_URL, API_V2_BASE, PLAYBACK_URL_HEAD,

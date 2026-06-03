@@ -6,11 +6,18 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request }) => {
     try {
         const body = await request.json().catch(() => ({}));
-        const { name, type = 'lives', skip = 0, take = 300, lastId } = body;
+        const { videoId, name, type = 'lives', skip = 0, take = 300, lastId } = body;
 
-        if (!name) return json({ error: 'Search term is required' }, { status: 400 });
+        // ── Case 1: Video ID lookup (formerly get-vod) ─────────────────────────
+        if (videoId) {
+            const vod = await getVOD(videoId);
+            return json({ vod });
+        }
 
-        // ── Timeline Post ──────────────────────────────────────────────────────
+        // ── Case 2: Search term query ──────────────────────────────────────────
+        if (!name) return json({ error: 'Search term or videoId is required' }, { status: 400 });
+
+        // ── Case 2a: Timeline Post URL Resolution ──────────────────────────────
         if (name.includes('timeline/content-member-timeline/') || name.includes('timeline/content-member-batch-thankyou/')) {
             let id = '';
             if (name.includes('timeline/content-member-timeline/')) {
@@ -27,7 +34,7 @@ export const POST: RequestHandler = async ({ request }) => {
             }
         }
 
-        // ── Live Playback ──────────────────────────────────────────────────────
+        // ── Case 2b: Live Playback URL Resolution ──────────────────────────────
         if (
             name.includes('member-playback/') ||
             name.includes('timeline/content-member-live-playback/')
@@ -48,7 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
             }
         }
 
-        // ── Member name search ──────────────────────────────────────────────────
+        // ── Case 2c: Member Name search ────────────────────────────────────────
         try {
             const memberId = await getMemberIdByName(name);
             if (!memberId) {
