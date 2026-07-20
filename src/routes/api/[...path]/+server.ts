@@ -1,6 +1,8 @@
 // src/routes/api/[...path]/+server.ts
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getToken } from '$lib/bnk48.server';
+import { DEFAULT_HEADERS } from '$lib/bnk48';
 
 // ✅ Whitelist domain — ป้องกัน SSRF (เหมือนเดิม ดีแล้ว)
 const DOMAIN_MAP: Record<string, string> = {
@@ -10,6 +12,9 @@ const DOMAIN_MAP: Record<string, string> = {
 	'app': 'https://app.bnk48.com',
 	'api': 'https://api.bnk48.com'
 };
+
+// prefix ที่เป็น static CDN — ไม่ต้องการ Bearer token
+const CDN_PREFIXES = new Set(['img']);
 
 // ✅ อนุญาต content type ที่ควรผ่าน proxy เท่านั้น
 const ALLOWED_CONTENT_TYPES = [
@@ -26,7 +31,7 @@ function isAllowedContentType(contentType: string | null): boolean {
 	return ALLOWED_CONTENT_TYPES.some(t => contentType.startsWith(t));
 }
 
-export const GET: RequestHandler = async ({ params, url, fetch, locals }) => {
+export const GET: RequestHandler = async ({ params, url, fetch }) => {
 
 	const fullPath = params.path;
 	if (!fullPath) throw error(400, 'Missing path');
@@ -44,8 +49,18 @@ export const GET: RequestHandler = async ({ params, url, fetch, locals }) => {
 		targetUrl.searchParams.set(key, value);
 	});
 
+	// ✅ ใส่ Bearer token และ Headers จริงเฉพาะ BNK48 API endpoints (ไม่ใช่ static CDN img)
+	const requestHeaders: Record<string, string> = { 'Accept': '*/*' };
+
+	if (!CDN_PREFIXES.has(prefix)) {
+		const token = await getToken();
+		Object.assign(requestHeaders, DEFAULT_HEADERS, {
+			'Authorization': `Bearer ${token}`
+		});
+	}
+
 	try {
-		const response = await fetch(targetUrl.toString());
+		const response = await fetch(targetUrl.toString(), { headers: requestHeaders });
 
 		if (!response.ok) {
 			return new Response(null, {

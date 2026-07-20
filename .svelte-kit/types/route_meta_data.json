@@ -1,7 +1,6 @@
 {
-	"/": [
-		"src/routes/+server.ts"
-	],
+	"/(app)": [],
+	"/": [],
 	"/.well-known/security.txt": [
 		"src/routes/.well-known/security.txt/+server.ts"
 	],
@@ -26,10 +25,32 @@
 	"/api/image/[...path]": [
 		"src/routes/api/image/[...path]/+server.ts"
 	],
+	"/api/status": [
+		"src/routes/api/status/+server.ts"
+	],
 	"/api/[...path]": [
 		"src/routes/api/[...path]/+server.ts"
 	],
+	"/(app)/auctions": [
+		"src/routes/(app)/auctions/+page.server.ts"
+	],
+	"/(app)/auctions/polls/[id]": [
+		"src/routes/(app)/auctions/polls/[id]/+page.server.ts"
+	],
+	"/(app)/auctions/[id]": [
+		"src/routes/(app)/auctions/[id]/+page.server.ts"
+	],
+	"/(app)/campaigns": [],
+	"/(app)/downloader": [],
+	"/(app)/events": [
+		"src/routes/(app)/events/+page.server.ts"
+	],
+	"/(app)/members": [
+		"src/routes/(app)/members/+page.server.ts"
+	],
 	"/robots.txt": [
 		"src/routes/robots.txt/+server.ts"
-	]
+	],
+	"/(app)/scanner": [],
+	"/(app)/theater": []
 }

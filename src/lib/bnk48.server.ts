@@ -3,7 +3,7 @@ import memberData from './Member.json';
 import {
 	AUTH_URL, INFO_URL, M3U_URL, MEMBER_URL, TIMELINE_VIDEO_URL,
 	BATCH_THANKYOU_URL, TIMELINE_INFO_URL, API_V2_BASE, PLAYBACK_URL_HEAD,
-	proxyUrl
+	CAMPAIGN_URL, proxyUrl, DEFAULT_HEADERS
 } from './bnk48';
 import type { MemberLive, VODResult, TimelineResult } from './bnk48';
 
@@ -98,8 +98,8 @@ export async function getUserId(): Promise<string> {
 	}
 }
 
-import { fetchTheaterArchive as fetchArchive } from './bnk48';
-import type { TheaterArchiveResult } from './bnk48';
+import { fetchTheaterArchive as fetchArchive, fetchTheaterTicketBooking } from './bnk48';
+import type { TheaterArchiveResult, TheaterTicketBookingResult } from './bnk48';
 
 /**
  * Server-side wrapper for theater archive fetching.
@@ -136,14 +136,33 @@ export async function getTheaterArchive(skip = 0, take = 20): Promise<TheaterArc
 	return result;
 }
 
+/**
+ * Server-side wrapper for theater ticket booking fetching.
+ */
+export async function getTheaterTicketBooking(skip = 0, take = 20): Promise<TheaterTicketBookingResult> {
+	const token = await getToken();
+	const userId = await getUserId();
+
+	const result = await fetchTheaterTicketBooking(userId, token, skip, take);
+
+	// Normalize result: some endpoints return array directly, others return { items: [] }
+	if (Array.isArray(result)) {
+		return {
+			items: result,
+			total: result.length,
+			skip,
+			take
+		};
+	}
+
+	return result;
+}
+
 async function httpGet<T>(url: string): Promise<T> {
 	let token = await getValidToken();
-	// ✅ ลบ console.log URL ทุก request (มีเยอะมาก ทำให้ log รก + อาจ leak path)
 	let response = await fetch(url, {
 		headers: {
-			'BNK48-Device-Id': 'null',
-			'BNK48-AppCode': 'null',
-			'BNK48-Device-Model': 'null',
+			...DEFAULT_HEADERS,
 			'Authorization': `Bearer ${token}`
 		}
 	});
@@ -152,9 +171,7 @@ async function httpGet<T>(url: string): Promise<T> {
 		token = await getValidToken(true);
 		response = await fetch(url, {
 			headers: {
-				'BNK48-Device-Id': 'null',
-				'BNK48-AppCode': 'null',
-				'BNK48-Device-Model': 'null',
+				...DEFAULT_HEADERS,
 				'Authorization': `Bearer ${token}`
 			}
 		});
@@ -250,6 +267,10 @@ export async function getMemberTimeline(
 
 export async function getVideoInfo(videoId: string): Promise<any> {
 	return httpGet<any>(`${INFO_URL}${videoId}`);
+}
+
+export async function getCampaign(campaignId: string | number): Promise<any> {
+	return httpGet<any>(`${CAMPAIGN_URL}${campaignId}`);
 }
 
 export async function getVOD(videoId: string | number): Promise<VODResult> {

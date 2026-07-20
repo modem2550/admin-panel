@@ -1,7 +1,7 @@
 import { json, error, type RequestEvent } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getTheaterArchive } from '$lib/bnk48.server';
-import { proxyUrl, getCDNDiscoveryUrls, getDefaultAssetUrl } from '$lib/bnk48';
+import { getTheaterArchive, getTheaterTicketBooking, getToken } from '$lib/bnk48.server';
+import { proxyUrl, getCDNDiscoveryUrls, getDefaultAssetUrl, DEFAULT_HEADERS } from '$lib/bnk48';
 import { supabaseAdmin } from '$lib/supabase.server';
 import https from 'node:https';
 
@@ -45,8 +45,19 @@ async function getMemberName(memberId: number): Promise<string> {
 let cachedAllIds: number[] | null = null;
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const PERFORMANCE_FETCH_BATCH = 20;
 
-async function getAllPerformanceIds(): Promise<number[]> {
+let validTotalCache: { idsKey: string; count: number; expiresAt: number } | null = null;
+
+async function getPerformanceAuthHeaders() {
+    const token = await getToken();
+    return {
+        ...DEFAULT_HEADERS,
+        Authorization: `Bearer ${token}`,
+    };
+}
+
+async function getAllPerformanceIds(headers: Record<string, string>): Promise<number[]> {
     if (cachedAllIds && Date.now() < cacheExpiresAt) return cachedAllIds;
 
     const idSet = new Set<number>();
@@ -64,7 +75,7 @@ async function getAllPerformanceIds(): Promise<number[]> {
     } catch {}
 
     try {
-        const resp = await fetch(PERFORMANCE_LIST_URL);
+        const resp = await fetch(PERFORMANCE_LIST_URL, { headers });
         if (resp.ok) {
             const data = await resp.json();
             const items = [
@@ -92,14 +103,68 @@ async function getAllPerformanceIds(): Promise<number[]> {
     return cachedAllIds;
 }
 
-async function fetchPerformance(id: number): Promise<any | null> {
+async function fetchPerformance(id: number, headers: Record<string, string>): Promise<any | null> {
     try {
-        const resp = await fetch(`${PERFORMANCE_URL}${id}`);
+        const resp = await fetch(`${PERFORMANCE_URL}${id}`, { headers });
         if (!resp.ok) return null;
         return await resp.json();
     } catch {
         return null;
     }
+}
+
+async function fetchPerformanceArchivePage(
+    allIds: number[],
+    headers: Record<string, string>,
+    skip: number,
+    take: number,
+): Promise<{ pairs: { item: any; id: number }[]; total: number }> {
+    const idsKey = allIds.join(',');
+    const cachedTotal =
+        validTotalCache &&
+        validTotalCache.idsKey === idsKey &&
+        Date.now() < validTotalCache.expiresAt
+            ? validTotalCache.count
+            : null;
+
+    const pairs: { item: any; id: number }[] = [];
+    let validSeen = 0;
+    let validCount = 0;
+
+    for (let i = 0; i < allIds.length; i += PERFORMANCE_FETCH_BATCH) {
+        if (pairs.length >= take && cachedTotal !== null) break;
+
+        const batchIds = allIds.slice(i, i + PERFORMANCE_FETCH_BATCH);
+        const batchResults = await Promise.all(
+            batchIds.map(async (id) => {
+                const item = await fetchPerformance(id, headers);
+                return item ? { id, item } : null;
+            }),
+        );
+
+        for (const result of batchResults) {
+            if (!result) continue;
+            validCount++;
+            if (validSeen < skip) {
+                validSeen++;
+                continue;
+            }
+            if (pairs.length < take) {
+                pairs.push(result);
+            }
+        }
+    }
+
+    if (cachedTotal !== null) {
+        return { pairs, total: cachedTotal };
+    }
+
+    validTotalCache = {
+        idsKey,
+        count: validCount,
+        expiresAt: Date.now() + CACHE_TTL_MS,
+    };
+    return { pairs, total: validCount };
 }
 
 // ── Scan helper functions ───────────────────────────────────────────────────────
@@ -266,6 +331,31 @@ export const GET: RequestHandler = async ({ url, params }) => {
         }
     }
 
+    // 1.5. Theater Ticket Booking
+    if (action === 'theater-ticket') {
+        const skip = parseInt(url.searchParams.get('skip') || '0');
+        const take = parseInt(url.searchParams.get('take') || '20');
+
+        if (isNaN(skip) || skip < 0) throw error(400, 'Invalid skip parameter');
+        if (isNaN(take) || take < 1 || take > 200) throw error(400, 'Invalid take parameter (1–200)');
+
+        try {
+            const result = await getTheaterTicketBooking(skip, take);
+            
+            return json({
+                items: result.items,
+                total: result.total,
+                skip: result.skip,
+                take: result.take
+            }, {
+                headers: { 'Cache-Control': 'no-store' }
+            });
+        } catch (e: any) {
+            console.error('[TheaterTicket] API error:', e);
+            throw error(500, e.message || 'Internal Server Error');
+        }
+    }
+
     // 2. Theater Archive (Performance) Listing
     if (action === 'theater-archive') {
         const skip = parseInt(url.searchParams.get('skip') || '0');
@@ -275,17 +365,20 @@ export const GET: RequestHandler = async ({ url, params }) => {
         if (isNaN(take) || take < 1 || take > 200) throw error(400, 'Invalid take parameter (1–200)');
 
         try {
-            const allIds = await getAllPerformanceIds();
+            const headers = await getPerformanceAuthHeaders();
+            const allIds = await getAllPerformanceIds(headers);
             const pageIds = allIds.slice(skip, skip + take);
 
             if (url.searchParams.get('raw') === '1') {
                 return json({ total: allIds.length, ids: pageIds });
             }
 
-            const rawResults = await Promise.all(pageIds.map(id => fetchPerformance(id)));
-            const validPairs = rawResults
-                .map((item, idx) => ({ item, id: pageIds[idx] }))
-                .filter(({ item }) => item !== null);
+            const { pairs: validPairs, total: validTotal } = await fetchPerformanceArchivePage(
+                allIds,
+                headers,
+                skip,
+                take,
+            );
 
             const assets = await Promise.all(
                 validPairs.map(async ({ item, id }) => {
@@ -337,7 +430,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
 
             return json({
                 items: assets,
-                total: allIds.length,
+                total: validTotal,
                 skip,
                 take
             }, {

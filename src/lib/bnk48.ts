@@ -8,6 +8,7 @@ export const MEMBER_URL = 'https://public.bnk48.io/member/';
 export const PLAYBACK_URL_HEAD = 'https://app.bnk48.com/member-playback/';
 export const API_V2_BASE = 'https://api.bnk48.com/api/v2';
 export const THEATER_ARCHIVE_URL = 'https://user.bnk48.io/user/';
+export const CAMPAIGN_URL = 'https://public.bnk48.io/campaign/';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export interface MemberLive {
@@ -42,6 +43,18 @@ export interface TheaterPlayback {
 
 export interface TheaterArchiveResult {
     items: TheaterPlayback[];
+    total: number;
+    skip: number;
+    take: number;
+}
+
+export interface TheaterTicketBooking {
+    id: string;
+    [key: string]: any;
+}
+
+export interface TheaterTicketBookingResult {
+    items: TheaterTicketBooking[];
     total: number;
     skip: number;
     take: number;
@@ -175,15 +188,16 @@ export function getCDNDiscoveryUrls(type: 'product' | 'group', id: number | stri
 
 export const DEFAULT_HEADERS = {
     'Accept': 'application/json',
-    'BNK48-AppVersion': '1.55.1',
+    'BNK48-AppVersion': '1.58.0',
     'BNK48-Device-Id': 'devi/8BFC4876-FA5B-5EDC-A460-9F6F3610C5A2',
     'BNK48-App-Id': 'BNK48_101',
     'Accept-Language': 'en-TH;q=1.0, th-TH;q=0.9',
     'Content-Type': 'application/json',
     'BNK48-Device-Model': 'iPadPro12Inch3',
-    'User-Agent': 'iAM48/1.55.1 (app.bnk48official; build:697; iOS 26.4.0) Alamofire/4.9.1',
+    'User-Agent': 'iAM48/1.58.0 (app.bnk48official; build:716; iOS 26.5.0) Alamofire/4.9.1',
     'Connection': 'keep-alive',
     'Environment': 'Production',
+    'x-api-key': 'UM4gogv6rM764J9IabmBrcMhoz2El1',
 } as const;
 
 /**
@@ -214,4 +228,27 @@ export async function fetchTheaterArchive(
     }
 
     return res.json() as Promise<TheaterArchiveResult>;
+}
+
+export async function fetchTheaterTicketBooking(
+    userId: number | string,
+    token: string,
+    skip = 0,
+    take = 20,
+): Promise<TheaterTicketBookingResult> {
+    const url = `${THEATER_ARCHIVE_URL}${userId}/theater-ticket/booking/current?skip=${skip}&take=${take}`;
+
+    const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+            ...DEFAULT_HEADERS,
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    if (!res.ok) {
+        throw new Error(`Theater ticket booking fetch failed: ${res.status} ${res.statusText}`);
+    }
+
+    return res.json() as Promise<TheaterTicketBookingResult>;
 }
