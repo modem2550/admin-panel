@@ -75,21 +75,21 @@
       class:active={activeTab === "auctions"}
       onclick={() => (activeTab = "auctions")}
     >
-      <i class="fa-solid fa-gavel"></i> Auctions
+      <i class="ti ti-gavel"></i> Auctions
     </button>
     <button
       class="btn btn-coral"
       class:active={activeTab === "polls"}
       onclick={() => (activeTab = "polls")}
     >
-      <i class="fa-solid fa-square-poll-vertical"></i> Poll Posters
+      <i class="ti ti-square-poll-vertical"></i> Poll Posters
     </button>
     <div class="tab-spacer"></div>
   </div>
 
   <div class="controls-bar">
     <div class="search-wrap">
-      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <i class="ti ti-magnifying-glass search-icon"></i>
       <input
         id="auctions-search"
         class="form-input search-input"
@@ -109,7 +109,7 @@
 
   {#if loadError}
     <div class="error-banner">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{loadError}</span>
     </div>
   {/if}
@@ -117,13 +117,13 @@
   {#if activeTab === "auctions"}
     {#if auctions.length === 0 && !loadError}
       <div class="empty-state">
-        <i class="fa-solid fa-gavel"></i>
+        <i class="ti ti-gavel"></i>
         <p>Loading auctions from API...</p>
         <div class="spinner"></div>
       </div>
     {:else if filteredAuctions.length === 0}
       <div class="empty-state">
-        <i class="fa-solid fa-filter-circle-xmark"></i>
+        <i class="ti ti-filter-circle-xmark"></i>
         <p>No batches match your search.</p>
       </div>
     {:else}
@@ -140,7 +140,7 @@
                 />
               {:else}
                 <div class="batch-thumb batch-thumb-placeholder">
-                  <i class="fa-solid fa-image"></i>
+                  <i class="ti ti-image"></i>
                 </div>
               {/if}
               <div class="batch-status-badge">
@@ -152,16 +152,16 @@
               <div class="batch-meta">
                 {#if auction.tokenSymbol}
                   <span class="meta-row">
-                    <i class="fa-solid fa-coins"></i>
+                    <i class="ti ti-coins"></i>
                     {auction.tokenSymbol}
                   </span>
                 {/if}
                 <span class="meta-row">
-                  <i class="fa-solid fa-images"></i>
+                  <i class="ti ti-images"></i>
                   {auction.auctionItemCount} items
                 </span>
                 <span class="meta-row">
-                  <i class="fa-regular fa-calendar"></i>
+                  <i class="ti ti-calendar"></i>
                   {formatDate(auction.startDate)} – {formatDate(auction.endDate)}
                 </span>
               </div>
@@ -173,13 +173,13 @@
   {:else}
     {#if polls.length === 0 && !loadError}
       <div class="empty-state">
-        <i class="fa-solid fa-square-poll-vertical"></i>
+        <i class="ti ti-square-poll-vertical"></i>
         <p>Loading polls from API...</p>
         <div class="spinner"></div>
       </div>
     {:else if filteredPolls.length === 0}
       <div class="empty-state">
-        <i class="fa-solid fa-filter-circle-xmark"></i>
+        <i class="ti ti-filter-circle-xmark"></i>
         <p>No polls match your search.</p>
       </div>
     {:else}
@@ -196,7 +196,7 @@
                 />
               {:else}
                 <div class="batch-thumb batch-thumb-placeholder">
-                  <i class="fa-solid fa-image"></i>
+                  <i class="ti ti-image"></i>
                 </div>
               {/if}
               <div class="batch-status-badge">
@@ -208,12 +208,12 @@
               <div class="batch-meta">
                 {#if poll.tokenName}
                   <span class="meta-row">
-                    <i class="fa-solid fa-fire"></i>
+                    <i class="ti ti-fire"></i>
                     {poll.tokenName}
                   </span>
                 {/if}
                 <span class="meta-row">
-                  <i class="fa-regular fa-calendar"></i>
+                  <i class="ti ti-calendar"></i>
                   {formatDate(poll.startDate)} – {formatDate(poll.endDate)}
                 </span>
               </div>
@@ -235,7 +235,7 @@
   .tabs-bar {
     display: flex;
     gap: var(--space-xs);
-    border-bottom: 1px solid var(--color-hairline);
+    border-bottom: 1px solid var(--border);
     padding-bottom: var(--space-sm);
   }
 
@@ -281,8 +281,8 @@
   .spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--color-hairline);
-    border-top-color: var(--color-ink);
+    border: 2px solid var(--border);
+    border-top-color: var(--ink);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-top: var(--space-md);
@@ -303,16 +303,19 @@
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-none);
-    background: var(--color-canvas);
-    transition: border-color var(--duration-normal) var(--ease-out);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--white);
+    box-shadow: none;
+    transition: box-shadow var(--duration-normal) var(--ease-out),
+                transform var(--duration-normal) var(--ease-out);
     display: flex;
     flex-direction: column;
   }
 
   .batch-card:hover {
-    border-color: var(--color-hairline-soft);
+    box-shadow: none;
+    transform: translateY(-2px);
   }
 
   .batch-thumb-wrap {
@@ -320,8 +323,8 @@
     position: relative;
     overflow: hidden;
     aspect-ratio: 4 / 3;
-    background: var(--color-surface-cool);
-    border-bottom: 1px solid var(--color-hairline);
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
   }
 
   .batch-thumb {
@@ -355,11 +358,11 @@
   }
 
   .batch-title {
-    font-family: var(--font-body);
+    font-family: var(--font-display);
     font-size: 20px;
-    font-weight: 400;
-    color: var(--color-ink);
-    line-height: 1;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.4;
     margin: 0;
   }
 
@@ -369,7 +372,7 @@
     gap: 4px;
     margin-top: var(--space-xs);
     padding-top: var(--space-sm);
-    border-top: 1px solid var(--color-hairline);
+    border-top: 1px solid var(--border);
   }
 
   .meta-row {

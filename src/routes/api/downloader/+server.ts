@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
-import { getMemberIdByName, getMemberLives, getMemberTimeline, getVOD, getTimeline, getCampaign } from '$lib/bnk48.server';
+import { findMembersByName, getMemberLives, getMemberTimeline, getVOD, getTimeline, getCampaign } from '$lib/bnk48.server';
 import { proxyUrl } from '$lib/bnk48';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
     try {
         const body = await request.json().catch(() => ({}));
-        const { videoId, name, type = 'lives', skip = 0, take = 300, lastId } = body;
+        const { videoId, name, type = 'lives', skip = 0, take = 300, lastId, memberId: explicitMemberId } = body;
 
         // ── Case 1: Video ID lookup (formerly get-vod) ─────────────────────────
         if (videoId) {
@@ -96,14 +96,49 @@ export const POST: RequestHandler = async ({ request }) => {
 
         // ── Case 2c: Member Name search ────────────────────────────────────────
         try {
-            const memberId = await getMemberIdByName(name);
+            let memberId: number | null = null;
+            let resolvedName = name;
+
+            if (explicitMemberId) {
+                // Caller already disambiguated which member they mean (e.g. after
+                // picking from a "same name" list) — use that id directly.
+                memberId = Number(explicitMemberId);
+            } else {
+                const matches = findMembersByName(name);
+
+                if (matches.length === 0) {
+                    return json({ error: 'Member not found' }, { status: 404 });
+                }
+
+                if (matches.length > 1) {
+                    // Multiple members share this name (codeName / real name) —
+                    // let the client show a picker instead of guessing.
+                    return json({
+                        members: matches.map((m: any) => ({
+                            id: m.id,
+                            codeName: m.codeName,
+                            displayName: m.displayName,
+                            displayNameEn: m.displayNameEn,
+                            subtitle: m.subtitle,
+                            subtitleEn: m.subtitleEn,
+                            brand: m.brand,
+                            profileImageUrl: m.profileImageUrl,
+                        })),
+                    });
+                }
+
+                memberId = matches[0].id;
+                resolvedName = matches[0].displayNameEn || matches[0].displayName || name;
+            }
+
             if (!memberId) {
                 return json({ error: 'Member not found' }, { status: 404 });
             }
 
             if (type === 'posts') {
                 const timelineData = await getMemberTimeline(memberId, skip, take, lastId);
-                const feeds = (timelineData?.feeds || []).filter((f: any) =>
+                const rawFeeds = timelineData?.feeds || [];
+                const feeds = rawFeeds.filter((f: any) =>
                     f && f.content && (
                         f.itemType === 'content-member-timeline' ||
                         f.itemType === 'content-member-live-playback' ||
@@ -125,10 +160,23 @@ export const POST: RequestHandler = async ({ request }) => {
                         resourceUrl: null as string | null,
                     };
                 });
-                return json({ posts: mappedPosts, memberName: name, memberId });
+                // Cursor to continue from on the next "load more" — advance to the
+                // last RAW feed item (not the filtered subset) so the underlying
+                // cursor-based pagination doesn't skip or repeat items.
+                const nextLastId = rawFeeds.length > 0 ? rawFeeds[rawFeeds.length - 1].id : null;
+                const hasMore = rawFeeds.length >= take;
+                return json({
+                    posts: mappedPosts,
+                    memberName: resolvedName,
+                    memberId,
+                    nextLastId,
+                    hasMore,
+                });
             } else {
                 const lives = await getMemberLives(memberId, skip, take);
-                return json({ lives, memberName: name, memberId });
+                const nextSkip = skip + lives.length;
+                const hasMore = lives.length >= take;
+                return json({ lives, memberName: resolvedName, memberId, nextSkip, hasMore });
             }
         } catch (err: any) {
             console.error(`[Playback Action] Search Error: ${err.message}`);

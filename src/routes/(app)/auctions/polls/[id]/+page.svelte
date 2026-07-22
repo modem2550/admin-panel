@@ -27,13 +27,13 @@
 
 <div class="poll-detail fade-in">
   <a href="/auctions?tab=polls" class="back-link">
-    <i class="fa-solid fa-arrow-left"></i>
+    <i class="ti ti-arrow-left"></i>
     Back to Poll Posters
   </a>
 
   {#if loadError}
     <div class="error-banner">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{loadError}</span>
     </div>
   {:else if poll}
@@ -41,20 +41,20 @@
       <div class="poll-header">
         <div class="poll-header-info">
           <p class="text-mono-label page-label">iam48 API</p>
-          <span class="chip chip-completed"><i class="fa-solid fa-fire"></i> {poll.tokenName}</span>
+          <span class="chip chip-completed"><i class="ti ti-fire"></i> {poll.tokenName}</span>
           <h1 class="poll-title">{poll.pollName}</h1>
           <p class="poll-question">{poll.question}</p>
           <div class="poll-dates">
             <span class="meta-row">
-              <i class="fa-regular fa-calendar"></i>
+              <i class="ti ti-calendar"></i>
               {formatDate(poll.startDate)} – {formatDate(poll.endDate)}
             </span>
             <span class="meta-row">
-              <i class="fa-solid fa-check-to-slot"></i>
+              <i class="ti ti-check-to-slot"></i>
               Status: {poll.eventStatus}
             </span>
             <span class="meta-row">
-              <i class="fa-solid fa-images"></i>
+              <i class="ti ti-images"></i>
               {poll.results.length} results
             </span>
           </div>
@@ -63,18 +63,18 @@
           {#if poll.coverPhotoUrl}
             <img src={poll.coverPhotoUrl} alt={poll.pollName} class="cover-image" />
           {:else}
-            <div class="cover-placeholder"><i class="fa-solid fa-image"></i></div>
+            <div class="cover-placeholder"><i class="ti ti-image"></i></div>
           {/if}
         </div>
       </div>
 
       <div class="poll-results-title">
-        <h2><i class="fa-solid fa-ranking-star"></i> Results Board</h2>
+        <h2><i class="ti ti-ranking-star"></i> Results Board</h2>
       </div>
 
       {#if poll.results.length === 0}
         <div class="empty-state">
-          <i class="fa-solid fa-square-poll-vertical"></i>
+          <i class="ti ti-square-poll-vertical"></i>
           <p>No results for this poll.</p>
         </div>
       {:else}
@@ -96,7 +96,7 @@
                 <h3 class="poster-name">{result.answer}</h3>
                 <p class="poster-team">{result.teamName}</p>
                 <div class="poster-score">
-                  <i class="fa-solid fa-coins"></i>
+                  <i class="ti ti-coins"></i>
                   <span>
                     {Number(result.numOfVoter).toLocaleString(undefined, {
                       minimumFractionDigits: 0,
@@ -119,7 +119,7 @@
   <div class="modal-backdrop fade-in" onclick={() => (selectedThankYouImage = null)}>
     <div class="modal-content fade-in-up" onclick={(e) => e.stopPropagation()}>
       <button class="modal-close" onclick={() => (selectedThankYouImage = null)} aria-label="Close">
-        <i class="fa-solid fa-xmark"></i>
+        <i class="ti ti-x"></i>
       </button>
       <img src={selectedThankYouImage} alt="Thank You" class="thankyou-image" />
     </div>
@@ -145,7 +145,7 @@
   }
 
   .back-link:hover {
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .poll-section {
@@ -153,8 +153,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-lg);
-    background: var(--color-canvas);
-    border: 1px solid var(--color-hairline);
+    background: var(--white);
+    border: 1px solid var(--border);
     border-radius: var(--radius-none);
   }
 
@@ -178,7 +178,7 @@
     font-family: var(--font-body);
     font-size: 28px;
     font-weight: 400;
-    color: var(--color-ink);
+    color: var(--ink);
     margin: 0;
     line-height: 1;
     letter-spacing: -0.5px;
@@ -208,7 +208,7 @@
   .poll-cover {
     width: 240px;
     aspect-ratio: 16/9;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     overflow: hidden;
     background: var(--color-soft-stone);
     flex-shrink: 0;
@@ -247,8 +247,8 @@
   .result-poster {
     position: relative;
     background: var(--color-canvas-warm);
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    border-radius: 8px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -279,14 +279,14 @@
     align-items: center;
     text-align: center;
     gap: 4px;
-    background: var(--color-canvas);
+    background: var(--white);
   }
 
   .poster-name {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .poster-team {
@@ -302,7 +302,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--color-ink);
+    color: var(--ink);
     font-weight: 600;
     font-size: 14px;
   }
@@ -327,7 +327,7 @@
   .rank-1,
   .rank-2,
   .rank-3 {
-    background: var(--color-ink);
+    background: var(--ink);
     color: var(--color-on-primary);
   }
 
@@ -349,9 +349,9 @@
     position: relative;
     max-width: 90vw;
     max-height: 90vh;
-    background: var(--color-canvas);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--color-hairline);
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border);
     overflow: hidden;
   }
 

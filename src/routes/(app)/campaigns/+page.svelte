@@ -109,7 +109,7 @@
   <div class="filter-row card">
     <div class="filter-inner">
       <div class="filter-info">
-        <i class="fa-solid fa-flag text-coral" style="margin-right: 8px;"></i>
+        <i class="ti ti-flag text-coral" style="margin-right: 8px;"></i>
         <span>Sort campaigns by ID sequence:</span>
       </div>
       <div class="filter-actions">
@@ -126,7 +126,7 @@
           onclick={loadCampaigns}
           disabled={loading}
         >
-          <i class="fa-solid fa-refresh" style="margin-right: 6px;"></i> Refresh
+          <i class="ti ti-refresh" style="margin-right: 6px;"></i> Refresh
         </button>
       </div>
     </div>
@@ -135,14 +135,14 @@
   <!-- Error Banner -->
   {#if error}
     <div class="error-banner fade-in">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{error}</span>
       <button
         class="btn-icon"
         onclick={() => (error = "")}
         aria-label="Dismiss error"
       >
-        <i class="fa-solid fa-xmark"></i>
+        <i class="ti ti-x"></i>
       </button>
     </div>
   {/if}
@@ -150,7 +150,7 @@
   <!-- Loading State -->
   {#if loading}
     <div class="loading-state">
-      <i class="fa-solid fa-spinner fa-spin fa-2x text-coral"></i>
+      <i class="ti ti-loader ti-spin ti-lg text-coral"></i>
       <p style="margin-top: 12px; color: var(--color-muted);">
         Loading campaigns from BNK48 API...
       </p>
@@ -158,7 +158,7 @@
   {:else if campaigns.length === 0}
     <!-- Empty State -->
     <div class="empty-state card">
-      <i class="fa-solid fa-flag-checkered"></i>
+      <i class="ti ti-flag-checkered"></i>
       <p>No campaigns found.</p>
     </div>
   {:else}
@@ -179,7 +179,7 @@
               />
             {:else}
               <div class="card-image-placeholder">
-                <i class="fa-solid fa-flag fa-2x"></i>
+                <i class="ti ti-flag ti-lg"></i>
               </div>
             {/if}
             <span class="campaign-id-badge">ID: {camp.id}</span>
@@ -227,10 +227,10 @@
           disabled={loadingMore}
         >
           {#if loadingMore}
-            <i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"
+            <i class="ti ti-loader ti-spin" style="margin-right: 6px;"
             ></i> Loading...
           {:else}
-            <i class="fa-solid fa-arrow-down" style="margin-right: 6px;"></i> Load
+            <i class="ti ti-arrow-down" style="margin-right: 6px;"></i> Load
             More Campaigns
           {/if}
         </button>
@@ -262,7 +262,7 @@
             onclick={() => (selectedCampaign = null)}
             aria-label="Close details"
           >
-            <i class="fa-solid fa-xmark"></i>
+            <i class="ti ti-x"></i>
           </button>
         </div>
         <div class="modal-body">
@@ -334,7 +334,7 @@
   }
 
   .text-coral {
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .filter-row {
@@ -363,7 +363,7 @@
   }
 
   .text-coral {
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .loading-state {
@@ -403,9 +403,9 @@
     overflow: hidden;
     cursor: pointer;
     transition: border-color var(--duration-fast) var(--ease-out);
-    background: var(--color-canvas);
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-none);
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
   }
 
   .campaign-card:hover {
@@ -416,7 +416,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 10;
-    background: var(--color-surface-cool);
+    background: var(--card);
     overflow: hidden;
   }
 
@@ -442,7 +442,7 @@
     background: var(--color-footer);
     color: var(--color-on-primary);
     padding: 2px 8px;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     font-size: 11px;
   }
 
@@ -456,7 +456,7 @@
   .campaign-title {
     font-size: 16px;
     font-weight: 500;
-    color: var(--color-ink);
+    color: var(--ink);
     margin: 0;
   }
 
@@ -466,12 +466,12 @@
   }
 
   .display-text-p.line1 {
-    color: var(--color-ink);
+    color: var(--ink);
     font-weight: 600;
   }
 
   .display-text-p.line2 {
-    color: var(--color-graphite);
+    color: var(--ink);
   }
 
   /* Progress Bar */
@@ -503,8 +503,8 @@
 
   .progress-bar-fill {
     height: 100%;
-    background: var(--color-ink);
-    border-radius: var(--radius-full);
+    background: var(--ink);
+    border-radius: 999px;
     transition: width 0.3s ease;
   }
 
@@ -532,15 +532,15 @@
   }
 
   .modal-content {
-    background: var(--color-canvas);
+    background: var(--white);
     width: 100%;
     max-width: 640px;
     max-height: 90vh;
     overflow-y: auto;
     padding: 0;
     cursor: default;
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-none);
+    border: 1px solid var(--border);
+    border-radius: 16px;
   }
 
   .modal-header {
@@ -574,7 +574,7 @@
     font-size: 20px;
     font-weight: 500;
     margin: 0;
-    color: var(--color-ink);
+    color: var(--ink);
     line-height: 1.3;
   }
 
@@ -589,7 +589,7 @@
     gap: 8px;
     padding: 16px;
     background: var(--color-soft-stone);
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
   }
 
   .modal-description {

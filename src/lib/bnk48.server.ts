@@ -190,15 +190,29 @@ async function httpGet<T>(url: string): Promise<T> {
 }
 
 // ── Member ID cache ────────────────────────────────────────────────────────────
-export async function getMemberIdByName(name: string): Promise<number | null> {
+
+/**
+ * Finds all members whose codeName / displayName / displayNameEn / subtitle (real name TH)
+ * / subtitleEn (real name EN) exactly match the given search string (case-insensitive).
+ * Some names (e.g. "nana") are shared by more than one member across brands/generations,
+ * so this can return multiple matches — callers should let the user disambiguate.
+ */
+export function findMembersByName(name: string): any[] {
 	const searchName = name.trim().toLowerCase();
-	const member = memberData.find(
+	if (!searchName) return [];
+	return (memberData as any[]).filter(
 		(m: any) =>
 			m.codeName?.toLowerCase() === searchName ||
 			m.displayNameEn?.toLowerCase() === searchName ||
-			m.displayName?.toLowerCase() === searchName
+			m.displayName?.toLowerCase() === searchName ||
+			m.subtitle?.toLowerCase() === searchName ||
+			m.subtitleEn?.toLowerCase() === searchName
 	);
-	return member ? member.id : null;
+}
+
+export async function getMemberIdByName(name: string): Promise<number | null> {
+	const matches = findMembersByName(name);
+	return matches.length > 0 ? matches[0].id : null;
 }
 
 export async function getMemberLives(

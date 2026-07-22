@@ -3,34 +3,19 @@
 
   let { children } = $props();
 
-  let sidebarOpen = $state(true);
-  let mobileMenuOpen = $state(false);
-
   const navItems = [
-    { href: "/", icon: "fa-solid fa-house", label: "Dashboard" },
-    { href: "/downloader", icon: "fa-solid fa-download", label: "Downloader" },
-    { href: "/theater", icon: "fa-solid fa-film", label: "Theater Archive" },
-    { href: "/scanner", icon: "fa-solid fa-panorama", label: "Asset Scanner" },
-    { href: "/campaigns", icon: "fa-solid fa-flag", label: "Campaigns" },
-    { href: "/members", icon: "fa-solid fa-users", label: "Members" },
-    { href: "/events", icon: "fa-solid fa-calendar-plus", label: "Events" },
-    { href: "/auctions", icon: "fa-solid fa-gavel", label: "Auctions" },
+    { href: "/", label: "Dashboard" },
+    { href: "/downloader", label: "Downloader" },
+    { href: "/theater", label: "Theater Archive" },
+    { href: "/scanner", label: "Asset Scanner" },
+    { href: "/campaigns", label: "Campaigns" },
+    { href: "/members", label: "Members" },
+    { href: "/events", label: "Events" },
+    { href: "/auctions", label: "Auctions" },
   ];
 
-  function toggleSidebar() {
-    sidebarOpen = !sidebarOpen;
-  }
-
-  function toggleMobileMenu() {
-    mobileMenuOpen = !mobileMenuOpen;
-  }
-
-  function closeMobileMenu() {
-    mobileMenuOpen = false;
-  }
-
-  // Determine active path
   let currentPath = $state("/");
+  let mobileMenuOpen = $state(false);
 
   $effect(() => {
     if (typeof window !== "undefined") {
@@ -42,344 +27,318 @@
     if (href === "/") return currentPath === "/";
     return currentPath.startsWith(href);
   }
+
+  function toggleMobileMenu() {
+    mobileMenuOpen = !mobileMenuOpen;
+  }
+
+  function closeMobileMenu() {
+    mobileMenuOpen = false;
+  }
+
+  function onMobileMenuKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") closeMobileMenu();
+  }
 </script>
 
 <svelte:head>
   <title>Admin Panel</title>
 </svelte:head>
 
-<div class="app-shell" class:sidebar-collapsed={!sidebarOpen}>
-  <!-- Mobile overlay -->
-  {#if mobileMenuOpen}
-    <div
-      class="mobile-overlay"
-      onclick={closeMobileMenu}
-      role="presentation"
-    ></div>
-  {/if}
+<svelte:window onkeydown={onMobileMenuKeydown} />
 
-  <!-- Sidebar -->
-  <aside class="sidebar" class:mobile-open={mobileMenuOpen}>
-    <div class="sidebar-header">
-      <div class="sidebar-brand">
-        {#if sidebarOpen}
-          <span class="brand-text">admin panel</span>
-        {:else}
-          <span class="brand-mark">a</span>
-        {/if}
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand">
+        <img src="/app-logo.png" alt="Logo" class="logo" />
+        <span class="wordmark">Admin panel</span>
       </div>
-      <button
-        class="btn-icon hide-mobile"
-        onclick={toggleSidebar}
-        aria-label="Toggle sidebar"
-      >
-        <i
-          class="fa-solid"
-          class:fa-chevron-left={sidebarOpen}
-          class:fa-chevron-right={!sidebarOpen}
-        ></i>
-      </button>
+      <nav class="nav-links">
+        {#each navItems as item}
+          <a
+            href={item.href}
+            class="nav-link"
+            class:active={isActive(item.href)}
+          >
+            {item.label}
+          </a>
+        {/each}
+      </nav>
     </div>
 
-    <nav class="sidebar-nav">
-      {#each navItems as item}
-        <a
-          href={item.href}
-          class="nav-item"
-          class:active={isActive(item.href)}
-          onclick={closeMobileMenu}
-        >
-          <i class={item.icon}></i>
-          {#if sidebarOpen || mobileMenuOpen}
-            <span>{item.label}</span>
-          {/if}
-        </a>
-      {/each}
-    </nav>
+    <button
+      class="burger-btn"
+      onclick={toggleMobileMenu}
+      aria-label="Open menu"
+      aria-expanded={mobileMenuOpen}
+    >
+      <i class="ti ti-menu-2"></i>
+    </button>
+  </header>
 
-    <div class="sidebar-footer">
-      {#if sidebarOpen}
-        <div class="sidebar-status">
-          <div class="status-dot online"></div>
-          <span class="text-micro">System Online</span>
+  <!-- Mobile slide-in nav -->
+  {#if mobileMenuOpen}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="mobile-nav-backdrop" onclick={closeMobileMenu}></div>
+    <nav class="mobile-nav-drawer" aria-label="Mobile navigation">
+      <div class="mobile-nav-header">
+        <div class="brand">
+          <img src="/app-logo.png" alt="Logo" class="logo" />
+          <span class="wordmark">Admin panel</span>
         </div>
-      {/if}
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <div class="main-wrapper">
-    <!-- Top bar -->
-    <header class="topbar">
-      <div class="topbar-left">
-        <button
-          class="btn-icon show-mobile-only"
-          onclick={toggleMobileMenu}
-          aria-label="Open menu"
-        >
-          <i class="fa-solid fa-bars"></i>
+        <button class="mobile-nav-close" onclick={closeMobileMenu} aria-label="Close menu">
+          <i class="ti ti-x"></i>
         </button>
       </div>
-      <div class="topbar-right">
-        <span class="text-micro">BNK48 Content Manager</span>
+      <div class="mobile-nav-links">
+        {#each navItems as item}
+          <a
+            href={item.href}
+            class="mobile-nav-link"
+            class:active={isActive(item.href)}
+            onclick={closeMobileMenu}
+          >
+            {item.label}
+          </a>
+        {/each}
       </div>
-    </header>
+    </nav>
+  {/if}
 
-    <!-- Page content -->
-    <main class="main-content">
-      {@render children()}
-    </main>
-  </div>
+  <main class="main-content">
+    {@render children()}
+  </main>
 </div>
 
 <style>
   .app-shell {
     display: flex;
-    min-height: 100vh;
-    position: relative;
-  }
-
-  /* ── Sidebar ─────────────────────────────────────────────────────────── */
-  .sidebar {
-    width: var(--sidebar-width);
-    background: var(--color-footer);
-    color: var(--color-on-primary);
-    display: flex;
     flex-direction: column;
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 100;
-    transition: width var(--duration-slow) var(--ease-out);
-    overflow: hidden;
+    min-height: 100vh;
+    background: var(--white);
   }
 
-  .sidebar-collapsed .sidebar {
-    width: var(--sidebar-collapsed);
-  }
-
-  .sidebar-header {
+  /* ── Header ──────────────────────────────────────────────────────────── */
+  .app-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-lg);
-    min-height: var(--topbar-height);
+    height: 56px;
+    padding: 0 32px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
   }
 
-  .sidebar-brand {
+  .header-left {
     display: flex;
     align-items: center;
-    overflow: hidden;
+    gap: 32px;
   }
 
-  .brand-text {
-    font-family: var(--font-body);
-    font-size: 14px;
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+
+  .wordmark {
+    font-family: "Outfit", sans-serif;
+    font-size: 16px;
     font-weight: 600;
-    letter-spacing: 0;
-    text-transform: lowercase;
+    color: var(--ink);
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
     white-space: nowrap;
-    color: var(--color-on-primary);
-    opacity: 1;
-    transition: opacity var(--duration-normal) var(--ease-out);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .brand-mark {
-    font-family: var(--font-body);
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    font-family: "Outfit", sans-serif;
     font-size: 14px;
-    font-weight: 600;
-    text-transform: lowercase;
-    color: var(--color-on-primary);
+    font-weight: 500;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 999px;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+    text-decoration: none;
   }
 
-  .sidebar-collapsed .brand-text {
-    opacity: 0;
+  .nav-link:hover {
+    color: var(--ink);
   }
 
-  .sidebar-header .btn-icon {
-    color: var(--color-stone);
+  .nav-link.active {
+    background: var(--card);
+    color: var(--ink);
+  }
+
+  /* ── Burger button (mobile only) ───────────────────────────────────── */
+  .burger-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--ink);
+    font-size: 18px;
+    cursor: pointer;
     flex-shrink: 0;
   }
 
-  .sidebar-header .btn-icon:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--color-on-primary);
+  .burger-btn:hover {
+    background: var(--card);
   }
 
-  /* ── Nav Items ─────────────────────────────────────────────────────── */
-  .sidebar-nav {
-    flex: 1;
-    padding: var(--space-xs) var(--space-sm);
+  /* ── Mobile slide-in drawer ────────────────────────────────────────── */
+  .mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    animation: mobileBackdropIn 0.15s ease;
+  }
+
+  @keyframes mobileBackdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .mobile-nav-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 201;
+    width: min(78vw, 300px);
+    background: var(--white);
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    animation: mobileDrawerIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes mobileDrawerIn {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+
+  .mobile-nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .mobile-nav-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .mobile-nav-close:hover {
+    background: var(--card);
+  }
+
+  .mobile-nav-links {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    padding: 12px;
+    overflow-y: auto;
   }
 
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-xs) var(--space-sm);
-    border-radius: var(--radius-xs);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.43;
-    color: var(--color-stone);
-    transition: color var(--duration-fast) var(--ease-out),
-                background var(--duration-fast) var(--ease-out);
+  .mobile-nav-link {
+    font-family: "Outfit", sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 12px 14px;
+    border-radius: 10px;
     text-decoration: none;
-    white-space: nowrap;
-    overflow: hidden;
+    transition: background 0.15s ease, color 0.15s ease;
   }
 
-  .nav-item i {
-    width: 20px;
-    text-align: center;
-    font-size: 14px;
-    flex-shrink: 0;
-    opacity: 0.7;
+  .mobile-nav-link:hover {
+    background: var(--card);
+    color: var(--ink);
   }
 
-  .nav-item:hover {
-    color: var(--color-on-primary);
-  }
-
-  .nav-item.active {
-    color: var(--color-on-primary);
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .sidebar-collapsed .nav-item {
-    justify-content: center;
-    padding: var(--space-sm);
-  }
-
-  .sidebar-collapsed .nav-item span {
-    display: none;
-  }
-
-  /* ── Sidebar Footer ────────────────────────────────────────────────── */
-  .sidebar-footer {
-    padding: var(--space-md) var(--space-lg);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .sidebar-status {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    color: var(--color-stone);
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .status-dot.online {
-    background: var(--color-on-primary);
-  }
-
-  /* ── Mobile Overlay ────────────────────────────────────────────────── */
-  .mobile-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(3, 3, 3, 0.6);
-    z-index: 99;
-  }
-
-  /* ── Main Wrapper ──────────────────────────────────────────────────── */
-  .main-wrapper {
-    flex: 1;
-    margin-left: var(--sidebar-width);
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    transition: margin-left var(--duration-slow) var(--ease-out);
-  }
-
-  .sidebar-collapsed .main-wrapper {
-    margin-left: var(--sidebar-collapsed);
-  }
-
-  /* ── Top Bar ───────────────────────────────────────────────────────── */
-  .topbar {
-    height: var(--topbar-height);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--space-lg);
-    background: var(--color-canvas);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
-  .topbar-right .text-micro {
-    color: var(--color-slate);
-    letter-spacing: 0.35px;
-    text-transform: uppercase;
-    font-size: 11px;
-    font-weight: 450;
-  }
-
-  .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+  .mobile-nav-link.active {
+    background: var(--card);
+    color: var(--ink);
+    font-weight: 600;
   }
 
   /* ── Main Content ──────────────────────────────────────────────────── */
   .main-content {
     flex: 1;
-    padding: var(--space-xl) var(--space-xxl);
-    max-width: 1280px;
+    padding: 32px 48px;
+    max-width: 1200px;
     width: 100%;
     margin: 0 auto;
-    animation: fade-in var(--duration-normal) var(--ease-out);
   }
 
-  /* ── Responsive ────────────────────────────────────────────────────── */
-  @media (max-width: 768px) {
-    .sidebar {
-      transform: translateX(-100%);
-      width: 280px;
+  /* ── Responsive: switch to burger menu on narrow screens ────────────── */
+  @media (max-width: 1000px) {
+    .app-header {
+      padding: 0 16px;
     }
 
-    .sidebar.mobile-open {
-      transform: translateX(0);
+    .header-left {
+      gap: 12px;
     }
 
-    .mobile-overlay {
-      display: block;
+    .nav-links {
+      display: none;
     }
 
-    .main-wrapper {
-      margin-left: 0 !important;
+    .burger-btn {
+      display: flex;
     }
 
     .main-content {
       padding: 20px 16px;
-    }
-
-    .topbar {
-      padding: 0 16px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    .main-content {
-      padding: 24px;
     }
   }
 </style>

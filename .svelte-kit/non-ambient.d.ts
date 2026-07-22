@@ -72,6 +72,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/" | "/.well-known/security.txt" | `/api/assets${string}` & {} | `/api/check-assets${string}` & {} | "/api/downloader" | "/api/downloads" | `/api/downloads/${string}` & {} | `/api/downloads/${string}/file` & {} | `/api/image/${string}` & {} | "/api/status" | `/api/${string}` & {} | "/auctions" | `/auctions/polls/${string}` & {} | `/auctions/${string}` & {} | "/campaigns" | "/downloader" | "/events" | "/members" | "/robots.txt" | "/scanner" | "/theater";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/.assetsignore" | "/apple-touch-icon-precomposed.png" | "/apple-touch-icon.png" | "/favicon.ico" | "/favicon.png" | "/favicon.svg" | "/ffmpeg/ffmpeg-core.js" | "/ffmpeg/ffmpeg-core.wasm" | string & {};
+		Asset(): "/.assetsignore" | "/app-logo.png" | "/apple-touch-icon-precomposed.png" | "/apple-touch-icon.png" | "/favicon.ico" | "/favicon.png" | "/favicon.svg" | "/ffmpeg/ffmpeg-core.js" | "/ffmpeg/ffmpeg-core.wasm" | string & {};
 	}
 }

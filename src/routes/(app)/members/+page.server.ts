@@ -30,6 +30,36 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
+	createMember: async ({ request }) => {
+		const form = await request.formData();
+		const name = String(form.get('name') ?? '').trim();
+
+		if (!name) {
+			return fail(400, { error: 'Member name is required.' });
+		}
+
+		const payload = {
+			name,
+			real_name: String(form.get('real_name') ?? '').trim() || null,
+			brand: String(form.get('brand') ?? '').trim() || null,
+			gen: String(form.get('gen') ?? '').trim() || null,
+			team: String(form.get('team') ?? '').trim() || null,
+			profile_image_url: String(form.get('profile_image_url') ?? '').trim() || null,
+			graduated_at: String(form.get('graduated_at') ?? '').trim() || null,
+			created_at: new Date().toISOString()
+		};
+
+		const { error } = await supabaseAdmin
+			.from('members')
+			.insert(payload);
+
+		if (error) {
+			console.error('[members] insert error:', error.message);
+			return fail(500, { error: error.message });
+		}
+
+		return { success: true };
+	},
 	updateMember: async ({ request }) => {
 		const form = await request.formData();
 		const id = Number(form.get('id'));

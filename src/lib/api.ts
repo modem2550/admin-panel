@@ -96,16 +96,28 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 // ── Downloader API ─────────────────────────────────────────────────────────────
 
+export interface MemberCandidate {
+  id: number;
+  codeName: string;
+  displayName: string;
+  displayNameEn: string;
+  subtitle: string;
+  subtitleEn: string;
+  brand: string;
+  profileImageUrl?: string;
+}
+
 export async function searchMember(
   name: string,
   type: 'lives' | 'posts' = 'lives',
   skip = 0,
-  take = 300,
-  lastId?: string
+  take = 60,
+  lastId?: string,
+  memberId?: number
 ) {
   return apiFetch<any>('/api/downloader', {
     method: 'POST',
-    body: JSON.stringify({ name, type, skip, take, lastId }),
+    body: JSON.stringify({ name, type, skip, take, lastId, memberId }),
   });
 }
 

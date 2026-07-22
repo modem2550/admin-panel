@@ -23,12 +23,14 @@
   let downloadStarted = $state<Record<string, boolean>>({});
 
   // ── Fetch ────────────────────────────────────────────────────────────────
+  let hasMore = $state(false);
   let loadingMore = $state(false);
 
   async function fetchInitialData() {
     loading = true;
     error = "";
     items = [];
+    hasMore = false;
 
     try {
       const data =
@@ -39,7 +41,8 @@
             : await getTheaterTicketBooking(0, pageSize);
 
       items = data.items;
-      total = data.total;
+      total = data.total || items.length;
+      hasMore = data.items.length === pageSize;
     } catch (e: any) {
       error = e.message || "Failed to load archive";
     } finally {
@@ -48,7 +51,7 @@
   }
 
   async function loadMore() {
-    if (loadingMore || items.length >= total) return;
+    if (loadingMore || !hasMore) return;
     loadingMore = true;
     error = "";
 
@@ -65,7 +68,8 @@
         (newItem) => !items.some((existing) => existing.id === newItem.id),
       );
       items = [...items, ...newItems];
-      total = data.total;
+      total = data.total || items.length;
+      hasMore = data.items.length === pageSize;
     } catch (e: any) {
       error = e.message || "Failed to load archive";
     } finally {
@@ -143,14 +147,14 @@
       class:active={activeTab === "playback"}
       onclick={() => switchTab("playback")}
     >
-      <i class="fa-solid fa-play-circle"></i> Playback
+      <i class="ti ti-player-play-circle"></i> Playback
     </button>
     <button
       class="btn btn-coral"
       class:active={activeTab === "performance"}
       onclick={() => switchTab("performance")}
     >
-      <i class="fa-solid fa-masks-theater"></i> Performance
+      <i class="ti ti-masks-theater"></i> Performance
     </button>
 
     <div class="tab-spacer"></div>
@@ -163,14 +167,14 @@
   <!-- Error -->
   {#if error}
     <div class="error-banner fade-in">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{error}</span>
       <button
         class="btn-icon"
         aria-label="Dismiss error"
         onclick={() => (error = "")}
       >
-        <i class="fa-solid fa-xmark"></i>
+        <i class="ti ti-x"></i>
       </button>
     </div>
   {/if}
@@ -194,7 +198,7 @@
     </div>
   {:else if items.length === 0}
     <div class="empty-state">
-      <i class="fa-solid fa-film"></i>
+      <i class="ti ti-movie"></i>
       <p>No archive items found.</p>
     </div>
   {:else}
@@ -222,11 +226,11 @@
               <img src={item.url} alt={item.title} class="archive-thumb" />
             {:else}
               <div class="archive-thumb archive-thumb-placeholder">
-                <i class="fa-solid fa-film"></i>
+                <i class="ti ti-movie"></i>
               </div>
             {/if}
             <div class="archive-overlay">
-              <i class="fa-solid fa-expand"></i>
+              <i class="ti ti-expand"></i>
             </div>
           </div>
 
@@ -235,12 +239,12 @@
             <h3 class="archive-title truncate">{item.title}</h3>
             <div class="archive-meta">
               <span class="text-caption" style="color: var(--color-muted);">
-                <i class="fa-regular fa-calendar"></i>
+                <i class="ti ti-calendar"></i>
                 {formatDate(item.date)}
               </span>
               {#if item.time}
                 <span class="text-caption" style="color: var(--color-muted);">
-                  <i class="fa-regular fa-clock"></i>
+                  <i class="ti ti-clock"></i>
                   {item.time}
                 </span>
               {/if}
@@ -251,7 +255,7 @@
                 class="text-micro"
                 style="color: var(--color-slate); margin-top: 4px;"
               >
-                <i class="fa-solid fa-location-dot"></i>
+                <i class="ti ti-location-dot"></i>
                 {item.placeName}
               </p>
             {/if}
@@ -261,7 +265,7 @@
     </div>
 
     <!-- Load More -->
-    {#if items.length < total}
+    {#if hasMore}
       <div
         class="load-more-container"
         style="display: flex; justify-content: center; margin-top: 24px;"
@@ -273,7 +277,7 @@
           style="min-width: 140px;"
         >
           {#if loadingMore}
-            <i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"
+            <i class="ti ti-loader ti-spin" style="margin-right: 6px;"
             ></i> Loading...
           {:else}
             Load More ({items.length} / {total})
@@ -304,7 +308,7 @@
             onclick={() => (expandedId = null)}
             aria-label="Close details"
           >
-            <i class="fa-solid fa-xmark"></i>
+            <i class="ti ti-x"></i>
           </button>
         </div>
 
@@ -318,7 +322,7 @@
               />
             {:else}
               <div class="modal-thumb-placeholder">
-                <i class="fa-solid fa-film"></i>
+                <i class="ti ti-movie"></i>
               </div>
             {/if}
           </div>
@@ -330,7 +334,7 @@
               <div class="modal-meta-item">
                 <span class="text-mono-label">Date :</span>
                 <span
-                  ><i class="fa-regular fa-calendar" style="margin-right: 6px;"
+                  ><i class="ti ti-calendar" style="margin-right: 6px;"
                   ></i>
                   {formatDate(selectedItem.date)}</span
                 >
@@ -339,7 +343,7 @@
                 <div class="modal-meta-item">
                   <span class="text-mono-label">Time :</span>
                   <span
-                    ><i class="fa-regular fa-clock" style="margin-right: 6px;"
+                    ><i class="ti ti-clock" style="margin-right: 6px;"
                     ></i>
                     {selectedItem.time}</span
                   >
@@ -350,7 +354,7 @@
                   <span class="text-mono-label">Place :</span>
                   <span
                     ><i
-                      class="fa-solid fa-location-dot"
+                      class="ti ti-location-dot"
                       style="margin-right: 6px;"
                     ></i>
                     {selectedItem.placeName}</span
@@ -455,7 +459,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-surface-cool);
+    background: var(--card);
     color: var(--color-stone);
     font-size: 32px;
   }
@@ -484,7 +488,7 @@
   .archive-title {
     font-size: 16px;
     font-weight: 500;
-    color: var(--color-ink);
+    color: var(--ink);
     margin-bottom: 8px;
   }
 
@@ -518,8 +522,8 @@
     max-width: 800px;
     max-height: 90vh;
     overflow-y: auto;
-    background: var(--color-canvas);
-    border: 1px solid var(--color-hairline);
+    background: var(--white);
+    border: 1px solid var(--border);
     border-radius: var(--radius-none);
     padding: var(--space-xl);
     display: flex;
@@ -547,7 +551,7 @@
 
   .modal-thumb {
     width: 100%;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     object-fit: cover;
     display: block;
     aspect-ratio: 3 / 4;
@@ -556,7 +560,7 @@
   .modal-thumb-placeholder {
     width: 100%;
     aspect-ratio: 3 / 4;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     background: var(--color-soft-stone);
     display: flex;
     align-items: center;
@@ -576,7 +580,7 @@
     font-size: 24px;
     font-weight: 400;
     margin: 0;
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .modal-meta-grid {
@@ -585,7 +589,7 @@
     gap: 12px;
     background: var(--color-soft-stone);
     padding: 10px;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
   }
 
   .modal-meta-item {
@@ -595,7 +599,7 @@
 
   .modal-meta-item span:last-child {
     font-size: 14px;
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .member-tags {

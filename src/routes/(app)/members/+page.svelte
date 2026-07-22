@@ -13,6 +13,7 @@
   let filterBrand = $state("all");
   let filterStatus = $state<"active" | "graduated" | "all">("active");
   let editMember = $state<MemberItem | null>(null);
+  let isCreating = $state(false);
 
   // ── Derived values ─────────────────────────────────────────────────────────
   let brands = $derived([
@@ -96,11 +97,28 @@
   }
 
   function openDetail(m: MemberItem) {
+    isCreating = false;
     editMember = { ...m };
+  }
+
+  function openCreate() {
+    isCreating = true;
+    editMember = {
+      id: 0,
+      name: "",
+      real_name: null,
+      brand: null,
+      gen: null,
+      team: null,
+      profile_image_url: null,
+      graduated_at: null,
+      created_at: new Date().toISOString()
+    };
   }
 
   function closeDetail() {
     editMember = null;
+    isCreating = false;
   }
 </script>
 
@@ -110,13 +128,18 @@
 
 <div class="members-page fade-in">
   <!-- Header -->
-  <div class="page-header">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+  <div>
     <p class="text-mono-label page-label">Database</p>
     <h1 class="page-title">Members</h1>
     <p class="page-desc">
       Browse BNK48 / CGM48 group members from the Supabase database.
     </p>
   </div>
+  <button class="btn btn-primary" style="margin-top: 12px;" onclick={openCreate}>
+    <i class="ti ti-plus"></i> Add Member
+  </button>
+</div>
 
   <!-- Summary chips -->
   {#if members.length > 0}
@@ -139,7 +162,7 @@
   <!-- Controls -->
   <div class="controls-bar">
     <div class="search-wrap">
-      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <i class="ti ti-magnifying-glass search-icon"></i>
       <input
         id="members-search"
         class="form-input search-input"
@@ -172,7 +195,7 @@
   <!-- Error -->
   {#if loadError}
     <div class="error-banner">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{loadError}</span>
     </div>
   {/if}
@@ -180,12 +203,12 @@
   <!-- Empty States -->
   {#if members.length === 0 && !loadError}
     <div class="empty-state">
-      <i class="fa-solid fa-users"></i>
+      <i class="ti ti-users"></i>
       <p>No members found in the database.</p>
     </div>
   {:else if filtered.length === 0}
     <div class="empty-state">
-      <i class="fa-solid fa-user-slash"></i>
+      <i class="ti ti-user-slash"></i>
       <p>No members match your filters.</p>
     </div>
   {:else}
@@ -216,7 +239,7 @@
 
             {#if member.graduated_at}
               <div class="graduated-badge">
-                <i class="fa-solid fa-graduation-cap"></i>
+                <i class="ti ti-graduation-cap"></i>
               </div>
             {/if}
           </div>
@@ -268,13 +291,13 @@
       role="presentation"
     >
       <div class="modal-header">
-        <h2 class="text-feature-heading" style="margin: 0;">Edit Member</h2>
+        <h2 class="text-feature-heading" style="margin: 0;">{isCreating ? 'Add Member' : 'Edit Member'}</h2>
         <button class="btn-icon" onclick={closeDetail} aria-label="Close">
-          <i class="fa-solid fa-xmark"></i>
+          <i class="ti ti-x"></i>
         </button>
       </div>
 
-      <form method="post" action="?/updateMember" use:enhance={() => {
+      <form method="post" action={isCreating ? '?/createMember' : '?/updateMember'} use:enhance={() => {
         return async ({ result, update }) => {
           if (result.type === 'success') {
             closeDetail();
@@ -284,7 +307,9 @@
           }
         };
       }} class="modal-body">
-        <input type="hidden" name="id" value={m.id} />
+        {#if !isCreating}
+          <input type="hidden" name="id" value={m.id} />
+        {/if}
 
         <div class="modal-media" style="--brand-color: {getBrandColor(m.brand)}">
           {#if m.profile_image_url}
@@ -380,16 +405,18 @@
             />
           </div>
 
+          {#if !isCreating}
           <div class="form-group">
             <label class="form-label">Added</label>
             <div class="form-input" style="background: var(--color-soft-stone);">
               {formatDate(m.created_at)}
             </div>
           </div>
+          {/if}
 
           <div class="modal-actions">
-            <button type="submit" name="updateMember" class="btn btn-primary btn-sm">
-              Save changes
+            <button type="submit" name={isCreating ? 'createMember' : 'updateMember'} class="btn btn-primary btn-sm">
+              {isCreating ? 'Add Member' : 'Save changes'}
             </button>
             <button type="button" class="btn btn-secondary btn-sm" onclick={closeDetail}>
               Cancel
@@ -431,10 +458,10 @@
     align-items: center;
     gap: var(--space-xs);
     padding: 6px 14px;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     border: 1px solid var(--color-hairline-soft);
-    background: var(--color-canvas);
-    color: var(--color-graphite);
+    background: var(--white);
+    color: var(--ink);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -443,16 +470,16 @@
 
   .brand-chip:hover,
   .brand-chip.active {
-    background: var(--color-hairline);
-    border-color: var(--color-ink);
-    color: var(--color-ink);
+    background: var(--border);
+    border-color: var(--ink);
+    color: var(--ink);
   }
 
   .brand-chip-count {
-    background: var(--color-hairline);
-    color: var(--color-ink);
+    background: var(--border);
+    color: var(--ink);
     padding: 1px 7px;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
   }
@@ -518,9 +545,9 @@
     max-width: 860px;
     max-height: 90vh;
     overflow-y: auto;
-    background: var(--color-canvas);
+    background: var(--white);
     border-radius: var(--radius-none);
-    border: 1px solid var(--color-hairline);
+    border: 1px solid var(--border);
     padding: var(--space-xl);
     display: flex;
     flex-direction: column;
@@ -549,7 +576,7 @@
   .modal-avatar,
   .modal-avatar-fallback {
     width: 100%;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     aspect-ratio: 3 / 4;
     object-fit: cover;
     display: block;
@@ -574,7 +601,7 @@
     font-size: 22px;
     font-weight: 400;
     line-height: 1;
-    color: var(--color-ink);
+    color: var(--ink);
     margin: 0;
   }
 
@@ -599,9 +626,9 @@
     cursor: pointer;
     text-align: left;
     width: 100%;
-    border: 1px solid var(--color-hairline);
+    border: 1px solid var(--border);
     border-radius: var(--radius-none);
-    background: var(--color-canvas);
+    background: var(--white);
     transition: border-color var(--duration-normal) var(--ease-out);
     display: flex;
   }
@@ -610,7 +637,7 @@
     position: relative;
     width: 125px;
     aspect-ratio: 3 / 4;
-    background: var(--color-surface-cool);
+    background: var(--card);
     overflow: hidden;
   }
 
@@ -662,7 +689,7 @@
   .member-name {
     font-size: 14px;
     font-weight: 600;
-    color: var(--color-ink);
+    color: var(--ink);
     line-height: 1.3;
   }
 
@@ -683,13 +710,13 @@
     font-size: 10px;
     font-weight: 500;
     padding: 2px 7px;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
     line-height: 1.5;
     white-space: nowrap;
   }
 
   .member-tag-neutral {
-    background: var(--color-hairline);
+    background: var(--border);
     color: var(--color-slate);
   }
 

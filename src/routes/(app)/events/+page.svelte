@@ -12,6 +12,7 @@
   let searchQuery = $state("");
   let filterUpcoming = $state<"all" | "upcoming" | "past">("all");
   let editEvent = $state<EventItem | null>(null);
+  let isCreating = $state(false);
   let imageUrlsText = $state("");
 
   let filtered = $derived.by(() => {
@@ -47,6 +48,7 @@
   }
 
   function openDetail(ev: EventItem) {
+    isCreating = false;
     editEvent = {
       ...ev,
       date: normalizeDate(ev.date),
@@ -55,8 +57,27 @@
     imageUrlsText = (ev.image_urls ?? []).join('\n');
   }
 
+  function openCreate() {
+    isCreating = true;
+    editEvent = {
+      id: 0,
+      title: "",
+      date: normalizeDate(new Date().toISOString()),
+      end_date: null,
+      location: null,
+      link: null,
+      image_url: null,
+      live: null,
+      image_urls: null,
+      image_path: null,
+      updated_at: new Date().toISOString()
+    };
+    imageUrlsText = "";
+  }
+
   function closeDetail() {
     editEvent = null;
+    isCreating = false;
     imageUrlsText = "";
   }
 
@@ -95,18 +116,23 @@
 
 <div class="events-page fade-in">
   <!-- Header -->
-  <div class="page-header">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+  <div>
     <p class="text-mono-label page-label">Database</p>
     <h1 class="page-title">Events</h1>
     <p class="page-desc">
       Browse BNK48 / CGM48 events and concerts from the Supabase database.
     </p>
   </div>
+  <button class="btn btn-primary" style="margin-top: 12px;" onclick={openCreate}>
+    <i class="ti ti-plus"></i> Add Event
+  </button>
+</div>
 
   <!-- Controls -->
   <div class="controls-bar">
     <div class="search-wrap">
-      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <i class="ti ti-magnifying-glass search-icon"></i>
       <input
         id="events-search"
         class="form-input search-input"
@@ -136,7 +162,7 @@
   <!-- Error -->
   {#if loadError}
     <div class="error-banner">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{loadError}</span>
     </div>
   {/if}
@@ -144,12 +170,12 @@
   <!-- Empty -->
   {#if events.length === 0 && !loadError}
     <div class="empty-state">
-      <i class="fa-regular fa-calendar-xmark"></i>
+      <i class="ti ti-calendar-x"></i>
       <p>No events found in the database.</p>
     </div>
   {:else if filtered.length === 0}
     <div class="empty-state">
-      <i class="fa-solid fa-filter-circle-xmark"></i>
+      <i class="ti ti-filter-circle-xmark"></i>
       <p>No events match your search.</p>
     </div>
   {:else}
@@ -172,7 +198,7 @@
               />
             {:else}
               <div class="event-thumb event-thumb-placeholder">
-                <i class="fa-solid fa-calendar-star"></i>
+                <i class="ti ti-calendar-star"></i>
               </div>
             {/if}
 
@@ -192,7 +218,7 @@
 
             <!-- Hover overlay -->
             <div class="event-overlay">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <i class="ti ti-arrow-up-right-from-square"></i>
             </div>
           </div>
 
@@ -202,18 +228,18 @@
 
             <div class="event-meta">
               <span class="meta-row">
-                <i class="fa-regular fa-calendar"></i>
+                <i class="ti ti-calendar"></i>
                 {formatDate(ev.date)}{ev.end_date ? " – " + formatDate(ev.end_date) : ""}
               </span>
               {#if ev.location}
                 <span class="meta-row">
-                  <i class="fa-solid fa-location-dot"></i>
+                  <i class="ti ti-location-dot"></i>
                   {ev.location}
                 </span>
               {/if}
               {#if ev.live}
                 <span class="meta-row">
-                  <i class="fa-solid fa-tower-broadcast"></i>
+                  <i class="ti ti-tower-broadcast"></i>
                   {ev.live}
                 </span>
               {/if}
@@ -242,14 +268,16 @@
       onclick={(e) => e.stopPropagation()}
       role="presentation"
     >
-      <div class="modal-header">
-        <h2 class="text-feature-heading" style="margin: 0;">Edit Event</h2>
-        <button class="btn-icon" onclick={closeDetail} aria-label="Close">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
+        <div class="modal-header">
+          <h2 class="text-feature-heading" style="margin: 0;">
+            {isCreating ? "Create Event" : "Edit Event"}
+          </h2>
+          <button class="btn-icon" aria-label="Close" onclick={closeDetail}>
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
 
-      <form method="post" action="?/updateEvent" use:enhance={() => {
+      <form method="post" action={isCreating ? "?/createEvent" : "?/updateEvent"} use:enhance={() => {
         return async ({ result, update }) => {
           if (result.type === 'success') {
             closeDetail();
@@ -259,7 +287,9 @@
           }
         };
       }} class="modal-body">
-        <input type="hidden" name="id" value={ev.id} />
+        {#if !isCreating}
+          <input type="hidden" name="id" value={editEvent.id} />
+        {/if}
         <input type="hidden" name="table" value={data.eventTable ?? 'events'} />
 
         <div class="modal-media">
@@ -267,7 +297,7 @@
             <img src={ev.image_url} alt={ev.title} class="modal-image" />
           {:else}
             <div class="modal-image-placeholder">
-              <i class="fa-solid fa-calendar-star"></i>
+              <i class="ti ti-calendar-star"></i>
             </div>
           {/if}
         </div>
@@ -365,8 +395,8 @@
           </div>
 
           <div class="modal-actions" style="grid-column: 1 / -1;">
-            <button type="submit" name="updateEvent" class="btn btn-primary btn-sm">
-              Save changes
+            <button type="submit" name={isCreating ? "createEvent" : "updateEvent"} class="btn btn-primary btn-sm">
+              {isCreating ? "Create Event" : "Save changes"}
             </button>
             <button type="button" class="btn btn-secondary btn-sm" onclick={closeDetail}>
               Cancel
@@ -436,9 +466,9 @@
     cursor: pointer;
     text-align: left;
     width: 100%;
-    border: 1px solid var(--color-hairline);
+    border: 1px solid var(--border);
     border-radius: var(--radius-none);
-    background: var(--color-canvas);
+    background: var(--white);
     transition: border-color var(--duration-normal) var(--ease-out);
     display: flex;
   }
@@ -448,7 +478,7 @@
     position: relative;
     overflow: hidden;
     aspect-ratio: 4 / 5;
-    background: var(--color-surface-cool);
+    background: var(--card);
   }
 
   .event-thumb {
@@ -504,7 +534,7 @@
   .event-title {
     font-size: 14px;
     font-weight: 500;
-    color: var(--color-ink);
+    color: var(--ink);
     line-height: 1.4;
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -552,9 +582,9 @@
     max-width: 780px;
     max-height: 90vh;
     overflow-y: auto;
-    background: var(--color-canvas);
+    background: var(--white);
     border-radius: var(--radius-none);
-    border: 1px solid var(--color-hairline);
+    border: 1px solid var(--border);
     padding: var(--space-xl);
     display: flex;
     flex-direction: column;
@@ -582,7 +612,7 @@
 
   .modal-image {
     width: 100%;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     object-fit: cover;
     aspect-ratio: 3 / 4;
     display: block;
@@ -591,7 +621,7 @@
   .modal-image-placeholder {
     width: 100%;
     aspect-ratio: 3 / 4;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     background: var(--color-soft-stone);
     display: flex;
     align-items: center;

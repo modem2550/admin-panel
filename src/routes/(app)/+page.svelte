@@ -6,7 +6,6 @@
     endpoints: [] as string[],
   });
 
-  let recentJobs = $state<any[]>([]);
   let loadingStats = $state(true);
 
   onMount(async () => {
@@ -27,40 +26,46 @@
   const quickActions = [
     {
       href: "/downloader",
-      icon: "fa-solid fa-download",
+      icon: "ti ti-download",
       label: "VOD Downloader",
       desc: "Search and download member lives & posts",
+      accent: "blue" as const,
     },
     {
       href: "/theater",
-      icon: "fa-solid fa-film",
+      icon: "ti ti-movie",
       label: "Theater Archive",
       desc: "Browse playback and performance archives",
+      accent: "orange" as const,
     },
     {
       href: "/scanner",
-      icon: "fa-solid fa-panorama",
+      icon: "ti ti-panorama-horizontal",
       label: "Asset Scanner",
       desc: "Discover CDN assets and products",
+      accent: "green" as const,
     },
     {
       href: "/downloader",
-      icon: "fa-solid fa-list-check",
+      icon: "ti ti-list-check",
       label: "Download Manager",
       desc: "Monitor active and completed downloads",
+      accent: "blue" as const,
     },
     {
       href: "/members",
-      icon: "fa-solid fa-users",
+      icon: "ti ti-users",
       label: "Members Manager",
       desc: "Manage members BNK48 & CGM48",
+      accent: "orange" as const,
     },
     {
       href: "/events",
-      icon: "fa-solid fa-calendar-plus",
+      icon: "ti ti-calendar-plus",
       label: "Events Manager",
       desc: "Manage BNK48 events & schedules",
-    }
+      accent: "green" as const,
+    },
   ];
 </script>
 
@@ -68,324 +73,187 @@
   <title>Dashboard — Admin Panel</title>
 </svelte:head>
 
-<div class="dashboard fade-in">
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-content">
-      <p class="text-mono-label hero-label">Content Management System</p>
-      <h1 class="hero-title">Admin Panel</h1>
-      <p class="hero-subtitle">
-        Manage BNK48 content, downloads, and media assets from a single
-        interface.
-      </p>
-    </div>
-  </section>
+<div class="dashboard">
+  <header class="page-head">
+    <h1>Dashboard</h1>
+    <p>Manage content, downloads, and media assets across the platform.</p>
+  </header>
 
-  <!-- Stats Grid -->
   <section class="stats-section">
     <div class="stats-grid">
-      <!-- API Status -->
-      <div class="stat-card card card-stone">
-        <div class="stat-icon">
-          <i class="fa-solid fa-signal"></i>
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <i class="ti ti-activity" style="color: var(--blue);"></i>
         </div>
-        <div class="stat-info">
-          <p class="text-mono-label">API Status</p>
-          {#if loadingStats}
-            <div
-              class="skeleton"
-              style="width: 80px; height: 28px; margin-top: 4px;"
-            ></div>
-          {:else}
-            <p
-              class="stat-value"
-              class:online={stats.apiStatus === "online"}
-              class:offline={stats.apiStatus === "offline"}
-            >
-              {stats.apiStatus === "online" ? "Online" : "Offline"}
-            </p>
-          {/if}
-        </div>
-        <div class="stat-badge">
-          <span
-            class="chip"
-            class:chip-completed={stats.apiStatus === "online"}
-            class:chip-failed={stats.apiStatus === "offline"}
-            class:chip-queued={stats.apiStatus === "checking"}
-          >
-            <span class="chip-dot" class:pulse={stats.apiStatus === "checking"}
-            ></span>
-            {stats.apiStatus}
-          </span>
-        </div>
+        <p class="stat-label">API Status</p>
+        {#if loadingStats}
+          <div class="skeleton-text"></div>
+        {:else}
+          <p class="stat-value" style="color: var(--blue);">
+            {stats.apiStatus === "online" ? "Online" : stats.apiStatus === "checking" ? "…" : "Offline"}
+          </p>
+        {/if}
       </div>
 
-      <!-- Endpoints -->
-      <div class="stat-card card card-stone">
-        <div class="stat-icon">
-          <i class="fa-solid fa-plug"></i>
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <i class="ti ti-plug" style="color: var(--orange);"></i>
         </div>
-        <div class="stat-info">
-          <p class="text-mono-label">Endpoints</p>
-          {#if loadingStats}
-            <div
-              class="skeleton"
-              style="width: 50px; height: 28px; margin-top: 4px;"
-            ></div>
-          {:else}
-            <p class="stat-value">{stats.endpoints.length}</p>
-          {/if}
-        </div>
-        <div class="stat-badge">
-          <span class="chip chip-queued">routes</span>
-        </div>
+        <p class="stat-label">Endpoints Active</p>
+        {#if loadingStats}
+          <div class="skeleton-text"></div>
+        {:else}
+          <p class="stat-value" style="color: var(--orange);">{stats.endpoints.length}</p>
+        {/if}
       </div>
 
-      <!-- Platform -->
-      <div class="stat-card card card-stone">
-        <div class="stat-icon">
-          <i class="fa-solid fa-cube"></i>
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <i class="ti ti-cpu" style="color: var(--green);"></i>
         </div>
-        <div class="stat-info">
-          <p class="text-mono-label">Platform</p>
-          <p class="stat-value">SvelteKit</p>
-        </div>
-        <div class="stat-badge">
-          <span class="chip chip-processing">v5</span>
-        </div>
+        <p class="stat-label">Platform</p>
+        <p class="stat-value" style="color: var(--green);">SvelteKit v5</p>
       </div>
     </div>
   </section>
 
-  <!-- Quick Actions -->
   <section class="actions-section">
-    <h2 class="text-feature-heading section-title">Quick Actions</h2>
     <div class="actions-grid">
       {#each quickActions as action}
-        <a href={action.href} class="action-card card">
-          <div class="action-icon-wrap">
-            <i class={action.icon}></i>
-          </div>
+        <a href={action.href} class="action-card">
+          <i class={action.icon} style="color: var(--{action.accent});"></i>
           <div class="action-content">
             <h3 class="action-title">{action.label}</h3>
             <p class="action-desc">{action.desc}</p>
-          </div>
-          <div class="action-arrow">
-            <i class="fa-solid fa-arrow-right"></i>
           </div>
         </a>
       {/each}
     </div>
   </section>
-
-  <!-- API Endpoints -->
-  {#if stats.endpoints.length > 0}
-    <section class="endpoints-section">
-      <h2 class="text-feature-heading section-title">Available Endpoints</h2>
-      <div class="card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Method</th>
-              <th>Path</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each stats.endpoints as endpoint}
-              <tr>
-                <td>
-                  <span class="chip chip-processing">GET/POST</span>
-                </td>
-                <td>
-                  <code class="endpoint-path">{endpoint}</code>
-                </td>
-                <td>
-                  <span class="chip chip-completed">
-                    <span class="chip-dot"></span>
-                    Active
-                  </span>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {/if}
 </div>
 
 <style>
   .dashboard {
     display: flex;
     flex-direction: column;
-    gap: var(--space-section);
+    gap: 32px;
   }
 
-  .hero-section {
-    padding: var(--space-lg) 0 0;
+  .page-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
   }
 
-  .hero-label {
-    margin-bottom: var(--space-sm);
+  .page-head h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
   }
 
-  .hero-title {
-    font-family: var(--font-body);
-    font-size: clamp(36px, 5vw, 48px);
-    font-weight: 400;
-    line-height: 1;
-    letter-spacing: -1.2px;
-    color: var(--color-ink);
-    margin-bottom: var(--space-md);
-  }
-
-  .hero-subtitle {
-    font-size: 20px;
-    line-height: 1;
-    color: var(--color-graphite);
-    max-width: 520px;
+  .page-head p {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    color: var(--muted);
+    margin: 0;
   }
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: var(--space-md);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
   }
 
   .stat-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
     display: flex;
-    align-items: flex-start;
-    gap: var(--space-md);
-    padding: var(--space-lg);
-    position: relative;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .stat-icon {
-    width: 44px;
-    height: 44px;
-    background: var(--color-hairline);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-ink);
-    font-size: 18px;
-    flex-shrink: 0;
+  .stat-icon-wrap i {
+    font-size: 24px;
   }
 
-  .stat-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .stat-info .text-mono-label {
-    margin-bottom: var(--space-xxs);
+  .stat-label {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 500;
+    margin: 0;
   }
 
   .stat-value {
-    font-family: var(--font-body);
-    font-size: 28px;
-    font-weight: 400;
-    letter-spacing: -0.5px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
     line-height: 1;
-    color: var(--color-ink);
   }
 
-  .stat-value.online,
-  .stat-value.offline {
-    color: var(--color-ink);
+  .skeleton-text {
+    width: 60%;
+    height: 24px;
+    background: var(--border);
+    border-radius: 4px;
+    animation: pulse 1.5s infinite;
   }
 
-  .stat-badge {
-    position: absolute;
-    top: var(--space-md);
-    right: var(--space-md);
-  }
-
-  .section-title {
-    margin-bottom: var(--space-lg);
-    color: var(--color-ink);
+  @keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 0.3; }
+    100% { opacity: 0.6; }
   }
 
   .actions-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--space-sm);
+    gap: 16px;
   }
 
   .action-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
     display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-lg);
+    align-items: flex-start;
+    gap: 16px;
     text-decoration: none;
-    cursor: pointer;
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-none);
-    transition: border-color var(--duration-normal) var(--ease-out),
-                background var(--duration-normal) var(--ease-out);
+    transition: transform 0.15s ease;
   }
 
   .action-card:hover {
-    border-color: var(--color-hairline-soft);
-    background: var(--color-hairline);
+    transform: translateY(-2px);
   }
 
-  .action-card:hover .action-arrow {
-    color: var(--color-ink);
-  }
-
-  .action-icon-wrap {
-    width: 40px;
-    height: 40px;
-    background: var(--color-primary);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-on-primary);
-    font-size: 16px;
-    flex-shrink: 0;
+  .action-card i {
+    font-size: 24px;
+    margin-top: 2px;
   }
 
   .action-content {
-    flex: 1;
-    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .action-title {
+    font-family: 'Outfit', sans-serif;
     font-size: 16px;
-    font-weight: 600;
-    color: var(--color-ink);
-    margin-bottom: 2px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
   }
 
   .action-desc {
-    font-size: 13px;
-    color: var(--color-stone);
-    line-height: 1.3;
-  }
-
-  .action-arrow {
-    color: var(--color-stone);
+    font-family: 'Outfit', sans-serif;
     font-size: 14px;
-    transition: color var(--duration-normal) var(--ease-out);
-    flex-shrink: 0;
-  }
-
-  .endpoint-path {
-    font-size: 13px;
-    color: var(--color-ink);
-    background: var(--color-hairline);
-    padding: 4px 8px;
-    border-radius: var(--radius-xs);
-  }
-
-  @media (max-width: 768px) {
-    .stats-grid,
-    .actions-grid {
-      grid-template-columns: 1fr;
-    }
+    color: var(--muted);
+    margin: 0;
   }
 </style>

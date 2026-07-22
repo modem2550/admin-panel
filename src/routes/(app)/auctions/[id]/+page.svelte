@@ -81,13 +81,13 @@
 
 <div class="auction-detail fade-in">
   <a href="/auctions" class="back-link">
-    <i class="fa-solid fa-arrow-left"></i>
+    <i class="ti ti-arrow-left"></i>
     Back to Auctions
   </a>
 
   {#if loadError}
     <div class="error-banner">
-      <i class="fa-solid fa-circle-exclamation"></i>
+      <i class="ti ti-alert-circle"></i>
       <span>{loadError}</span>
     </div>
   {:else if auction}
@@ -102,11 +102,11 @@
               <span class="chip chip-queued">{auction.tokenSymbol}</span>
             {/if}
             <span class="meta-row">
-              <i class="fa-regular fa-calendar"></i>
+              <i class="ti ti-calendar"></i>
               {formatDate(auction.startDate)} – {formatDate(auction.endDate)}
             </span>
             <span class="meta-row">
-              <i class="fa-solid fa-images"></i>
+              <i class="ti ti-images"></i>
               {items.length} items
             </span>
           </div>
@@ -121,7 +121,7 @@
 
     <div class="controls-bar">
       <div class="search-wrap">
-        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <i class="ti ti-magnifying-glass search-icon"></i>
         <input
           class="form-input search-input"
           type="search"
@@ -130,7 +130,7 @@
         />
       </div>
       <button class="btn btn-primary" onclick={downloadCSV} disabled={items.length === 0}>
-        <i class="fa-solid fa-download"></i>
+        <i class="ti ti-download"></i>
         Export CSV
       </button>
       <span class="text-caption count-label">
@@ -140,12 +140,12 @@
 
     {#if items.length === 0}
       <div class="empty-state">
-        <i class="fa-solid fa-gavel"></i>
+        <i class="ti ti-gavel"></i>
         <p>No items in this auction.</p>
       </div>
     {:else if filteredItems.length === 0}
       <div class="empty-state">
-        <i class="fa-solid fa-filter-circle-xmark"></i>
+        <i class="ti ti-filter-circle-xmark"></i>
         <p>No items match your search.</p>
       </div>
     {:else}
@@ -162,7 +162,7 @@
                 />
               {:else}
                 <div class="item-thumb item-thumb-placeholder">
-                  <i class="fa-solid fa-image"></i>
+                  <i class="ti ti-image"></i>
                 </div>
               {/if}
               {#if item.category}
@@ -175,8 +175,8 @@
               <h3 class="item-title">{item.item_name}</h3>
               <div class="item-meta">
                 <span class="meta-row amount-row">
-                  <i class="fa-solid fa-coins"></i>
-                  <strong style="color: var(--color-ink); font-weight: 600;">
+                  <i class="ti ti-coins"></i>
+                  <strong style="color: var(--ink); font-weight: 600;">
                     {item.bidding_amount.toLocaleString()}
                   </strong>
                 </span>
@@ -208,7 +208,7 @@
   }
 
   .back-link:hover {
-    color: var(--color-ink);
+    color: var(--ink);
   }
 
   .header-row {
@@ -231,7 +231,7 @@
   .header-cover {
     width: 200px;
     aspect-ratio: 1 / 1;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     overflow: hidden;
     background: var(--color-soft-stone);
     flex-shrink: 0;
@@ -296,9 +296,9 @@
   .item-card {
     padding: 0;
     overflow: hidden;
-    border: 1px solid var(--color-hairline);
+    border: 1px solid var(--border);
     border-radius: var(--radius-none);
-    background: var(--color-canvas);
+    background: var(--white);
     transition: border-color var(--duration-normal) var(--ease-out);
     display: flex;
     flex-direction: column;
@@ -313,8 +313,8 @@
     position: relative;
     overflow: hidden;
     aspect-ratio: 1 / 1;
-    background: var(--color-surface-cool);
-    border-bottom: 1px solid var(--color-hairline);
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
   }
 
   .item-thumb {
@@ -350,7 +350,7 @@
   .item-title {
     font-size: 14px;
     font-weight: 500;
-    color: var(--color-ink);
+    color: var(--ink);
     line-height: 1.4;
     display: -webkit-box;
     -webkit-box-orient: vertical;

@@ -31,7 +31,7 @@ function isAllowedContentType(contentType: string | null): boolean {
 	return ALLOWED_CONTENT_TYPES.some(t => contentType.startsWith(t));
 }
 
-export const GET: RequestHandler = async ({ params, url, fetch }) => {
+export const GET: RequestHandler = async ({ params, url, fetch, request }) => {
 
 	const fullPath = params.path;
 	if (!fullPath) throw error(400, 'Missing path');
@@ -59,10 +59,17 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 		});
 	}
 
+	// ✅ ส่งต่อ Range header — จำเป็นสำหรับ <video> seeking และทำให้ browser
+	// ดึงเฉพาะช่วงที่ต้องใช้แทนที่จะต้องโหลดทั้งไฟล์
+	const rangeHeader = request.headers.get('range');
+	if (rangeHeader) {
+		requestHeaders['Range'] = rangeHeader;
+	}
+
 	try {
 		const response = await fetch(targetUrl.toString(), { headers: requestHeaders });
 
-		if (!response.ok) {
+		if (!response.ok && response.status !== 206) {
 			return new Response(null, {
 				status: response.status,
 				headers: { 'Cache-Control': 'no-store' }
@@ -76,19 +83,28 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 			throw error(403, 'Content type not allowed');
 		}
 
-		const blob = await response.blob();
-
 		// ✅ origin เฉพาะ domain ของแอปเอง แทนที่จะเป็น *
 		const allowedOrigin = url.origin;
 
-		return new Response(blob, {
+		const responseHeaders: Record<string, string> = {
+			'Content-Type': contentType || 'application/octet-stream',
+			'Cache-Control': 'public, max-age=3600',
+			'Access-Control-Allow-Origin': allowedOrigin,  // ✅ จำกัด origin
+			'Vary': 'Origin'
+		};
+
+		// ✅ ส่งต่อ headers ที่เกี่ยวกับ range/partial content ให้ครบ
+		const contentLength = response.headers.get('content-length');
+		const contentRange = response.headers.get('content-range');
+		const acceptRanges = response.headers.get('accept-ranges');
+		if (contentLength) responseHeaders['Content-Length'] = contentLength;
+		if (contentRange) responseHeaders['Content-Range'] = contentRange;
+		if (acceptRanges) responseHeaders['Accept-Ranges'] = acceptRanges;
+
+		// ✅ stream โดยตรง ไม่โหลดทั้งไฟล์เข้า memory ก่อน (สำคัญมากสำหรับวิดีโอ/m3u8 ไฟล์ใหญ่)
+		return new Response(response.body, {
 			status: response.status,
-			headers: {
-				'Content-Type': contentType || 'application/octet-stream',
-				'Cache-Control': 'public, max-age=3600',
-				'Access-Control-Allow-Origin': allowedOrigin,  // ✅ จำกัด origin
-				'Vary': 'Origin'
-			}
+			headers: responseHeaders
 		});
 	} catch (e) {
 		if (e instanceof Response) throw e; // re-throw error() ที่เรา throw เอง

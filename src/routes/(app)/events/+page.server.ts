@@ -47,6 +47,60 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
+	createEvent: async ({ request }) => {
+		const form = await request.formData();
+		const table = String(form.get('table') ?? 'events');
+		const title = String(form.get('title') ?? '').trim();
+		const date = String(form.get('date') ?? '').trim();
+
+		if (!title || !date) {
+			return fail(400, { error: 'Event title and date are required.' });
+		}
+
+		const imageUrlsRaw = String(form.get('image_urls') ?? '').trim();
+		let image_urls: string[] | null = null;
+
+		if (imageUrlsRaw) {
+			try {
+				if (imageUrlsRaw.startsWith('[')) {
+					image_urls = JSON.parse(imageUrlsRaw);
+				} else {
+					image_urls = imageUrlsRaw
+						.split(/\r?\n|,/)
+						.map((item) => item.trim())
+						.filter(Boolean);
+				}
+			} catch {
+				image_urls = imageUrlsRaw
+					.split(/\r?\n|,/)
+					.map((item) => item.trim())
+					.filter(Boolean);
+			}
+		}
+
+		const payload = {
+			title,
+			date,
+			end_date: String(form.get('end_date') ?? '').trim() || null,
+			location: String(form.get('location') ?? '').trim() || null,
+			link: String(form.get('link') ?? '').trim() || null,
+			image_url: String(form.get('image_url') ?? '').trim() || null,
+			live: String(form.get('live') ?? '').trim() || null,
+			image_urls,
+			updated_at: new Date().toISOString()
+		};
+
+		const { error } = await supabaseAdmin
+			.from(table)
+			.insert(payload);
+
+		if (error) {
+			console.error('[events] insert error:', error.message);
+			return fail(500, { error: error.message });
+		}
+
+		return { success: true };
+	},
 	updateEvent: async ({ request }) => {
 		const form = await request.formData();
 		const id = Number(form.get('id'));
