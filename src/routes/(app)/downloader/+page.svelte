@@ -1,15 +1,26 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { searchMember, getVOD, startDownload, resolveUrl, getJobStatus, type MemberCandidate } from '$lib/api';
+  import { onDestroy } from "svelte";
+  import type { PageData } from "./$types";
+  import {
+    searchMember,
+    getVOD,
+    startDownload,
+    resolveUrl,
+    getJobStatus,
+    type MemberCandidate,
+  } from "$lib/api";
+  // ── Props & Data ─────────────────────────────────────────────────────────
+  let { data }: { data: PageData } = $props();
+  let dbMembers = $derived(data?.members || []);
 
   // ── State ────────────────────────────────────────────────────────────────
-  let searchQuery = $state('');
-  let searchType = $state<'lives' | 'posts'>('posts');
+  let searchQuery = $state("");
+  let searchType = $state<"lives" | "posts">("posts");
   let loading = $state(false);
-  let error = $state('');
+  let error = $state("");
 
   let results = $state<any[]>([]);
-  let memberName = $state('');
+  let memberName = $state("");
   let memberId = $state<number | null>(null);
 
   // Pagination for the results grid — we fetch a small first page for speed,
@@ -24,7 +35,7 @@
   // shared by members in different brands/generations), show a picker instead of
   // guessing which one the user meant.
   let memberCandidates = $state<MemberCandidate[]>([]);
-  let pendingSearchQuery = $state('');
+  let pendingSearchQuery = $state("");
 
   // Direct resolve results
   let directVod = $state<any>(null);
@@ -34,58 +45,60 @@
   // Modal
   let modalItem = $state<any>(null);
   let loadingVod = $state(false);
-  let vodError = $state('');
+  let vodError = $state("");
 
   // Derived detail properties for modal
   let contentText = $derived(
     modalItem?.info?.contentText ||
-    modalItem?.info?.content?.contentText ||
-    modalItem?.info?.description ||
-    modalItem?._originalItem?.title ||
-    ''
+      modalItem?.info?.content?.contentText ||
+      modalItem?.info?.description ||
+      modalItem?._originalItem?.title ||
+      "",
   );
 
   let postedAt = $derived(
     modalItem?.info?.postedAt ||
-    modalItem?.info?.content?.postedAt ||
-    modalItem?.info?.publishedAt ||
-    modalItem?.info?.created_at ||
-    modalItem?._originalItem?.publishedAt ||
-    ''
+      modalItem?.info?.content?.postedAt ||
+      modalItem?.info?.publishedAt ||
+      modalItem?.info?.created_at ||
+      modalItem?._originalItem?.publishedAt ||
+      "",
   );
 
   // Direct VOD/Timeline derived
   let directVodContentText = $derived(
     directVod?.info?.contentText ||
-    directVod?.info?.content?.contentText ||
-    directVod?.info?.description ||
-    ''
+      directVod?.info?.content?.contentText ||
+      directVod?.info?.description ||
+      "",
   );
 
   let directVodPostedAt = $derived(
     directVod?.info?.postedAt ||
-    directVod?.info?.content?.postedAt ||
-    directVod?.info?.publishedAt ||
-    ''
+      directVod?.info?.content?.postedAt ||
+      directVod?.info?.publishedAt ||
+      "",
   );
 
   let directTimelineContentText = $derived(
     directTimeline?.info?.contentText ||
-    directTimeline?.info?.content?.contentText ||
-    directTimeline?.info?.description ||
-    ''
+      directTimeline?.info?.content?.contentText ||
+      directTimeline?.info?.description ||
+      "",
   );
 
   let directTimelinePostedAt = $derived(
     directTimeline?.info?.postedAt ||
-    directTimeline?.info?.content?.postedAt ||
-    directTimeline?.info?.publishedAt ||
-    ''
+      directTimeline?.info?.content?.postedAt ||
+      directTimeline?.info?.publishedAt ||
+      "",
   );
 
   // Download tracking: jobId per key (url or item id)
-  let downloadingId = $state('');
-  let downloadJobs = $state<Record<string, { jobId: string; progress: number; status: string }>>({});
+  let downloadingId = $state("");
+  let downloadJobs = $state<
+    Record<string, { jobId: string; progress: number; status: string }>
+  >({});
 
   // Keep references to every active polling interval so we can clear them all
   // if the user navigates away before a download finishes — otherwise they'd
@@ -99,12 +112,59 @@
     activePollIntervals.clear();
   });
 
+  // ── Autocomplete Logic ───────────────────────────────────────────────────
+  let showDropdown = $state(false);
+
+  let autocompleteResults = $derived.by(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q || q.startsWith("http")) return [];
+
+    return dbMembers
+      .filter(
+        (m: any) =>
+          m.name.toLowerCase().includes(q) ||
+          (m.real_name && m.real_name.toLowerCase().includes(q)),
+      )
+      .slice(0, 8);
+  });
+
+  let dropdownFocusTimeout: any;
+
+  function onInputFocus() {
+    clearTimeout(dropdownFocusTimeout);
+    showDropdown = true;
+  }
+
+  function onInputBlur() {
+    // Delay hiding dropdown so clicks on items register first
+    dropdownFocusTimeout = setTimeout(() => {
+      showDropdown = false;
+    }, 200);
+  }
+
+  function selectAutocomplete(m: any) {
+    searchQuery = m.name;
+    pendingSearchQuery = m.name;
+    showDropdown = false;
+
+    const candidate: MemberCandidate = {
+      id: m.id,
+      displayName: m.name,
+      displayNameEn: m.name,
+      subtitle: m.real_name,
+      subtitleEn: m.real_name,
+      profileImageUrl: m.profile_image_url,
+      brand: m.brand,
+    };
+    selectMemberCandidate(candidate);
+  }
+
   // ── Search ───────────────────────────────────────────────────────────────
   async function handleSearch() {
     if (!searchQuery.trim()) return;
 
     loading = true;
-    error = '';
+    error = "";
     results = [];
     directVod = null;
     directTimeline = null;
@@ -146,7 +206,7 @@
         error = data.error;
       }
     } catch (e: any) {
-      error = e.message || 'Search failed';
+      error = e.message || "Search failed";
     } finally {
       loading = false;
     }
@@ -155,7 +215,7 @@
   // ── Pick a member when the name matches more than one person ─────────────
   async function selectMemberCandidate(candidate: MemberCandidate) {
     loading = true;
-    error = '';
+    error = "";
     results = [];
     modalItem = null;
     hasMoreResults = false;
@@ -163,18 +223,27 @@
     nextLastId = undefined;
 
     try {
-      const data = await searchMember(pendingSearchQuery, searchType, 0, PAGE_SIZE, undefined, candidate.id);
+      const data = await searchMember(
+        pendingSearchQuery,
+        searchType,
+        0,
+        PAGE_SIZE,
+        undefined,
+        candidate.id,
+      );
 
       if (data.lives) {
         results = data.lives;
-        memberName = data.memberName || candidate.displayNameEn || candidate.displayName;
+        memberName =
+          data.memberName || candidate.displayNameEn || candidate.displayName;
         memberId = data.memberId;
         memberCandidates = [];
         hasMoreResults = !!data.hasMore;
         nextSkip = data.nextSkip ?? results.length;
       } else if (data.posts) {
         results = data.posts;
-        memberName = data.memberName || candidate.displayNameEn || candidate.displayName;
+        memberName =
+          data.memberName || candidate.displayNameEn || candidate.displayName;
         memberId = data.memberId;
         memberCandidates = [];
         hasMoreResults = !!data.hasMore;
@@ -183,7 +252,7 @@
         error = data.error;
       }
     } catch (e: any) {
-      error = e.message || 'Search failed';
+      error = e.message || "Search failed";
     } finally {
       loading = false;
     }
@@ -194,7 +263,7 @@
     if (loadingMore || !hasMoreResults || !memberId) return;
 
     loadingMore = true;
-    error = '';
+    error = "";
 
     try {
       const data = await searchMember(
@@ -203,14 +272,14 @@
         nextSkip,
         PAGE_SIZE,
         nextLastId,
-        memberId
+        memberId,
       );
 
-      if (searchType === 'lives' && data.lives) {
+      if (searchType === "lives" && data.lives) {
         results = [...results, ...data.lives];
         hasMoreResults = !!data.hasMore;
         nextSkip = data.nextSkip ?? results.length;
-      } else if (searchType === 'posts' && data.posts) {
+      } else if (searchType === "posts" && data.posts) {
         results = [...results, ...data.posts];
         hasMoreResults = !!data.hasMore;
         nextLastId = data.nextLastId ?? undefined;
@@ -218,7 +287,7 @@
         error = data.error;
       }
     } catch (e: any) {
-      error = e.message || 'Failed to load more';
+      error = e.message || "Failed to load more";
     } finally {
       loadingMore = false;
     }
@@ -230,19 +299,19 @@
     if (!videoId) return;
 
     loadingVod = true;
-    vodError = '';
+    vodError = "";
     // show modal immediately with item info while loading
     modalItem = { _originalItem: item, _loading: true };
 
     try {
       const timelineTypes = [
-        'content-member-timeline',
-        'content-member-batch-thankyou',
-        'content-member-live-playback',
+        "content-member-timeline",
+        "content-member-batch-thankyou",
+        "content-member-live-playback",
       ];
       if (item.itemType && timelineTypes.includes(item.itemType)) {
         const data = await resolveUrl(
-          `https://public.bnk48.io/timeline/${item.itemType}/${item.contentId || item.id}`
+          `https://public.bnk48.io/timeline/${item.itemType}/${item.contentId || item.id}`,
         );
         if (data.directTimeline) {
           modalItem = {
@@ -252,7 +321,11 @@
             _loading: false,
           };
         } else if (data.directVod) {
-          modalItem = { ...data.directVod, _originalItem: item, _loading: false };
+          modalItem = {
+            ...data.directVod,
+            _originalItem: item,
+            _loading: false,
+          };
         } else if (data.error) {
           throw new Error(data.error);
         } else {
@@ -264,7 +337,7 @@
         modalItem = { ...data.vod, _originalItem: item, _loading: false };
       }
     } catch (e: any) {
-      vodError = e.message || 'Failed to get VOD info';
+      vodError = e.message || "Failed to get VOD info";
       modalItem = null;
     } finally {
       loadingVod = false;
@@ -273,11 +346,16 @@
 
   function closeModal() {
     modalItem = null;
-    vodError = '';
+    vodError = "";
   }
 
   // ── Download with progress polling ────────────────────────────────────────
-  async function handleDownload(url: string, fileName: string, duration?: number, trackKey?: string) {
+  async function handleDownload(
+    url: string,
+    fileName: string,
+    duration?: number,
+    trackKey?: string,
+  ) {
     if (!url) return;
     const key = trackKey || url;
     downloadingId = key;
@@ -285,13 +363,17 @@
     try {
       const data = await startDownload(url, fileName, duration);
       if (data.jobId) {
-        downloadJobs[key] = { jobId: data.jobId, progress: 0, status: 'queued' };
+        downloadJobs[key] = {
+          jobId: data.jobId,
+          progress: 0,
+          status: "queued",
+        };
         pollJobProgress(key, data.jobId);
       }
     } catch (e: any) {
-      error = e.message || 'Download failed';
+      error = e.message || "Download failed";
     } finally {
-      downloadingId = '';
+      downloadingId = "";
     }
   }
 
@@ -306,7 +388,7 @@
             progress: job.progress ?? 0,
             status: job.status,
           };
-          if (job.status === 'completed' || job.status === 'failed') {
+          if (job.status === "completed" || job.status === "failed") {
             clearInterval(interval);
             activePollIntervals.delete(interval);
           }
@@ -320,21 +402,25 @@
   }
 
   function formatDate(dateStr: string): string {
-    if (!dateStr) return '';
+    if (!dateStr) return "";
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      return d.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
     } catch {
       return dateStr;
     }
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') handleSearch();
+    if (e.key === "Enter") handleSearch();
   }
 
   function getItemKey(item: any) {
-    return String(item.id || item.contentId || '');
+    return String(item.id || item.contentId || "");
   }
 
   function getJobForItem(item: any) {
@@ -346,20 +432,20 @@
   }
 
   function getProgressColor(status: string) {
-    if (status === 'completed') return '#22c55e';
-    if (status === 'failed') return '#ef4444';
-    return 'var(--color-primary)';
+    if (status === "completed") return "#22c55e";
+    if (status === "failed") return "#ef4444";
+    return "var(--color-primary)";
   }
 
   // Close modal on backdrop click or Escape
   function onBackdropClick(e: MouseEvent) {
-    if ((e.target as HTMLElement).classList.contains('modal-backdrop')) {
+    if ((e.target as HTMLElement).classList.contains("modal-backdrop")) {
       closeModal();
     }
   }
 
   function onModalKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === "Escape") closeModal();
   }
 </script>
 
@@ -374,7 +460,9 @@
   <div class="page-header">
     <p class="text-mono-label page-label">Content Downloader</p>
     <h1 class="page-title">VOD Downloader</h1>
-    <p class="page-desc">Search member lives, timeline posts, or paste a direct URL to download.</p>
+    <p class="page-desc">
+      Search member lives, timeline posts, or paste a direct URL to download.
+    </p>
   </div>
 
   <!-- Search Card -->
@@ -388,7 +476,36 @@
           placeholder="Member name or paste URL..."
           bind:value={searchQuery}
           onkeydown={onKeydown}
+          onfocus={onInputFocus}
+          onblur={onInputBlur}
         />
+        {#if showDropdown && autocompleteResults.length > 0}
+          <div class="autocomplete-dropdown fade-in">
+            {#each autocompleteResults as m}
+              <button
+                class="autocomplete-item"
+                onclick={() => selectAutocomplete(m)}
+              >
+                <div class="ac-avatar">
+                  {#if m.profile_image_url}
+                    <img src={m.profile_image_url} alt={m.name} />
+                  {:else}
+                    <i class="ti ti-user"></i>
+                  {/if}
+                </div>
+                <div class="ac-info">
+                  <span class="ac-name">{m.name}</span>
+                  {#if m.real_name}
+                    <span class="ac-realname">{m.real_name}</span>
+                  {/if}
+                </div>
+                {#if m.brand}
+                  <span class="chip chip-queued ac-brand">{m.brand}</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
       <div class="search-actions">
         <button
@@ -412,7 +529,11 @@
     <div class="error-banner fade-in">
       <i class="ti ti-alert-circle"></i>
       <span>{error}</span>
-      <button class="btn-icon" onclick={() => error = ''} aria-label="Dismiss error">
+      <button
+        class="btn-icon"
+        onclick={() => (error = "")}
+        aria-label="Dismiss error"
+      >
         <i class="ti ti-x"></i>
       </button>
     </div>
@@ -424,7 +545,10 @@
       <h2 class="text-feature-heading section-title">
         Multiple members named "{pendingSearchQuery}"
       </h2>
-      <p class="text-caption" style="color: var(--color-muted); margin-top: -4px; margin-bottom: 4px;">
+      <p
+        class="text-caption"
+        style="color: var(--color-muted); margin-top: -4px; margin-bottom: 4px;"
+      >
         This name is shared by more than one member — pick who you meant.
       </p>
       <div class="member-pick-grid">
@@ -435,7 +559,13 @@
             disabled={loading}
           >
             {#if candidate.profileImageUrl}
-              <img src={candidate.profileImageUrl} alt={candidate.displayNameEn} class="member-pick-avatar" loading="lazy" decoding="async" />
+              <img
+                src={candidate.profileImageUrl}
+                alt={candidate.displayNameEn}
+                class="member-pick-avatar"
+                loading="lazy"
+                decoding="async"
+              />
             {:else}
               <div class="member-pick-avatar member-pick-avatar-placeholder">
                 <i class="ti ti-user"></i>
@@ -443,11 +573,15 @@
             {/if}
             <div class="member-pick-info">
               <p class="member-pick-badge">Person {i + 1}</p>
-              <p class="member-pick-name">{candidate.displayName} ({candidate.displayNameEn})</p>
+              <p class="member-pick-name">
+                {candidate.displayName} ({candidate.displayNameEn})
+              </p>
               <p class="member-pick-realname">{candidate.subtitle}</p>
               <p class="member-pick-realname-en">{candidate.subtitleEn}</p>
               {#if candidate.brand}
-                <span class="chip chip-queued member-pick-brand">{candidate.brand}</span>
+                <span class="chip chip-queued member-pick-brand"
+                  >{candidate.brand}</span
+                >
               {/if}
             </div>
             {#if loading}
@@ -466,19 +600,34 @@
       <div class="vod-detail card">
         <div class="vod-detail-inner">
           {#if directVod.thumbnail}
-            <img src={directVod.thumbnail} alt="Thumbnail" class="vod-thumb" loading="lazy" decoding="async" />
+            <img
+              src={directVod.thumbnail}
+              alt="Thumbnail"
+              class="vod-thumb"
+              loading="lazy"
+              decoding="async"
+            />
           {:else}
-            <div class="vod-thumb thumbnail-placeholder"><i class="ti ti-video"></i></div>
+            <div class="vod-thumb thumbnail-placeholder">
+              <i class="ti ti-video"></i>
+            </div>
           {/if}
           <div class="vod-info">
-            <h3 class="text-body-large">{directVod.fileName || 'VOD'}</h3>
+            <h3 class="text-body-large">{directVod.fileName || "VOD"}</h3>
             {#if directVodPostedAt}
-              <p class="text-caption" style="color: var(--color-muted); margin-top: 4px;">
-                <i class="ti ti-calendar" style="margin-right: 4px;"></i> {new Date(directVodPostedAt).toLocaleString()}
+              <p
+                class="text-caption"
+                style="color: var(--color-muted); margin-top: 4px;"
+              >
+                <i class="ti ti-calendar" style="margin-right: 4px;"></i>
+                {new Date(directVodPostedAt).toLocaleString()}
               </p>
             {/if}
             {#if directVodContentText}
-              <p class="text-body" style="margin-top: 8px; white-space: pre-wrap; font-size: 14px; color: var(--color-body-muted); background: var(--color-soft-stone); padding: 10px; border-radius: 8px;">
+              <p
+                class="text-body"
+                style="margin-top: 8px; white-space: pre-wrap; font-size: 14px; color: var(--color-body-muted); background: var(--color-soft-stone); padding: 10px; border-radius: 8px;"
+              >
                 {directVodContentText}
               </p>
             {/if}
@@ -490,7 +639,13 @@
                 {:else}
                   <button
                     class="btn btn-primary btn-sm"
-                    onclick={() => handleDownload(directVod.resourceUrl, directVod.fileName, undefined, directVod.resourceUrl)}
+                    onclick={() =>
+                      handleDownload(
+                        directVod.resourceUrl,
+                        directVod.fileName,
+                        undefined,
+                        directVod.resourceUrl,
+                      )}
                     disabled={downloadingId === directVod.resourceUrl}
                   >
                     {#if downloadingId === directVod.resourceUrl}
@@ -516,24 +671,44 @@
       <div class="vod-detail card">
         <div class="vod-detail-inner">
           {#if directTimeline.thumbnail}
-            <img src={directTimeline.thumbnail} alt="Thumbnail" class="vod-thumb" loading="lazy" decoding="async" />
+            <img
+              src={directTimeline.thumbnail}
+              alt="Thumbnail"
+              class="vod-thumb"
+              loading="lazy"
+              decoding="async"
+            />
           {:else}
-            <div class="vod-thumb thumbnail-placeholder"><i class="ti ti-images"></i></div>
+            <div class="vod-thumb thumbnail-placeholder">
+              <i class="ti ti-images"></i>
+            </div>
           {/if}
           <div class="vod-info">
-            <h3 class="text-body-large">{directTimeline.fileName || 'Timeline Post'}</h3>
+            <h3 class="text-body-large">
+              {directTimeline.fileName || "Timeline Post"}
+            </h3>
             {#if directTimelinePostedAt}
-              <p class="text-caption" style="color: var(--color-muted); margin-top: 4px;">
-                <i class="ti ti-calendar" style="margin-right: 4px;"></i> {new Date(directTimelinePostedAt).toLocaleString()}
+              <p
+                class="text-caption"
+                style="color: var(--color-muted); margin-top: 4px;"
+              >
+                <i class="ti ti-calendar" style="margin-right: 4px;"></i>
+                {new Date(directTimelinePostedAt).toLocaleString()}
               </p>
             {/if}
             {#if directTimelineContentText}
-              <p class="text-body" style="margin-top: 8px; white-space: pre-wrap; font-size: 14px; color: var(--color-body-muted); background: var(--color-soft-stone); padding: 10px; border-radius: 8px;">
+              <p
+                class="text-body"
+                style="margin-top: 8px; white-space: pre-wrap; font-size: 14px; color: var(--color-body-muted); background: var(--color-soft-stone); padding: 10px; border-radius: 8px;"
+              >
                 {directTimelineContentText}
               </p>
             {/if}
             {#if directTimeline.images?.length}
-              <p class="text-caption" style="color: var(--color-muted); margin-top: 8px;">
+              <p
+                class="text-caption"
+                style="color: var(--color-muted); margin-top: 8px;"
+              >
                 {directTimeline.images.length} image(s)
               </p>
             {/if}
@@ -545,7 +720,13 @@
                 {:else}
                   <button
                     class="btn btn-primary btn-sm"
-                    onclick={() => handleDownload(directTimeline.resourceUrl, directTimeline.fileName, undefined, directTimeline.resourceUrl)}
+                    onclick={() =>
+                      handleDownload(
+                        directTimeline.resourceUrl,
+                        directTimeline.fileName,
+                        undefined,
+                        directTimeline.resourceUrl,
+                      )}
                     disabled={downloadingId === directTimeline.resourceUrl}
                   >
                     <i class="ti ti-download"></i> Download Video
@@ -558,7 +739,13 @@
         {#if directTimeline.images?.length > 0}
           <div class="timeline-images">
             {#each directTimeline.images as img}
-              <img src={img} alt="Timeline" class="timeline-img" loading="lazy" decoding="async" />
+              <img
+                src={img}
+                alt="Timeline"
+                class="timeline-img"
+                loading="lazy"
+                decoding="async"
+              />
             {/each}
           </div>
         {/if}
@@ -573,26 +760,50 @@
       <div class="vod-detail card">
         <div class="vod-detail-inner">
           {#if directCampaign.imageUrl}
-            <img src={directCampaign.imageUrl} alt="Thumbnail" class="vod-thumb" loading="lazy" decoding="async" />
+            <img
+              src={directCampaign.imageUrl}
+              alt="Thumbnail"
+              class="vod-thumb"
+              loading="lazy"
+              decoding="async"
+            />
           {:else}
-            <div class="vod-thumb thumbnail-placeholder"><i class="ti ti-flag"></i></div>
+            <div class="vod-thumb thumbnail-placeholder">
+              <i class="ti ti-flag"></i>
+            </div>
           {/if}
           <div class="vod-info">
-            <h3 class="text-body-large">{directCampaign.title || 'Campaign'}</h3>
+            <h3 class="text-body-large">
+              {directCampaign.title || "Campaign"}
+            </h3>
             {#if directCampaign.endAt}
-              <p class="text-caption" style="color: var(--color-muted); margin-top: 4px;">
-                <i class="ti ti-calendar" style="margin-right: 4px;"></i> Ends at: {new Date(directCampaign.endAt).toLocaleString()}
+              <p
+                class="text-caption"
+                style="color: var(--color-muted); margin-top: 4px;"
+              >
+                <i class="ti ti-calendar" style="margin-right: 4px;"></i> Ends
+                at: {new Date(directCampaign.endAt).toLocaleString()}
               </p>
             {/if}
             {#if directCampaign.description}
-              <p class="text-body" style="margin-top: 8px; white-space: pre-wrap; font-size: 14px; color: var(--color-body-muted); background: var(--color-soft-stone); padding: 10px; border-radius: 8px;">
+              <p
+                class="text-body"
+                style="margin-top: 8px; white-space: pre-wrap; font-size: 14px; color: var(--color-body-muted); background: var(--color-soft-stone); padding: 10px; border-radius: 8px;"
+              >
                 {directCampaign.description}
               </p>
             {/if}
-            <p class="text-caption" style="color: var(--color-muted); margin-top: 8px;">
-              Progress: {directCampaign.currentBackedCoinAmount} / {directCampaign.targetCoinAmount} coins ({directCampaign.progressPercentage}%)
+            <p
+              class="text-caption"
+              style="color: var(--color-muted); margin-top: 8px;"
+            >
+              Progress: {directCampaign.currentBackedCoinAmount} / {directCampaign.targetCoinAmount}
+              coins ({directCampaign.progressPercentage}%)
             </p>
-            <p class="text-caption" style="color: var(--color-muted); margin-top: 4px;">
+            <p
+              class="text-caption"
+              style="color: var(--color-muted); margin-top: 4px;"
+            >
               Backers: {directCampaign.currentBackerCount}
             </p>
           </div>
@@ -622,43 +833,73 @@
           >
             <div class="grid-thumb-wrap">
               {#if item.thumbnailImageUrl || item.thumbnail}
-                <img src={item.thumbnailImageUrl || item.thumbnail} alt="" class="grid-thumb" loading="lazy" decoding="async" />
+                <img
+                  src={item.thumbnailImageUrl || item.thumbnail}
+                  alt=""
+                  class="grid-thumb"
+                  loading="lazy"
+                  decoding="async"
+                />
               {:else}
                 <div class="grid-thumb grid-thumb-placeholder">
-                  <i class="ti ti-{searchType === 'lives' ? 'live-photo' : 'photo'}"></i>
+                  <i
+                    class="ti ti-{searchType === 'lives'
+                      ? 'live-photo'
+                      : 'photo'}"
+                  ></i>
                 </div>
               {/if}
               {#if item.itemType}
-                <span class="grid-type-badge">{item.itemType.replace('content-member-', '')}</span>
+                <span class="grid-type-badge"
+                  >{item.itemType.replace("content-member-", "")}</span
+                >
               {/if}
               {#if job}
                 <div class="grid-progress-overlay">
-                  {#if job.status === 'completed'}
-                    <i class="ti ti-circle-check" style="color: #22c55e; font-size: 24px;"></i>
-                  {:else if job.status === 'failed'}
-                    <i class="ti ti-circle-x" style="color: #ef4444; font-size: 24px;"></i>
+                  {#if job.status === "completed"}
+                    <i
+                      class="ti ti-circle-check"
+                      style="color: #22c55e; font-size: 24px;"
+                    ></i>
+                  {:else if job.status === "failed"}
+                    <i
+                      class="ti ti-circle-x"
+                      style="color: #ef4444; font-size: 24px;"
+                    ></i>
                   {:else}
                     <div class="grid-progress-ring">
                       <svg viewBox="0 0 36 36" width="44" height="44">
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
                         <circle
-                          cx="18" cy="18" r="15"
+                          cx="18"
+                          cy="18"
+                          r="15"
+                          fill="none"
+                          stroke="rgba(255,255,255,0.2)"
+                          stroke-width="3"
+                        />
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="15"
                           fill="none"
                           stroke="white"
                           stroke-width="3"
-                          stroke-dasharray="{(job.progress / 100) * 94.25} 94.25"
+                          stroke-dasharray="{(job.progress / 100) *
+                            94.25} 94.25"
                           stroke-linecap="round"
                           transform="rotate(-90 18 18)"
                         />
                       </svg>
-                      <span class="grid-progress-pct">{Math.round(job.progress)}%</span>
+                      <span class="grid-progress-pct"
+                        >{Math.round(job.progress)}%</span
+                      >
                     </div>
                   {/if}
                 </div>
               {/if}
             </div>
             <div class="grid-info">
-              <p class="grid-title">{item.title || item.id || 'Untitled'}</p>
+              <p class="grid-title">{item.title || item.id || "Untitled"}</p>
               <p class="grid-date">{formatDate(item.publishedAt)}</p>
             </div>
           </button>
@@ -688,14 +929,18 @@
     <div class="error-banner fade-in" style="margin-top: 12px;">
       <i class="ti ti-alert-circle"></i>
       <span>{vodError}</span>
-      <button class="btn-icon" onclick={() => vodError = ''} aria-label="Dismiss error">
+      <button
+        class="btn-icon"
+        onclick={() => (vodError = "")}
+        aria-label="Dismiss error"
+      >
         <i class="ti ti-x"></i>
       </button>
     </div>
   {/if}
 
   <!-- Empty State -->
-  {#if !loading && !error && results.length === 0 && memberCandidates.length === 0 && !directVod && !directTimeline && !directCampaign && searchQuery === ''}
+  {#if !loading && !error && results.length === 0 && memberCandidates.length === 0 && !directVod && !directTimeline && !directCampaign && searchQuery === ""}
     <div class="empty-state">
       <i class="ti ti-download"></i>
       <p>Enter a member name or paste a URL to get started.</p>
@@ -707,17 +952,32 @@
 {#if modalItem || loadingVod}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={onBackdropClick} role="dialog" aria-modal="true" aria-label="Order details" tabindex="-1">
+  <div
+    class="modal-backdrop"
+    onclick={onBackdropClick}
+    role="dialog"
+    aria-modal="true"
+    aria-label="Order details"
+    tabindex="-1"
+  >
     <div class="modal-panel">
       <!-- Modal header -->
       <div class="modal-header">
         <div class="modal-title-group">
-          <i class="ti ti-{modalItem?._isTimeline ? 'photo' : 'video'} modal-icon"></i>
+          <i
+            class="ti ti-{modalItem?._isTimeline
+              ? 'photo'
+              : 'video'} modal-icon"
+          ></i>
           <h2 class="modal-title">
-            {modalItem?._isTimeline ? 'Timeline Detail' : 'VOD Detail'}
+            {modalItem?._isTimeline ? "Timeline Detail" : "VOD Detail"}
           </h2>
         </div>
-        <button class="btn-icon modal-close" onclick={closeModal} aria-label="Close">
+        <button
+          class="btn-icon modal-close"
+          onclick={closeModal}
+          aria-label="Close"
+        >
           <i class="ti ti-x"></i>
         </button>
       </div>
@@ -731,8 +991,13 @@
             </div>
             <p>Fetching order details...</p>
             {#if modalItem._originalItem}
-              <p class="text-caption" style="color: var(--color-muted); margin-top: 4px;">
-                {modalItem._originalItem.title || modalItem._originalItem.id || ''}
+              <p
+                class="text-caption"
+                style="color: var(--color-muted); margin-top: 4px;"
+              >
+                {modalItem._originalItem.title ||
+                  modalItem._originalItem.id ||
+                  ""}
               </p>
             {/if}
           </div>
@@ -744,7 +1009,7 @@
               <video
                 class="modal-video"
                 src={modalItem.resourceUrl}
-                poster={modalItem.thumbnail || ''}
+                poster={modalItem.thumbnail || ""}
                 controls
                 preload="none"
                 playsinline
@@ -754,15 +1019,32 @@
             <!-- Multiple images → scrollable strip -->
             <div class="modal-images-strip">
               {#each modalItem.images as img, i}
-                <a href={img} target="_blank" rel="noopener" class="modal-strip-link">
-                  <img src={img} alt="Image {i + 1}" class="modal-strip-img" loading="lazy" decoding="async" />
+                <a
+                  href={img}
+                  target="_blank"
+                  rel="noopener"
+                  class="modal-strip-link"
+                >
+                  <img
+                    src={img}
+                    alt="Image {i + 1}"
+                    class="modal-strip-img"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </a>
               {/each}
             </div>
           {:else if modalItem.thumbnail || modalItem.images?.[0]}
             <!-- Single image / thumbnail -->
             <div class="modal-thumb-wrap">
-              <img src={modalItem.thumbnail || modalItem.images[0]} alt="Thumbnail" class="modal-thumb" loading="lazy" decoding="async" />
+              <img
+                src={modalItem.thumbnail || modalItem.images[0]}
+                alt="Thumbnail"
+                class="modal-thumb"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           {/if}
 
@@ -770,15 +1052,25 @@
           <div class="modal-fields">
             <!-- File name -->
             <div class="modal-field">
-              <span class="field-label"><i class="ti ti-file"></i> Filename</span>
-              <span class="field-value">{modalItem.fileName || modalItem._originalItem?.title || 'Untitled'}</span>
+              <span class="field-label"
+                ><i class="ti ti-file"></i> Filename</span
+              >
+              <span class="field-value"
+                >{modalItem.fileName ||
+                  modalItem._originalItem?.title ||
+                  "Untitled"}</span
+              >
             </div>
 
             <!-- Posted at -->
             {#if postedAt}
               <div class="modal-field">
-                <span class="field-label"><i class="ti ti-calendar"></i> Posted</span>
-                <span class="field-value">{new Date(postedAt).toLocaleString('th-TH')}</span>
+                <span class="field-label"
+                  ><i class="ti ti-calendar"></i> Posted</span
+                >
+                <span class="field-value"
+                  >{new Date(postedAt).toLocaleString("th-TH")}</span
+                >
               </div>
             {/if}
 
@@ -787,7 +1079,12 @@
               <div class="modal-field">
                 <span class="field-label"><i class="ti ti-tag"></i> Type</span>
                 <span class="field-value">
-                  <span class="chip chip-queued">{modalItem._originalItem.itemType.replace('content-member-', '')}</span>
+                  <span class="chip chip-queued"
+                    >{modalItem._originalItem.itemType.replace(
+                      "content-member-",
+                      "",
+                    )}</span
+                  >
                 </span>
               </div>
             {/if}
@@ -795,15 +1092,22 @@
             <!-- Duration -->
             {#if modalItem.info?.duration}
               <div class="modal-field">
-                <span class="field-label"><i class="ti ti-clock"></i> Duration</span>
-                <span class="field-value">{Math.floor(modalItem.info.duration / 60)}m {modalItem.info.duration % 60}s</span>
+                <span class="field-label"
+                  ><i class="ti ti-clock"></i> Duration</span
+                >
+                <span class="field-value"
+                  >{Math.floor(modalItem.info.duration / 60)}m {modalItem.info
+                    .duration % 60}s</span
+                >
               </div>
             {/if}
 
             <!-- Content / description -->
             {#if contentText}
               <div class="modal-field modal-field-block">
-                <span class="field-label"><i class="ti ti-align-left"></i> Description</span>
+                <span class="field-label"
+                  ><i class="ti ti-align-left"></i> Description</span
+                >
                 <p class="field-value field-text">{contentText}</p>
               </div>
             {/if}
@@ -811,25 +1115,34 @@
             <!-- Resource URL -->
             {#if modalItem.resourceUrl}
               <div class="modal-field">
-                <span class="field-label"><i class="ti ti-link"></i> Resource</span>
-                <span class="field-value field-url">Video stream available</span>
+                <span class="field-label"
+                  ><i class="ti ti-link"></i> Resource</span
+                >
+                <span class="field-value field-url">Video stream available</span
+                >
               </div>
             {/if}
 
             <!-- Images count (timeline) -->
             {#if modalItem._isTimeline && modalItem.images?.length}
               <div class="modal-field">
-                <span class="field-label"><i class="ti ti-photo"></i> Images</span>
-                <span class="field-value">{modalItem.images.length} image(s)</span>
+                <span class="field-label"
+                  ><i class="ti ti-photo"></i> Images</span
+                >
+                <span class="field-value"
+                  >{modalItem.images.length} image(s)</span
+                >
               </div>
             {/if}
 
             <!-- Raw info dump (additional fields) -->
             {#if modalItem.info}
-              {#each Object.entries(modalItem.info).filter(([k]) => !['contentText', 'content', 'description', 'duration', 'postedAt', 'publishedAt', 'created_at'].includes(k)) as [key, val]}
-                {#if val && typeof val !== 'object'}
+              {#each Object.entries(modalItem.info).filter(([k]) => !["contentText", "content", "description", "duration", "postedAt", "publishedAt", "created_at"].includes(k)) as [key, val]}
+                {#if val && typeof val !== "object"}
                   <div class="modal-field">
-                    <span class="field-label"><i class="ti ti-info-circle"></i> {key}</span>
+                    <span class="field-label"
+                      ><i class="ti ti-info-circle"></i> {key}</span
+                    >
                     <span class="field-value field-mono">{val}</span>
                   </div>
                 {/if}
@@ -842,7 +1155,13 @@
             <div class="modal-images">
               {#each modalItem.images as img}
                 <a href={img} target="_blank" rel="noopener">
-                  <img src={img} alt="Timeline" class="modal-img" loading="lazy" decoding="async" />
+                  <img
+                    src={img}
+                    alt="Timeline"
+                    class="modal-img"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </a>
               {/each}
             </div>
@@ -852,27 +1171,37 @@
 
       <!-- Modal footer: download button -->
       {#if modalItem && !modalItem._loading}
-        {@const modalKey = modalItem.resourceUrl || getItemKey(modalItem._originalItem || {})}
+        {@const modalKey =
+          modalItem.resourceUrl || getItemKey(modalItem._originalItem || {})}
         {@const modalJob = getJobForUrl(modalKey)}
         <div class="modal-footer">
           {#if modalItem.resourceUrl}
             {#if modalJob}
               <div class="modal-progress-wrap">
                 <div class="modal-progress-header">
-                  {#if modalJob.status === 'completed'}
+                  {#if modalJob.status === "completed"}
                     <i class="ti ti-circle-check" style="color: #22c55e;"></i>
-                    <span style="color: #22c55e; font-weight: 500;">Download complete</span>
-                  {:else if modalJob.status === 'failed'}
+                    <span style="color: #22c55e; font-weight: 500;"
+                      >Download complete</span
+                    >
+                  {:else if modalJob.status === "failed"}
                     <i class="ti ti-circle-x" style="color: #ef4444;"></i>
-                    <span style="color: #ef4444; font-weight: 500;">Download failed</span>
+                    <span style="color: #ef4444; font-weight: 500;"
+                      >Download failed</span
+                    >
                   {:else}
-                    <i class="ti ti-download ti-spin" style="color: var(--color-primary);"></i>
-                    <span style="color: var(--color-primary); font-weight: 500;">
+                    <i
+                      class="ti ti-download ti-spin"
+                      style="color: var(--color-primary);"
+                    ></i>
+                    <span
+                      style="color: var(--color-primary); font-weight: 500;"
+                    >
                       Downloading… {Math.round(modalJob.progress)}%
                     </span>
                   {/if}
                 </div>
-                {#if modalJob.status !== 'completed' && modalJob.status !== 'failed'}
+                {#if modalJob.status !== "completed" && modalJob.status !== "failed"}
                   <div class="modal-progress-bar">
                     <div
                       class="modal-progress-fill"
@@ -884,7 +1213,13 @@
             {:else}
               <button
                 class="btn btn-primary modal-download-btn"
-                onclick={() => handleDownload(modalItem.resourceUrl, modalItem.fileName, modalItem.info?.duration, modalItem.resourceUrl)}
+                onclick={() =>
+                  handleDownload(
+                    modalItem.resourceUrl,
+                    modalItem.fileName,
+                    modalItem.info?.duration,
+                    modalItem.resourceUrl,
+                  )}
                 disabled={downloadingId === modalItem.resourceUrl}
               >
                 {#if downloadingId === modalItem.resourceUrl}
@@ -895,9 +1230,14 @@
               </button>
             {/if}
           {:else if modalItem._isTimeline && modalItem.images?.length > 0}
-            <p class="modal-no-video"><i class="ti ti-photo"></i> {modalItem.images.length} image(s) — no video stream</p>
+            <p class="modal-no-video">
+              <i class="ti ti-photo"></i>
+              {modalItem.images.length} image(s) — no video stream
+            </p>
           {:else}
-            <p class="modal-no-video"><i class="ti ti-ban"></i> No downloadable resource found</p>
+            <p class="modal-no-video">
+              <i class="ti ti-ban"></i> No downloadable resource found
+            </p>
           {/if}
         </div>
       {/if}
@@ -909,10 +1249,10 @@
 {#snippet ProgressBar(job: { jobId: string; progress: number; status: string })}
   <div class="inline-progress">
     <div class="inline-progress-header">
-      {#if job.status === 'completed'}
+      {#if job.status === "completed"}
         <i class="ti ti-circle-check" style="color: #22c55e;"></i>
         <span style="color: #22c55e;">Complete</span>
-      {:else if job.status === 'failed'}
+      {:else if job.status === "failed"}
         <i class="ti ti-circle-x" style="color: #ef4444;"></i>
         <span style="color: #ef4444;">Failed</span>
       {:else}
@@ -920,7 +1260,7 @@
         <span>{Math.round(job.progress)}%</span>
       {/if}
     </div>
-    {#if job.status !== 'completed' && job.status !== 'failed'}
+    {#if job.status !== "completed" && job.status !== "failed"}
       <div class="inline-progress-bar">
         <div class="inline-progress-fill" style="width: {job.progress}%;"></div>
       </div>
@@ -972,15 +1312,90 @@
     padding-left: 40px;
   }
 
+  .autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    z-index: 50;
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+  }
+
+  .autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+
+  .autocomplete-item:hover,
+  .autocomplete-item:focus {
+    background: var(--color-soft-stone);
+  }
+
+  .ac-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-muted);
+  }
+
+  .ac-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ac-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .ac-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .ac-realname {
+    font-size: 11px;
+    color: var(--color-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ac-brand {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
   .search-actions {
     display: flex;
     gap: 8px;
     align-items: center;
-  }
-
-  .type-toggle {
-    display: flex;
-    gap: 4px;
   }
 
   /* ── Results Header ──────────────────────────────────────────────────── */
@@ -1019,12 +1434,13 @@
     padding: 14px;
     cursor: pointer;
     text-align: left;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
   }
 
   .member-pick-card:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
     border-color: var(--color-primary, #6366f1);
   }
 
@@ -1118,14 +1534,15 @@
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
     text-align: left;
     padding: 0;
   }
 
   .grid-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     border-color: var(--color-primary, #6366f1);
   }
 
@@ -1140,7 +1557,7 @@
   .grid-thumb-wrap {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 4 / 5;
     background: var(--color-soft-stone, #f1f5f9);
     overflow: hidden;
   }
@@ -1169,7 +1586,7 @@
     position: absolute;
     top: 6px;
     right: 6px;
-    background: rgba(0,0,0,0.65);
+    background: rgba(0, 0, 0, 0.65);
     color: #fff;
     font-size: 10px;
     font-weight: 600;
@@ -1184,7 +1601,7 @@
   .grid-progress-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.55);
+    background: rgba(0, 0, 0, 0.55);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1214,10 +1631,9 @@
     font-weight: 500;
     color: var(--ink);
     line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
     margin: 0;
   }
 
@@ -1307,8 +1723,12 @@
   }
 
   @keyframes backdropIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .modal-panel {
@@ -1326,8 +1746,14 @@
   }
 
   @keyframes panelIn {
-    from { opacity: 0; transform: scale(0.92) translateY(10px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+      opacity: 0;
+      transform: scale(0.92) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
 
   .modal-header {

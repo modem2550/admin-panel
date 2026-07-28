@@ -111,7 +111,7 @@ export async function searchMember(
   name: string,
   type: 'lives' | 'posts' = 'lives',
   skip = 0,
-  take = 60,
+  take = 20,
   lastId?: string,
   memberId?: number
 ) {
@@ -168,6 +168,36 @@ export async function getTheaterTicketBooking(skip = 0, take = 20) {
   return apiFetch<ArchiveResponse>(`/api/assets/theater-ticket?skip=${skip}&take=${take}`);
 }
 
+// ── Theater Rounds (ticket zones/prices/seats) ──────────────────────────────────
+
+export interface RoundZone {
+  zoneId: number;
+  name: string;
+  price: number | null;
+  remainingSeat: number | null;
+}
+
+export interface RoundItem {
+  id: string;
+  roundName: string;
+  startDate: string;
+  endDate: string;
+  isSoldOut: boolean;
+  seatMapUrl: string;
+  zones: RoundZone[];
+}
+
+export interface RoundResponse {
+  items: RoundItem[];
+  skip: number;
+  take: number;
+  hasMore: boolean;
+}
+
+export async function getTheaterRounds(skip = 0, take = 20) {
+  return apiFetch<RoundResponse>(`/api/assets/theater-rounds?skip=${skip}&take=${take}`);
+}
+
 export async function triggerScan(type: 'product' | 'group', secret: string) {
   return apiFetch<{ scan_log_id: number; startId: number; endId: number }>('/api/assets/scan', {
     method: 'POST',
@@ -196,3 +226,4 @@ export async function getLatestAsset(type: 'product' | 'group' | 'campaign') {
 export async function checkAssets(type: 'product' | 'group' | 'campaign', start: number, count = 50, order = 'desc') {
   return apiFetch<any[]>(`/api/check-assets?type=${type}&start=${start}&count=${count}&order=${order}`);
 }
+

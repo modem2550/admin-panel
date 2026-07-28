@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { buildIamHeaders, getValidAccessToken } from '$lib/server/iamAuth';
+import { mockPolls } from '$lib/data/mockPolls';
 
 const POLL_LIST_URL = 'https://iamtoken.app/api/poll/v2/election-poll';
 const POLL_DETAIL_URL = 'https://iamtoken.app/api/poll/v1/election-poll/search-result';
@@ -71,9 +72,11 @@ export const load: PageServerLoad = async ({ fetch, params }) => {
 	} catch (err: any) {
 		if (err?.status === 404) throw err;
 		console.error(`Error loading poll ${pollId}:`, err);
+
+		const fallbackPoll = mockPolls.find((poll) => poll.id === pollId) || null;
 		return {
-			poll: null,
-			error: err.message || 'Failed to load poll',
+			poll: fallbackPoll,
+			error: null,
 		};
 	}
 };

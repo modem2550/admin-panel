@@ -46,9 +46,17 @@
 
   async function showAssetDetail(asset: any) {
     selectedAsset = asset;
-    loadingAssetDetail = true;
     assetSkus = [];
     assetUrls = [];
+
+    // Group assets already carry their full title/description/thumbnail from the
+    // shop scan — no separate SKU-image discovery needed for them.
+    if (scanType === "group") {
+      loadingAssetDetail = false;
+      return;
+    }
+
+    loadingAssetDetail = true;
     try {
       const data = await getScanSku(parseInt(asset.id), scanType);
       assetSkus = data.skus;
@@ -650,23 +658,32 @@
               </div>
             {/if}
 
-            <div class="modal-field">
-              <span class="modal-field-label">SKUs discovered</span>
-              {#if loadingAssetDetail}
-                <div
-                  class="asset-skel"
-                  style="width: 120px; height: 24px; margin-top: 4px;"
-                ></div>
-              {:else if assetSkus.length === 0}
-                <p class="modal-field-muted">No SKUs found.</p>
-              {:else}
-                <div class="modal-sku-list">
-                  {#each assetSkus as sku}
-                    <span class="modal-sku">SKU {sku}</span>
-                  {/each}
-                </div>
+            {#if scanType === "group"}
+              {#if !selectedAsset.title && !selectedAsset.description}
+                <p class="modal-field-muted">
+                  No shop data found for this group yet — run a Group scan to
+                  fetch its title/description.
+                </p>
               {/if}
-            </div>
+            {:else}
+              <div class="modal-field">
+                <span class="modal-field-label">SKUs discovered</span>
+                {#if loadingAssetDetail}
+                  <div
+                    class="asset-skel"
+                    style="width: 120px; height: 24px; margin-top: 4px;"
+                  ></div>
+                {:else if assetSkus.length === 0}
+                  <p class="modal-field-muted">No SKUs found.</p>
+                {:else}
+                  <div class="modal-sku-list">
+                    {#each assetSkus as sku}
+                      <span class="modal-sku">SKU {sku}</span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {/if}
           </div>
         </div>
       </div>

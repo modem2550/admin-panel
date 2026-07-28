@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { getValidToken } from '$lib/bnk48.server';
 
 const TICKET_HOST = 'https://ticket.bnk48.io';
 const IAMTOKEN_HOST = 'https://iamtoken.app';
@@ -8,11 +9,6 @@ const APP_VERSION = '1.58.0';
 const APP_ID = 'BNK48_101';
 const TICKET_API_KEY = 'UM4gogv6rM764J9IabmBrcMhoz2El1';
 export const IAMTOKEN_API_KEY = 'imn2C1yF98tUDrSuth2rEeiMmlLvaizN';
-
-const DEFAULT_TICKET_AUTH_BEARER =
-	'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzkyNzgiLCJ1bmlxdWVfbmFtZSI6' +
-	'IjgzOTI3OCIsImlzcyI6InVzZXItYXV0aC5ibms0OC5pbyIsIm5iZiI6MTc4NDM4MDkwOCwiZXhwIjox' +
-	'Nzg0OTg1NzA4LCJpYXQiOjE3ODQzODA5MDh9.e0Qa3wveDUZKir6y3MF0j9VDEhZskpoRHQG_wPumpTo';
 
 const IAM_USER_AGENT =
 	'Mozilla/5.0 (iPad; CPU OS 18_7 like Mac OS X) AppleWebKit/605.1.15 ' +
@@ -29,8 +25,11 @@ function getPin(): string {
 	return pin;
 }
 
-function getTicketAuthBearer(): string {
-	return env.BNK48_TICKET_AUTH_BEARER ?? DEFAULT_TICKET_AUTH_BEARER;
+async function getTicketAuthBearer(): Promise<string> {
+	if (env.BNK48_TICKET_AUTH_BEARER) {
+		return env.BNK48_TICKET_AUTH_BEARER;
+	}
+	return getValidToken();
 }
 
 export function buildIamHeaders(accessToken: string): Record<string, string> {
@@ -54,7 +53,7 @@ export async function getValidAccessToken(fetchFn: typeof fetch = fetch): Promis
 	}
 
 	const pin = getPin();
-	const ticketAuthBearer = getTicketAuthBearer();
+	const ticketAuthBearer = await getTicketAuthBearer();
 
 	const ticketHeaders = {
 		Authorization: `Bearer ${ticketAuthBearer}`,
@@ -77,7 +76,10 @@ export async function getValidAccessToken(fetchFn: typeof fetch = fetch): Promis
 	});
 
 	if (!resp1.ok) {
-		throw new Error(`iAM48 PIN login failed: ${resp1.status} ${resp1.statusText}`);
+		const detail = await resp1.text().catch(() => '');
+		throw new Error(
+			`iAM48 PIN login failed: ${resp1.status} ${resp1.statusText}${detail ? ` — ${detail.slice(0, 200)}` : ''}`,
+		);
 	}
 
 	const data1 = await resp1.json();

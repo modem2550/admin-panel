@@ -41,7 +41,9 @@
 		"src/routes/(app)/auctions/[id]/+page.server.ts"
 	],
 	"/(app)/campaigns": [],
-	"/(app)/downloader": [],
+	"/(app)/downloader": [
+		"src/routes/(app)/downloader/+page.server.ts"
+	],
 	"/(app)/events": [
 		"src/routes/(app)/events/+page.server.ts"
 	],

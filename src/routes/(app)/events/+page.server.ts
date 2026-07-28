@@ -17,33 +17,51 @@ export interface EventItem {
 }
 
 export const load: PageServerLoad = async () => {
-	const tableCandidates = ['events', 'events_past'];
-	let events: EventItem[] = [];
+	const tablesToFetch = ['event_data', 'events_upcoming', 'events', 'events_past'];
+	let allEvents: EventItem[] = [];
 	let errorMessage: string | null = null;
-	let eventTable = 'events';
+	let defaultTable = 'event_data';
 
-	for (const table of tableCandidates) {
+	for (const table of tablesToFetch) {
 		const { data, error } = await supabaseAdmin
 			.from(table)
 			.select('*')
 			.order('date', { ascending: false });
 
 		if (error) {
-			if (table === 'events' && error.code === 'PGRST205' && error.message.includes("public.events")) {
-				continue;
+			if (error.code !== 'PGRST205' && error.code !== '42P01') {
+				console.error(`[events] Supabase error on table ${table}:`, error.message);
+				if (!errorMessage) errorMessage = error.message;
 			}
-
-			console.error('[events] Supabase error:', error.message);
-			errorMessage = error.message;
-			break;
+			continue;
 		}
 
-		events = (data ?? []) as EventItem[];
-		eventTable = table;
-		break;
+		// If event_data is the first successfully queried table, make sure we use it for inserts
+		if (data && data.length > 0 && defaultTable === 'event_data') {
+			defaultTable = table;
+		}
+
+		if (data) {
+			allEvents.push(...(data as EventItem[]));
+		}
 	}
 
-	return { events, error: errorMessage, eventTable };
+	// Deduplicate by ID just in case
+	const uniqueEventsMap = new Map<number, EventItem>();
+	for (const ev of allEvents) {
+		if (!uniqueEventsMap.has(ev.id)) {
+			uniqueEventsMap.set(ev.id, ev);
+		}
+	}
+
+	let events = Array.from(uniqueEventsMap.values());
+	events.sort((a, b) => {
+		if (a.date < b.date) return 1;
+		if (a.date > b.date) return -1;
+		return 0;
+	});
+
+	return { events, error: errorMessage, eventTable: defaultTable };
 };
 
 export const actions: Actions = {

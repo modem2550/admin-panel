@@ -227,11 +227,10 @@
           disabled={loadingMore}
         >
           {#if loadingMore}
-            <i class="ti ti-loader ti-spin" style="margin-right: 6px;"
-            ></i> Loading...
+            <i class="ti ti-loader ti-spin" style="margin-right: 6px;"></i> Loading...
           {:else}
-            <i class="ti ti-arrow-down" style="margin-right: 6px;"></i> Load
-            More Campaigns
+            <i class="ti ti-arrow-down" style="margin-right: 6px;"></i> Load More
+            Campaigns
           {/if}
         </button>
       </div>

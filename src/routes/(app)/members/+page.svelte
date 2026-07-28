@@ -18,7 +18,9 @@
   // ── Derived values ─────────────────────────────────────────────────────────
   let brands = $derived([
     "all",
-    ...Array.from(new Set(members.map((m) => m.brand ?? "Unknown").filter(Boolean))).sort(),
+    ...Array.from(
+      new Set(members.map((m) => m.brand ?? "Unknown").filter(Boolean)),
+    ).sort(),
   ]);
 
   let gens = $derived.by(() => {
@@ -112,7 +114,7 @@
       team: null,
       profile_image_url: null,
       graduated_at: null,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
   }
 
@@ -128,18 +130,25 @@
 
 <div class="members-page fade-in">
   <!-- Header -->
-  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
-  <div>
-    <p class="text-mono-label page-label">Database</p>
-    <h1 class="page-title">Members</h1>
-    <p class="page-desc">
-      Browse BNK48 / CGM48 group members from the Supabase database.
-    </p>
+  <div
+    class="page-header"
+    style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px"
+  >
+    <div>
+      <p class="text-mono-label page-label">Database</p>
+      <h1 class="page-title">Members</h1>
+      <p class="page-desc">
+        Browse BNK48 / CGM48 group members from the Supabase database.
+      </p>
+    </div>
+    <button
+      class="btn btn-primary"
+      style="margin-top: 12px;"
+      onclick={openCreate}
+    >
+      <i class="ti ti-plus"></i> Add Member
+    </button>
   </div>
-  <button class="btn btn-primary" style="margin-top: 12px;" onclick={openCreate}>
-    <i class="ti ti-plus"></i> Add Member
-  </button>
-</div>
 
   <!-- Summary chips -->
   {#if members.length > 0}
@@ -148,8 +157,7 @@
         <button
           class="brand-chip"
           class:active={filterBrand === brand}
-          onclick={() =>
-            (filterBrand = filterBrand === brand ? "all" : brand)}
+          onclick={() => (filterBrand = filterBrand === brand ? "all" : brand)}
           style="--brand-color: {getBrandColor(brand)}"
         >
           <span class="brand-chip-name">{brand}</span>
@@ -172,24 +180,26 @@
       />
     </div>
 
-    <div class="filter-tabs">
-      {#each [["active", "Active"], ["graduated", "Graduated"], ["all", "All"]] as [val, label]}
-        <button
-          class="btn btn-pill-outline btn-sm"
-          class:active={filterStatus === val}
-          onclick={() => (filterStatus = val as any)}
-        >
-          {label}
-        </button>
-      {/each}
-    </div>
+    <div class="bar">
+      <div class="filter-tabs">
+        {#each [["active", "Active"], ["graduated", "Graduated"], ["all", "All"]] as [val, label]}
+          <button
+            class="btn btn-pill-outline btn-sm"
+            class:active={filterStatus === val}
+            onclick={() => (filterStatus = val as any)}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
 
-    <span
-      class="text-caption"
-      style="color: var(--color-muted); margin-left: auto; white-space: nowrap;"
-    >
-      {filtered.length} / {members.length} members
-    </span>
+      <span
+        class="text-caption"
+        style="color: var(--color-muted); margin-left: auto; white-space: nowrap;"
+      >
+        {filtered.length} / {members.length} members
+      </span>
+    </div>
   </div>
 
   <!-- Error -->
@@ -215,15 +225,13 @@
     <div class="members-grid">
       {#each filtered as member (member.id)}
         <button
-          class="member-card card"
+          class="member-card"
           onclick={() => openDetail(member)}
           aria-label="View details for {member.name}"
+          style="--brand-color: {getBrandColor(member.brand)}"
         >
-          <!-- Avatar -->
-          <div
-            class="member-avatar-wrap"
-            style="--brand-color: {getBrandColor(member.brand)}"
-          >
+          <!-- Photo block -->
+          <div class="member-photo">
             {#if member.profile_image_url}
               <img
                 src={member.profile_image_url}
@@ -244,7 +252,7 @@
             {/if}
           </div>
 
-          <!-- Info -->
+          <!-- Info block sits below the photo, not overlaid on it -->
           <div class="member-info">
             <h3 class="member-name">{member.name}</h3>
             {#if member.real_name}
@@ -252,18 +260,15 @@
             {/if}
             <div class="member-tags">
               {#if member.brand}
-                <span
-                  class="member-tag"
-                  style="color: {getBrandColor(member.brand)}; background: color-mix(in srgb, {getBrandColor(member.brand)} 10%, transparent);"
-                >
-                  {member.brand}
-                </span>
+                <span class="member-tag"> {member.brand}</span>
               {/if}
+              <span class="member-tag"> • </span>
               {#if member.gen}
-                <span class="member-tag member-tag-neutral">{member.gen}</span>
+                <span class="member-tag">{member.gen}</span>
               {/if}
+              <span class="member-tag"> • </span>
               {#if member.team}
-                <span class="member-tag member-tag-neutral">{member.team}</span>
+                <span class="member-tag">{member.team}</span>
               {/if}
             </div>
           </div>
@@ -276,48 +281,50 @@
 <!-- ── Detail Modal ─────────────────────────────────────────────────────── -->
 {#if editMember}
   {@const m = editMember}
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="modal-backdrop fade-in"
-    onclick={closeDetail}
-    role="presentation"
-  >
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="modal-backdrop fade-in" onclick={closeDetail} role="presentation">
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="modal-content card fade-in-scale"
       onclick={(e) => e.stopPropagation()}
       role="presentation"
     >
       <div class="modal-header">
-        <h2 class="text-feature-heading" style="margin: 0;">{isCreating ? 'Add Member' : 'Edit Member'}</h2>
+        <h2 class="text-feature-heading" style="margin: 0;">
+          {isCreating ? "Add Member" : "Edit Member"}
+        </h2>
         <button class="btn-icon" onclick={closeDetail} aria-label="Close">
           <i class="ti ti-x"></i>
         </button>
       </div>
 
-      <form method="post" action={isCreating ? '?/createMember' : '?/updateMember'} use:enhance={() => {
-        return async ({ result, update }) => {
-          if (result.type === 'success') {
-            closeDetail();
-            update();
-          } else {
-            update();
-          }
-        };
-      }} class="modal-body">
+      <form
+        method="post"
+        action={isCreating ? "?/createMember" : "?/updateMember"}
+        use:enhance={() => {
+          return async ({ result, update }) => {
+            if (result.type === "success") {
+              closeDetail();
+              update();
+            } else {
+              update();
+            }
+          };
+        }}
+        class="modal-body"
+      >
         {#if !isCreating}
           <input type="hidden" name="id" value={m.id} />
         {/if}
 
-        <div class="modal-media" style="--brand-color: {getBrandColor(m.brand)}">
+        <div
+          class="modal-media"
+          style="--brand-color: {getBrandColor(m.brand)}"
+        >
           {#if m.profile_image_url}
-            <img
-              src={m.profile_image_url}
-              alt={m.name}
-              class="modal-avatar"
-            />
+            <img src={m.profile_image_url} alt={m.name} class="modal-avatar" />
           {:else}
             <div class="modal-avatar-fallback">
               <span>{getInitials(m.name)}</span>
@@ -384,7 +391,9 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="profile_image_url">Profile Image URL</label>
+            <label class="form-label" for="profile_image_url"
+              >Profile Image URL</label
+            >
             <input
               id="profile_image_url"
               class="form-input"
@@ -405,20 +414,19 @@
             />
           </div>
 
-          {#if !isCreating}
-          <div class="form-group">
-            <label class="form-label">Added</label>
-            <div class="form-input" style="background: var(--color-soft-stone);">
-              {formatDate(m.created_at)}
-            </div>
-          </div>
-          {/if}
-
           <div class="modal-actions">
-            <button type="submit" name={isCreating ? 'createMember' : 'updateMember'} class="btn btn-primary btn-sm">
-              {isCreating ? 'Add Member' : 'Save changes'}
+            <button
+              type="submit"
+              name={isCreating ? "createMember" : "updateMember"}
+              class="btn btn-primary btn-sm"
+            >
+              {isCreating ? "Add Member" : "Save changes"}
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick={closeDetail}>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              onclick={closeDetail}
+            >
               Cancel
             </button>
           </div>
@@ -431,7 +439,7 @@
 <style>
   :root {
     --bnk48: #cb96c2;
-    --cgm48: #3CC2B1;
+    --cgm48: #3cc2b1;
     --mnl48: #01479d;
   }
 
@@ -490,13 +498,14 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+    justify-content: space-between;
   }
 
   .search-wrap {
     position: relative;
     flex: 1;
+    width: 100%;
     min-width: 220px;
-    max-width: 380px;
   }
 
   .search-icon {
@@ -522,11 +531,132 @@
 
   /* ── Error Banner ──────────────────────────────────────────────────────── */
 
-  /* ── Members Grid ──────────────────────────────────────────────────────── */
+  /* ── Members Grid ──────────────────────────────────────────────────────────
+     Paypers-style card: white surface, rounded xl radius, soft shadow on
+     hover, photo on top and info below (no dark scrim/gradient overlaid on
+     the photo — keeps things flat and airy per design guideline). */
   .members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: var(--space-md);
+  }
+
+  .member-card {
+    position: relative;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: none;
+    transition:
+      border-color var(--duration-normal) var(--ease-out),
+      box-shadow var(--duration-normal) var(--ease-out),
+      transform var(--duration-normal) var(--ease-out);
+  }
+
+  .member-card:hover,
+  .member-card:focus-visible {
+    border-color: var(--ink);
+    box-shadow: none;
+  }
+
+  .member-photo {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: var(--card);
+    overflow: hidden;
+  }
+
+  .member-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+    transition: transform 0.5s var(--ease-out);
+  }
+
+  .member-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--brand-color, var(--color-muted));
+    opacity: 0.55;
+  }
+
+  .graduated-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    background: var(--white);
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-muted);
+    font-size: 12px;
+    box-shadow: 0 2px 6px rgba(10, 10, 10, 0.14);
+    z-index: 2;
+  }
+
+  /* Info now lives in its own block below the photo, separated by a thin
+     hairline border — matches the flat, editorial Paypers card pattern
+     instead of a caption overlaid on the image. */
+  .bar {
+    display: flex;
+    align-items: center;
+    width: 50%;
+    justify-content: space-between;
+  }
+
+  .member-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .member-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .member-real-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+
+  .member-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+
+  .member-tag {
+    font-size: 10px;
+
+    color: var(--color-muted);
+    line-height: 1.3;
+    white-space: nowrap;
   }
 
   .modal-backdrop {
@@ -546,7 +676,6 @@
     max-height: 90vh;
     overflow-y: auto;
     background: var(--white);
-    border-radius: var(--radius-none);
     border: 1px solid var(--border);
     padding: var(--space-xl);
     display: flex;
@@ -596,15 +725,6 @@
     gap: 18px;
   }
 
-  .modal-title {
-    font-family: var(--font-body);
-    font-size: 22px;
-    font-weight: 400;
-    line-height: 1;
-    color: var(--ink);
-    margin: 0;
-  }
-
   .modal-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -618,106 +738,6 @@
     justify-content: flex-end;
     align-items: center;
     margin-top: 8px;
-  }
-
-  .member-card {
-    padding: 0;
-    overflow: hidden;
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-none);
-    background: var(--white);
-    transition: border-color var(--duration-normal) var(--ease-out);
-    display: flex;
-  }
-
-  .member-avatar-wrap {
-    position: relative;
-    width: 125px;
-    aspect-ratio: 3 / 4;
-    background: var(--card);
-    overflow: hidden;
-  }
-
-  .member-avatar {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top;
-    display: block;
-  }
-
-  .member-avatar-fallback {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-body);
-    font-size: 36px;
-    font-weight: 400;
-    color: var(--color-slate);
-    opacity: 0.5;
-  }
-
-  .graduated-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
-    background: var(--color-footer);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-on-primary);
-    font-size: 12px;
-  }
-
-  /* Member Info */
-  .member-info {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-  }
-
-  .member-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ink);
-    line-height: 1.3;
-  }
-
-  .member-real-name {
-    font-size: 11px;
-    color: var(--color-muted);
-    line-height: 1.3;
-  }
-
-  .member-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-  }
-
-  .member-tag {
-    font-size: 10px;
-    font-weight: 500;
-    padding: 2px 7px;
-    border-radius: 999px;
-    line-height: 1.5;
-    white-space: nowrap;
-  }
-
-  .member-tag-neutral {
-    background: var(--border);
-    color: var(--color-slate);
   }
 
   /* ── Animations ────────────────────────────────────────────────────────── */
@@ -737,7 +757,16 @@
   }
 
   /* ── Responsive ────────────────────────────────────────────────────────── */
-  @media (max-width: 768px) {
+  @media (max-width: 779px) {
+    .members-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: var(--space-sm);
+    }
+
+    .bar {
+      width: 100%;
+    }
+
     .controls-bar {
       flex-direction: column;
       align-items: stretch;
@@ -754,6 +783,22 @@
     .modal-content {
       padding: 20px;
       max-height: 95vh;
+    }
+  }
+
+  @media (max-width: 485px) {
+    .members-grid {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .member-card {
+      flex-direction: row;
+    }
+
+    .member-photo {
+      height: 125px;
+      width: 100px;
     }
   }
 </style>

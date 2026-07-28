@@ -15,10 +15,17 @@
   let isCreating = $state(false);
   let imageUrlsText = $state("");
 
+  function getLocalDateString() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   let filtered = $derived.by(() => {
     const q = searchQuery.toLowerCase().trim();
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const today = getLocalDateString();
 
     return events.filter((ev) => {
       const matchQuery =
@@ -27,13 +34,13 @@
         (ev.location ?? "").toLowerCase().includes(q) ||
         (ev.live ?? "").toLowerCase().includes(q);
 
-      const evDate = new Date(ev.date);
+      const endDate = ev.end_date || ev.date;
       const matchTime =
         filterUpcoming === "all"
           ? true
           : filterUpcoming === "upcoming"
-            ? evDate >= now
-            : evDate < now;
+            ? endDate >= today
+            : endDate < today;
 
       return matchQuery && matchTime;
     });
@@ -44,7 +51,9 @@
   function normalizeDate(value: string | null): string {
     if (!value) return "";
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toISOString().slice(0, 10);
   }
 
   function openDetail(ev: EventItem) {
@@ -54,7 +63,7 @@
       date: normalizeDate(ev.date),
       end_date: normalizeDate(ev.end_date),
     };
-    imageUrlsText = (ev.image_urls ?? []).join('\n');
+    imageUrlsText = (ev.image_urls ?? []).join("\n");
   }
 
   function openCreate() {
@@ -70,7 +79,7 @@
       live: null,
       image_urls: null,
       image_path: null,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
     imageUrlsText = "";
   }
@@ -96,17 +105,15 @@
   }
 
   function isUpcoming(dateStr: string): boolean {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    return new Date(dateStr) >= now;
+    const today = getLocalDateString();
+    return dateStr > today;
   }
 
   function isOngoing(ev: EventItem): boolean {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const start = new Date(ev.date);
-    const end = ev.end_date ? new Date(ev.end_date) : start;
-    return start <= now && now <= end;
+    const today = getLocalDateString();
+    const start = ev.date;
+    const end = ev.end_date || start;
+    return start <= today && today <= end;
   }
 </script>
 
@@ -116,18 +123,25 @@
 
 <div class="events-page fade-in">
   <!-- Header -->
-  <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
-  <div>
-    <p class="text-mono-label page-label">Database</p>
-    <h1 class="page-title">Events</h1>
-    <p class="page-desc">
-      Browse BNK48 / CGM48 events and concerts from the Supabase database.
-    </p>
+  <div
+    class="page-header"
+    style="display: flex; justify-content: space-between; align-items: flex-start;"
+  >
+    <div>
+      <p class="text-mono-label page-label">Database</p>
+      <h1 class="page-title">Events</h1>
+      <p class="page-desc">
+        Browse BNK48 / CGM48 events and concerts from the Supabase database.
+      </p>
+    </div>
+    <button
+      class="btn btn-primary"
+      style="margin-top: 12px;"
+      onclick={openCreate}
+    >
+      <i class="ti ti-plus"></i> Add Event
+    </button>
   </div>
-  <button class="btn btn-primary" style="margin-top: 12px;" onclick={openCreate}>
-    <i class="ti ti-plus"></i> Add Event
-  </button>
-</div>
 
   <!-- Controls -->
   <div class="controls-bar">
@@ -154,7 +168,10 @@
       {/each}
     </div>
 
-    <span class="text-caption" style="color: var(--color-muted); margin-left: auto;">
+    <span
+      class="text-caption"
+      style="color: var(--color-muted); margin-left: auto;"
+    >
       {filtered.length} / {events.length} events
     </span>
   </div>
@@ -229,7 +246,9 @@
             <div class="event-meta">
               <span class="meta-row">
                 <i class="ti ti-calendar"></i>
-                {formatDate(ev.date)}{ev.end_date ? " – " + formatDate(ev.end_date) : ""}
+                {formatDate(ev.date)}{ev.end_date
+                  ? " – " + formatDate(ev.end_date)
+                  : ""}
               </span>
               {#if ev.location}
                 <span class="meta-row">
@@ -254,43 +273,44 @@
 <!-- ── Detail Modal ─────────────────────────────────────────────────────── -->
 {#if editEvent}
   {@const ev = editEvent}
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="modal-backdrop fade-in"
-    onclick={closeDetail}
-    role="presentation"
-  >
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="modal-backdrop fade-in" onclick={closeDetail} role="presentation">
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="modal-content card fade-in-scale"
       onclick={(e) => e.stopPropagation()}
       role="presentation"
     >
-        <div class="modal-header">
-          <h2 class="text-feature-heading" style="margin: 0;">
-            {isCreating ? "Create Event" : "Edit Event"}
-          </h2>
-          <button class="btn-icon" aria-label="Close" onclick={closeDetail}>
-            <i class="ti ti-x"></i>
-          </button>
-        </div>
+      <div class="modal-header">
+        <h2 class="text-feature-heading" style="margin: 0;">
+          {isCreating ? "Create Event" : "Edit Event"}
+        </h2>
+        <button class="btn-icon" aria-label="Close" onclick={closeDetail}>
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
 
-      <form method="post" action={isCreating ? "?/createEvent" : "?/updateEvent"} use:enhance={() => {
-        return async ({ result, update }) => {
-          if (result.type === 'success') {
-            closeDetail();
-            update();
-          } else {
-            update();
-          }
-        };
-      }} class="modal-body">
+      <form
+        method="post"
+        action={isCreating ? "?/createEvent" : "?/updateEvent"}
+        use:enhance={() => {
+          return async ({ result, update }) => {
+            if (result.type === "success") {
+              closeDetail();
+              update();
+            } else {
+              update();
+            }
+          };
+        }}
+        class="modal-body"
+      >
         {#if !isCreating}
           <input type="hidden" name="id" value={editEvent.id} />
         {/if}
-        <input type="hidden" name="table" value={data.eventTable ?? 'events'} />
+        <input type="hidden" name="table" value={data.eventTable ?? "events"} />
 
         <div class="modal-media">
           {#if ev.image_url}
@@ -372,7 +392,9 @@
           </div>
 
           <div class="form-group" style="grid-column: 1 / -1;">
-            <label class="form-label" for="image_urls">Image URLs (One per line)</label>
+            <label class="form-label" for="image_urls"
+              >Image URLs (One per line)</label
+            >
             <textarea
               id="image_urls"
               class="form-input"
@@ -395,10 +417,18 @@
           </div>
 
           <div class="modal-actions" style="grid-column: 1 / -1;">
-            <button type="submit" name={isCreating ? "createEvent" : "updateEvent"} class="btn btn-primary btn-sm">
+            <button
+              type="submit"
+              name={isCreating ? "createEvent" : "updateEvent"}
+              class="btn btn-primary btn-sm"
+            >
               {isCreating ? "Create Event" : "Save changes"}
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick={closeDetail}>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              onclick={closeDetail}
+            >
               Cancel
             </button>
           </div>
@@ -467,14 +497,16 @@
     text-align: left;
     width: 100%;
     border: 1px solid var(--border);
-    border-radius: var(--radius-none);
     background: var(--white);
     transition: border-color var(--duration-normal) var(--ease-out);
     display: flex;
   }
 
   .event-thumb-wrap {
-    width: 150px;
+    max-width: 150px;
+    max-height: 187.5px;
+    width: 100%;
+    height: 100%;
     position: relative;
     overflow: hidden;
     aspect-ratio: 4 / 5;
@@ -583,7 +615,6 @@
     max-height: 90vh;
     overflow-y: auto;
     background: var(--white);
-    border-radius: var(--radius-none);
     border: 1px solid var(--border);
     padding: var(--space-xl);
     display: flex;

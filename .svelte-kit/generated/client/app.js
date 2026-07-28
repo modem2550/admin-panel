@@ -24,7 +24,7 @@ export const dictionary = {
 		"/(app)/auctions/polls/[id]": [~6,[2]],
 		"/(app)/auctions/[id]": [~5,[2]],
 		"/(app)/campaigns": [7,[2]],
-		"/(app)/downloader": [8,[2]],
+		"/(app)/downloader": [~8,[2]],
 		"/(app)/events": [~9,[2]],
 		"/(app)/members": [~10,[2]],
 		"/(app)/scanner": [11,[2]],

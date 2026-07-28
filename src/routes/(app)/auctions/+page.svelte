@@ -21,7 +21,10 @@
     const q = searchQuery.toLowerCase().trim();
     return auctions.filter((a) => {
       if (!q) return true;
-      return a.name.toLowerCase().includes(q) || a.tokenSymbol.toLowerCase().includes(q);
+      return (
+        a.name.toLowerCase().includes(q) ||
+        a.tokenSymbol.toLowerCase().includes(q)
+      );
     });
   });
 
@@ -148,7 +151,7 @@
               </div>
             </div>
             <div class="batch-info">
-              <h3 class="batch-title">{(auction.name)}</h3>
+              <h3 class="batch-title">{auction.name}</h3>
               <div class="batch-meta">
                 {#if auction.tokenSymbol}
                   <span class="meta-row">
@@ -162,7 +165,9 @@
                 </span>
                 <span class="meta-row">
                   <i class="ti ti-calendar"></i>
-                  {formatDate(auction.startDate)} – {formatDate(auction.endDate)}
+                  {formatDate(auction.startDate)} – {formatDate(
+                    auction.endDate,
+                  )}
                 </span>
               </div>
             </div>
@@ -170,58 +175,56 @@
         {/each}
       </div>
     {/if}
+  {:else if polls.length === 0 && !loadError}
+    <div class="empty-state">
+      <i class="ti ti-square-poll-vertical"></i>
+      <p>Loading polls from API...</p>
+      <div class="spinner"></div>
+    </div>
+  {:else if filteredPolls.length === 0}
+    <div class="empty-state">
+      <i class="ti ti-filter-circle-xmark"></i>
+      <p>No polls match your search.</p>
+    </div>
   {:else}
-    {#if polls.length === 0 && !loadError}
-      <div class="empty-state">
-        <i class="ti ti-square-poll-vertical"></i>
-        <p>Loading polls from API...</p>
-        <div class="spinner"></div>
-      </div>
-    {:else if filteredPolls.length === 0}
-      <div class="empty-state">
-        <i class="ti ti-filter-circle-xmark"></i>
-        <p>No polls match your search.</p>
-      </div>
-    {:else}
-      <div class="batches-grid">
-        {#each filteredPolls as poll (poll.id)}
-          <a href="/auctions/polls/{poll.id}" class="batch-card card">
-            <div class="batch-thumb-wrap poll-thumb-wrap">
-              {#if poll.coverPhotoUrl}
-                <img
-                  src={poll.coverPhotoUrl}
-                  alt={poll.pollName}
-                  class="batch-thumb"
-                  loading="lazy"
-                />
-              {:else}
-                <div class="batch-thumb batch-thumb-placeholder">
-                  <i class="ti ti-image"></i>
-                </div>
-              {/if}
-              <div class="batch-status-badge">
-                <span class="chip chip-completed">{poll.eventStatus}</span>
+    <div class="batches-grid">
+      {#each filteredPolls as poll (poll.id)}
+        <a href="/auctions/polls/{poll.id}" class="batch-card card">
+          <div class="batch-thumb-wrap poll-thumb-wrap">
+            {#if poll.coverPhotoUrl}
+              <img
+                src={poll.coverPhotoUrl}
+                alt={poll.pollName}
+                class="batch-thumb"
+                loading="lazy"
+              />
+            {:else}
+              <div class="batch-thumb batch-thumb-placeholder">
+                <i class="ti ti-image"></i>
               </div>
+            {/if}
+            <div class="batch-status-badge">
+              <span class="chip chip-completed">{poll.eventStatus}</span>
             </div>
-            <div class="batch-info">
-              <h3 class="batch-title">{poll.question}</h3>
-              <div class="batch-meta">
-                {#if poll.tokenName}
-                  <span class="meta-row">
-                    <i class="ti ti-fire"></i>
-                    {poll.tokenName}
-                  </span>
-                {/if}
+          </div>
+          <div class="batch-info">
+            <h3 class="batch-title">{poll.question}</h3>
+            <div class="batch-meta">
+              {#if poll.tokenName}
                 <span class="meta-row">
-                  <i class="ti ti-calendar"></i>
-                  {formatDate(poll.startDate)} – {formatDate(poll.endDate)}
+                  <i class="ti ti-fire"></i>
+                  {poll.tokenName}
                 </span>
-              </div>
+              {/if}
+              <span class="meta-row">
+                <i class="ti ti-calendar"></i>
+                {formatDate(poll.startDate)} – {formatDate(poll.endDate)}
+              </span>
             </div>
-          </a>
-        {/each}
-      </div>
-    {/if}
+          </div>
+        </a>
+      {/each}
+    </div>
   {/if}
 </div>
 
@@ -289,7 +292,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .batches-grid {
@@ -307,8 +312,9 @@
     border-radius: 16px;
     background: var(--white);
     box-shadow: none;
-    transition: box-shadow var(--duration-normal) var(--ease-out),
-                transform var(--duration-normal) var(--ease-out);
+    transition:
+      box-shadow var(--duration-normal) var(--ease-out),
+      transform var(--duration-normal) var(--ease-out);
     display: flex;
     flex-direction: column;
   }
@@ -322,7 +328,7 @@
     width: 100%;
     position: relative;
     overflow: hidden;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 10;
     background: var(--card);
     border-bottom: 1px solid var(--border);
   }
@@ -359,7 +365,7 @@
 
   .batch-title {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--ink);
     line-height: 1.4;

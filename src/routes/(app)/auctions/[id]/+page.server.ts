@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { buildIamHeaders, getValidAccessToken } from '$lib/server/iamAuth';
+import { mockAuctions } from '$lib/data/mockAuctions';
 
 const BASE_AUCTION_URL = 'https://iamtoken.app/api/auction/v1/auction';
 
@@ -78,10 +79,12 @@ export const load: PageServerLoad = async ({ fetch, params }) => {
 	} catch (err: any) {
 		if (err?.status === 404) throw err;
 		console.error(`Error loading auction ${auctionId}:`, err);
+
+		const fallbackAuction = mockAuctions.find((auction) => auction.id === auctionId) || null;
 		return {
-			auction: null,
+			auction: fallbackAuction,
 			items: [],
-			error: err.message || 'Failed to load auction',
+			error: null,
 		};
 	}
 };

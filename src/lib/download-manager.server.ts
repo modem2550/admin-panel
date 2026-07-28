@@ -504,13 +504,32 @@ async function runJob(
             throw new Error(lastError || 'Encoding failed');
         }
 
+        try {
+            const downloadsDir = path.join(os.homedir(), 'Downloads');
+            let finalFileName = job.fileName.replace(/[/\\?%*:|"<>]/g, '-');
+            if (!finalFileName.endsWith('.mp4')) {
+                finalFileName += '.mp4';
+            }
+            let finalFilePath = path.join(downloadsDir, finalFileName);
+            
+            let counter = 1;
+            while (fs.existsSync(finalFilePath)) {
+                const name = finalFileName.slice(0, -4);
+                finalFilePath = path.join(downloadsDir, `${name} (${counter}).mp4`);
+                counter++;
+            }
+            
+            fs.renameSync(tempFilePath, finalFilePath);
+            job.filePath = finalFilePath;
+        } catch (err) {
+            console.error('Failed to move downloaded file to Downloads folder:', err);
+        }
+
         job.progress = 100;
         job.status = 'completed';
 
         job.completedAt = Date.now();
         persistJobs();
-
-
     } catch (err) {
         const message =
             err instanceof Error

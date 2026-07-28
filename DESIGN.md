@@ -17,6 +17,8 @@ colors:
   border: "#E5E7EB"
   success: "#10B981"
   error: "#EF4444"
+  bnk: "#cb96c2"
+  cgm: "#3CC2B1"
 typography:
   headline-display:
     fontFamily: "Outfit"

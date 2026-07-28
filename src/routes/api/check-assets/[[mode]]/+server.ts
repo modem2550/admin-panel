@@ -9,6 +9,11 @@ const MAX_COUNT = 250;
 const ALLOWED_TYPES = new Set(['product', 'group', 'campaign']);
 const ALLOWED_ORDERS = new Set(['asc', 'desc']);
 
+// Ids above this switched to a new CDN/data format that the old shop API endpoint
+// (`/shop/product/{id}`) can no longer serve — those ids are discovered instead as
+// a byproduct of the "group" shop scan and stored in cdn_assets (type='product').
+const LEGACY_PRODUCT_MAX_ID = 5630;
+
 // Helper for 'latest' probing
 async function checkExists(urlStr: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -169,8 +174,11 @@ export const GET: RequestHandler = async ({ url, params }) => {
 
             const token = await getToken();
 
+            // Binary search only covers the legacy range — the old endpoint errors
+            // out (404/500) above LEGACY_PRODUCT_MAX_ID, so searching further is
+            // pointless and was previously getting the probe stuck around 5630.
             let low = 0;
-            let high = 15000;
+            let high = LEGACY_PRODUCT_MAX_ID;
             let lastFoundId = 0;
 
             while (low <= high) {
@@ -186,7 +194,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
 
             let checkId = lastFoundId + 1;
             let gapLimit = 3;
-            while (gapLimit > 0 && checkId <= 16000) {
+            while (gapLimit > 0 && checkId <= LEGACY_PRODUCT_MAX_ID) {
                 if (await shopProductExists(checkId, token)) {
                     lastFoundId = checkId;
                     gapLimit = 3;
@@ -196,8 +204,24 @@ export const GET: RequestHandler = async ({ url, params }) => {
                 checkId++;
             }
 
-            if (lastFoundId > 0) {
-                let thumbUrl = '';
+            let latestId = lastFoundId;
+            let thumbUrl = '';
+
+            // Ids beyond the legacy range are discovered as a byproduct of the shop
+            // group scan and live in cdn_assets — check there for anything newer.
+            const { data: maxRow } = await supabaseAdmin
+                .from('cdn_assets')
+                .select('id, url')
+                .eq('type', 'product')
+                .gt('id', LEGACY_PRODUCT_MAX_ID)
+                .order('id', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (maxRow && maxRow.id > latestId) {
+                latestId = maxRow.id;
+                thumbUrl = proxyUrl(maxRow.url || '');
+            } else if (lastFoundId > 0) {
                 try {
                     const r = await fetch(`https://public.bnk48.io/shop/product/${lastFoundId}`, {
                         headers: { ...DEFAULT_HEADERS, 'Authorization': `Bearer ${token}` }
@@ -217,9 +241,11 @@ export const GET: RequestHandler = async ({ url, params }) => {
                 } catch (e: any) {
                     console.error(`[latestProductFetch] Exception:`, e.message);
                 }
+            }
 
+            if (latestId > 0) {
                 const result = {
-                    id: lastFoundId.toString(),
+                    id: latestId.toString(),
                     url: thumbUrl
                 };
 
@@ -411,8 +437,36 @@ export const GET: RequestHandler = async ({ url, params }) => {
             for (let id = rangeEnd; id >= rangeStart; id--) ids.push(id);
         }
 
-        const assetResults = await Promise.all(ids.map((id) => fetchShopProduct(id, token)));
-        const assets = assetResults.filter((item): item is ShopProductAsset => item !== null);
+        const legacyIds = ids.filter((id) => id <= LEGACY_PRODUCT_MAX_ID);
+        const newIds = ids.filter((id) => id > LEGACY_PRODUCT_MAX_ID);
+
+        const legacyResults = await Promise.all(legacyIds.map((id) => fetchShopProduct(id, token)));
+        const byId = new Map<number, ShopProductAsset>();
+        for (const item of legacyResults) {
+            if (item) byId.set(parseInt(item.id), item);
+        }
+
+        if (newIds.length > 0) {
+            const { data: rows } = await supabaseAdmin
+                .from('cdn_assets')
+                .select('id, url, title, description')
+                .eq('type', 'product')
+                .in('id', newIds);
+
+            for (const row of rows ?? []) {
+                const proxied = proxyUrl(row.url || '');
+                byId.set(row.id, {
+                    id: String(row.id),
+                    url: proxied,
+                    title: row.title || '',
+                    description: row.description || '',
+                    imageFileUrlList: proxied ? [proxied] : [],
+                    extra_skus: []
+                });
+            }
+        }
+
+        const assets = ids.map((id) => byId.get(id)).filter((item): item is ShopProductAsset => !!item);
         return json(assets, {
             headers: { 'Cache-Control': 'public, max-age=60' }
         });
@@ -438,7 +492,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
     try {
         const { data: rows, error: dbErr } = await supabaseAdmin
             .from('cdn_assets')
-            .select('id, url, skus, extra_urls')
+            .select('id, url, skus, extra_urls, title, description')
             .eq('type', type)
             .gte('id', rangeStart)
             .lte('id', rangeEnd)
@@ -457,6 +511,8 @@ export const GET: RequestHandler = async ({ url, params }) => {
                 return {
                     id: idStr,
                     url: actualUrl,
+                    title: row.title || '',
+                    description: row.description || '',
                     extra_skus: [] as string[]
                 };
             });

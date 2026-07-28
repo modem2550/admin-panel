@@ -12,3 +12,6 @@ build
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+.Untitled-1.ini
+.Untitled-2.json

@@ -29,7 +29,7 @@ declare module "$app/types" {
 	type MatcherParam<M> = M extends (param : string) => param is (infer U extends string) ? U : string;
 
 	export interface AppTypes {
-		RouteId(): "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/[[action]]" | "/api/check-assets" | "/api/check-assets/[[mode]]" | "/api/downloader" | "/api/downloads" | "/api/downloads/[id]" | "/api/downloads/[id]/file" | "/api/image" | "/api/image/[...path]" | "/api/status" | "/api/[...path]" | "/(app)/auctions" | "/(app)/auctions/polls" | "/(app)/auctions/polls/[id]" | "/(app)/auctions/[id]" | "/(app)/campaigns" | "/(app)/downloader" | "/(app)/events" | "/(app)/members" | "/robots.txt" | "/(app)/scanner" | "/(app)/theater";
+		RouteId(): "/(app)" | "/" | "/.well-known" | "/.well-known/security.txt" | "/api" | "/api/assets" | "/api/assets/[[action]]" | "/api/bnk48-proxy" | "/api/check-assets" | "/api/check-assets/[[mode]]" | "/api/downloader" | "/api/downloads" | "/api/downloads/[id]" | "/api/downloads/[id]/file" | "/api/image" | "/api/image/[...path]" | "/api/product-detail" | "/api/status" | "/api/[...path]" | "/(app)/auctions" | "/(app)/auctions/polls" | "/(app)/auctions/polls/[id]" | "/(app)/auctions/[id]" | "/(app)/campaigns" | "/(app)/downloader" | "/(app)/events" | "/(app)/members" | "/robots.txt" | "/(app)/scanner" | "/(app)/theater";
 		RouteParams(): {
 			"/api/assets/[[action]]": { action?: string | undefined };
 			"/api/check-assets/[[mode]]": { mode?: string | undefined };
@@ -48,6 +48,7 @@ declare module "$app/types" {
 			"/api": { action?: string | undefined; mode?: string | undefined; id?: string | undefined; path?: string | undefined };
 			"/api/assets": { action?: string | undefined };
 			"/api/assets/[[action]]": { action?: string | undefined };
+			"/api/bnk48-proxy": Record<string, never>;
 			"/api/check-assets": { mode?: string | undefined };
 			"/api/check-assets/[[mode]]": { mode?: string | undefined };
 			"/api/downloader": Record<string, never>;
@@ -56,6 +57,7 @@ declare module "$app/types" {
 			"/api/downloads/[id]/file": { id: string };
 			"/api/image": { path?: string | undefined };
 			"/api/image/[...path]": { path: string };
+			"/api/product-detail": Record<string, never>;
 			"/api/status": Record<string, never>;
 			"/api/[...path]": { path: string };
 			"/(app)/auctions": { id?: string | undefined };

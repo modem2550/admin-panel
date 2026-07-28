@@ -3,13 +3,16 @@
     getPlaybackArchive,
     getTheaterArchive,
     getTheaterTicketBooking,
+    getTheaterRounds,
     startDownload,
     getVOD,
   } from "$lib/api";
-  import type { ArchiveItem } from "$lib/api";
+  import type { ArchiveItem, RoundItem } from "$lib/api";
 
   // ── State ────────────────────────────────────────────────────────────────
-  let activeTab = $state<"playback" | "performance" | "tickets">("playback");
+  let activeTab = $state<"playback" | "performance" | "tickets" | "rounds">(
+    "playback",
+  );
   let loading = $state(false);
   let error = $state("");
 
@@ -17,8 +20,14 @@
   let total = $state(0);
   let pageSize = $state(20);
 
+  let roundItems = $state<RoundItem[]>([]);
+  let roundHasMore = $state(false);
+
   let expandedId = $state<string | null>(null);
   let selectedItem = $derived(items.find((i) => i.id === expandedId) || null);
+  let selectedRound = $derived(
+    roundItems.find((i) => i.id === expandedId) || null,
+  );
   let vodLoading = $state("");
   let downloadStarted = $state<Record<string, boolean>>({});
 
@@ -30,9 +39,18 @@
     loading = true;
     error = "";
     items = [];
+    roundItems = [];
     hasMore = false;
+    roundHasMore = false;
 
     try {
+      if (activeTab === "rounds") {
+        const data = await getTheaterRounds(0, pageSize);
+        roundItems = data.items;
+        roundHasMore = data.hasMore;
+        return;
+      }
+
       const data =
         activeTab === "playback"
           ? await getPlaybackArchive(0, pageSize)
@@ -51,11 +69,23 @@
   }
 
   async function loadMore() {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore) return;
+    if (activeTab === "rounds" ? !roundHasMore : !hasMore) return;
     loadingMore = true;
     error = "";
 
     try {
+      if (activeTab === "rounds") {
+        const skip = roundItems.length;
+        const data = await getTheaterRounds(skip, pageSize);
+        const newItems = data.items.filter(
+          (newItem) => !roundItems.some((existing) => existing.id === newItem.id),
+        );
+        roundItems = [...roundItems, ...newItems];
+        roundHasMore = data.hasMore;
+        return;
+      }
+
       const skip = items.length;
       const data =
         activeTab === "playback"
@@ -84,7 +114,7 @@
     fetchInitialData();
   });
 
-  function switchTab(tab: "playback" | "performance" | "tickets") {
+  function switchTab(tab: "playback" | "performance" | "tickets" | "rounds") {
     if (activeTab === tab) return;
     activeTab = tab;
     expandedId = null;
@@ -156,11 +186,22 @@
     >
       <i class="ti ti-masks-theater"></i> Performance
     </button>
+    <button
+      class="btn btn-coral"
+      class:active={activeTab === "rounds"}
+      onclick={() => switchTab("rounds")}
+    >
+      <i class="ti ti-ticket"></i> Rounds
+    </button>
 
     <div class="tab-spacer"></div>
 
     <span class="text-caption" style="color: var(--color-muted);">
-      {total} total items
+      {#if activeTab === "rounds"}
+        {roundItems.length} round{roundItems.length === 1 ? "" : "s"} loaded
+      {:else}
+        {total} total items
+      {/if}
     </span>
   </div>
 
@@ -196,6 +237,106 @@
         </div>
       {/each}
     </div>
+  {:else if activeTab === "rounds"}
+    {#if roundItems.length === 0}
+      <div class="empty-state">
+        <i class="ti ti-ticket"></i>
+        <p>No rounds found.</p>
+      </div>
+    {:else}
+      <!-- Rounds Grid -->
+      <div class="archive-grid">
+        {#each roundItems as item (item.id)}
+          <div
+            class="archive-card card fade-in"
+            class:expanded={expandedId === item.id}
+          >
+            <!-- Seat map thumbnail -->
+            <div
+              class="archive-thumb-wrap"
+              role="button"
+              tabindex="0"
+              onclick={() => toggleExpand(item.id)}
+              onkeydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleExpand(item.id);
+                }
+              }}
+            >
+              {#if item.seatMapUrl}
+                <img
+                  src={item.seatMapUrl}
+                  alt={item.roundName}
+                  class="archive-thumb"
+                />
+              {:else}
+                <div class="archive-thumb archive-thumb-placeholder">
+                  <i class="ti ti-ticket"></i>
+                </div>
+              {/if}
+              {#if item.isSoldOut}
+                <span class="round-badge round-badge-sold-out">Sold out</span>
+              {/if}
+              <div class="archive-overlay">
+                <i class="ti ti-expand"></i>
+              </div>
+            </div>
+
+            <!-- Info -->
+            <div class="archive-info">
+              <h3 class="archive-title truncate">{item.roundName}</h3>
+              <p class="archive-id">ID: {item.id}</p>
+              <div class="archive-meta">
+                <span class="text-caption" style="color: var(--color-muted);">
+                  <i class="ti ti-calendar"></i>
+                  {formatDate(item.startDate)} – {formatDate(item.endDate)}
+                </span>
+              </div>
+
+              {#if item.zones.length > 0}
+                <div class="round-zone-list">
+                  {#each item.zones as zone}
+                    <div class="round-zone-row">
+                      <span class="round-zone-name truncate">{zone.name}</span
+                      >
+                      <span class="round-zone-seats">
+                        {#if zone.price !== null}฿{zone.price}{/if}
+                        {#if zone.remainingSeat !== null}
+                          · {zone.remainingSeat} left
+                        {/if}
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
+
+      <!-- Load More -->
+      {#if roundHasMore}
+        <div
+          class="load-more-container"
+          style="display: flex; justify-content: center; margin-top: 24px;"
+        >
+          <button
+            class="btn btn-pill-outline btn-sm"
+            onclick={loadMore}
+            disabled={loadingMore}
+            style="min-width: 140px;"
+          >
+            {#if loadingMore}
+              <i class="ti ti-loader ti-spin" style="margin-right: 6px;"
+              ></i> Loading...
+            {:else}
+              Load More
+            {/if}
+          </button>
+        </div>
+      {/if}
+    {/if}
   {:else if items.length === 0}
     <div class="empty-state">
       <i class="ti ti-movie"></i>
@@ -237,6 +378,7 @@
           <!-- Info -->
           <div class="archive-info">
             <h3 class="archive-title truncate">{item.title}</h3>
+            <p class="archive-id">ID: {item.id}</p>
             <div class="archive-meta">
               <span class="text-caption" style="color: var(--color-muted);">
                 <i class="ti ti-calendar"></i>
@@ -332,6 +474,10 @@
 
             <div class="modal-meta-grid">
               <div class="modal-meta-item">
+                <span class="text-mono-label">ID :</span>
+                <span>{selectedItem.id}</span>
+              </div>
+              <div class="modal-meta-item">
                 <span class="text-mono-label">Date :</span>
                 <span
                   ><i class="ti ti-calendar" style="margin-right: 6px;"
@@ -390,6 +536,98 @@
                     <span class="chip chip-queued">{name}</span>
                   {/each}
                 </div>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Round Details Modal -->
+  {#if selectedRound}
+    <div
+      class="modal-backdrop fade-in"
+      onclick={() => (expandedId = null)}
+      role="presentation"
+    >
+      <div
+        class="modal-content card card-stone fade-in-scale"
+        onclick={(e) => e.stopPropagation()}
+        role="presentation"
+      >
+        <div class="modal-header">
+          <h2 class="text-feature-heading" style="margin: 0;">
+            Round Details
+          </h2>
+          <button
+            class="btn-icon"
+            onclick={() => (expandedId = null)}
+            aria-label="Close details"
+          >
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-media">
+            {#if selectedRound.seatMapUrl}
+              <img
+                src={selectedRound.seatMapUrl}
+                alt={selectedRound.roundName}
+                class="modal-thumb"
+                style="aspect-ratio: 4 / 3; !important"
+              />
+            {:else}
+              <div class="modal-thumb-placeholder">
+                <i class="ti ti-ticket"></i>
+              </div>
+            {/if}
+          </div>
+
+          <div class="modal-info-panel">
+            <h3 class="modal-title">{selectedRound.roundName}</h3>
+
+            <div class="modal-meta-grid">
+              <div class="modal-meta-item">
+                <span class="text-mono-label">ID :</span>
+                <span>{selectedRound.id}</span>
+              </div>
+              <div class="modal-meta-item">
+                <span class="text-mono-label">Dates :</span>
+                <span
+                  ><i class="ti ti-calendar" style="margin-right: 6px;"
+                  ></i>
+                  {formatDate(selectedRound.startDate)} – {formatDate(
+                    selectedRound.endDate,
+                  )}</span
+                >
+              </div>
+              <div class="modal-meta-item">
+                <span class="text-mono-label">Status :</span>
+                <span>
+                  {selectedRound.isSoldOut ? "Sold out" : "Available"}
+                </span>
+              </div>
+            </div>
+
+            {#if selectedRound.zones.length > 0}
+              <div class="modal-description">
+                <span
+                  class="text-mono-label"
+                  style="display: block; margin-bottom: 6px;">Zones</span
+                >
+                {#each selectedRound.zones as zone}
+                  <div class="round-zone-row round-zone-row-modal">
+                    <span>{zone.name}</span>
+                    <span>
+                      {#if zone.price !== null}฿{zone.price}{/if}
+                      {#if zone.remainingSeat !== null}
+                        · {zone.remainingSeat} seats left
+                      {/if}
+                    </span>
+                  </div>
+                {/each}
               </div>
             {/if}
           </div>
@@ -489,7 +727,15 @@
     font-size: 16px;
     font-weight: 500;
     color: var(--ink);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+  }
+
+  .archive-id {
+    font-size: 12px;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    color: var(--color-muted);
+    margin: 0 0 8px;
+    word-break: break-all;
   }
 
   .archive-meta {
@@ -502,6 +748,59 @@
   .archive-meta i {
     margin-right: 4px;
     font-size: 12px;
+  }
+
+  /* ── Round-specific styles ─────────────────────────────────────────── */
+  .round-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .round-badge-sold-out {
+    background: rgba(220, 38, 38, 0.92);
+    color: white;
+  }
+
+  .round-zone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-card-border);
+  }
+
+  .round-zone-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .round-zone-name {
+    color: var(--ink);
+    max-width: 60%;
+  }
+
+  .round-zone-seats {
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+
+  .round-zone-row-modal {
+    font-size: 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-card-border);
+  }
+
+  .round-zone-row-modal:last-child {
+    border-bottom: none;
   }
 
   /* ── Modal Popup Styles ────────────────────────────────────────────── */

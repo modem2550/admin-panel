@@ -1,17 +1,159 @@
 import { json, error, type RequestEvent } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getTheaterArchive, getTheaterTicketBooking, getToken } from '$lib/bnk48.server';
+import { getTheaterArchive, getTheaterTicketBooking, getToken, getValidToken } from '$lib/bnk48.server';
 import { proxyUrl, getCDNDiscoveryUrls, getDefaultAssetUrl, DEFAULT_HEADERS } from '$lib/bnk48';
 import { supabaseAdmin } from '$lib/supabase.server';
 import https from 'node:https';
 
 // ── Scan Configuration ──────────────────────────────────────────────────────────
 const SCAN_SECRET = import.meta.env.SCAN_SECRET;
-const UPPER_BOUND = { product: 15000, group: 2000 };
+// product (variant) ids above 5630 switched to a new CDN naming scheme that can't be
+// guessed anymore — those get discovered as a byproduct of the "group" (shop) scan
+// instead, keyed by productVariantId. So the direct CDN-guess scan only needs to cover
+// the legacy range now.
+const UPPER_BOUND = { product: 5630, group: 2000 };
 const BATCH_SIZE = 50;
 const TIMEOUT_MS = 2000;
 
-// ── Theater Archive Configuration ────────────────────────────────────────────────
+// ── Shop API Configuration (group/product scan) ─────────────────────────────────
+const SHOP_PRODUCT_DETAIL_URL = 'https://public.bnk48.io/shop/product/detail/';
+const SHOP_BATCH_SIZE = 20;
+const SHOP_REQUEST_DELAY_MS = 150;
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+interface ShopAssetRow {
+    id: number;
+    url: string;
+    title: string;
+    description: string;
+}
+
+interface ShopGroupScanResult {
+    groupRow: ShopAssetRow | null;
+    variantRows: ShopAssetRow[];
+}
+
+/**
+ * Fetches a single shop product-group's full detail (title, description, thumbnail,
+ * and nested variants) from the Shop API. Returns:
+ *  - the parsed JSON on success (200)
+ *  - 'unauthorized' on 401/403 (caller should refresh the token and retry once)
+ *  - null on 404/400/other (not found / doesn't exist)
+ */
+async function fetchShopProductDetail(id: number, token: string): Promise<any | 'unauthorized' | null> {
+    try {
+        const res = await fetch(`${SHOP_PRODUCT_DETAIL_URL}${id}`, {
+            headers: { ...DEFAULT_HEADERS, Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 200) return await res.json();
+        if (res.status === 401 || res.status === 403) return 'unauthorized';
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Scans one product-group id via the Shop API. On success, returns the flattened
+ * group row plus one row per variant (keyed by productVariantId) so variants get
+ * discovered/stored as type='product' rows without needing their own sequential scan.
+ */
+async function scanShopGroup(id: number, tokenRef: { current: string }): Promise<ShopGroupScanResult> {
+    let data = await fetchShopProductDetail(id, tokenRef.current);
+
+    if (data === 'unauthorized') {
+        tokenRef.current = await getValidToken(true);
+        data = await fetchShopProductDetail(id, tokenRef.current);
+    }
+
+    if (data === 'unauthorized' || data === null) {
+        return { groupRow: null, variantRows: [] };
+    }
+
+    const groupTitle = typeof data.title === 'string' ? data.title : '';
+    const groupDescription = typeof data.description === 'string' ? data.description : '';
+    const groupThumb = typeof data.thumbnailImageUrl === 'string'
+        ? data.thumbnailImageUrl.replace('https://img.bnk48cdn.net/', '/api/img/')
+        : '';
+
+    const groupRow: ShopAssetRow = { id, url: groupThumb, title: groupTitle, description: groupDescription };
+
+    const variantRows: ShopAssetRow[] = [];
+    for (const v of Array.isArray(data.variants) ? data.variants : []) {
+        if (typeof v?.productVariantId !== 'number') continue;
+        const variantTitle = typeof v.variantTitle === 'string' ? v.variantTitle : '';
+        const variantThumb = typeof v.thumbnailImageUrl === 'string'
+            ? v.thumbnailImageUrl.replace('https://img.bnk48cdn.net/', '/api/img/')
+            : '';
+        variantRows.push({
+            id: v.productVariantId,
+            url: variantThumb,
+            title: variantTitle ? `${groupTitle} ${variantTitle}`.trim() : groupTitle,
+            description: groupDescription,
+        });
+    }
+
+    return { groupRow, variantRows };
+}
+
+// ── Theater DB Cache (Performance + Rounds) ──────────────────────────────────────
+// Public, non-personal theater data (Performance, Rounds) is cached in cdn_assets so
+// page loads read from Supabase instead of live-walking the BNK48 API every time.
+// Freshness is kept up automatically: whichever request notices the cache is stale
+// (older than REFRESH_INTERVAL_MS) kicks off a full background re-scan without
+// blocking its own response — no manual "Start Scan" button needed for these two.
+const CACHE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+let archiveRefreshInFlight = false;
+let roundRefreshInFlight = false;
+
+async function getCacheLastScanned(type: 'archive' | 'round'): Promise<number> {
+    try {
+        const { data } = await supabaseAdmin
+            .from('theater_cache_meta')
+            .select('last_scanned_at')
+            .eq('type', type)
+            .maybeSingle();
+        return data?.last_scanned_at ? new Date(data.last_scanned_at).getTime() : 0;
+    } catch {
+        return 0;
+    }
+}
+
+async function touchCacheLastScanned(type: 'archive' | 'round') {
+    try {
+        await supabaseAdmin
+            .from('theater_cache_meta')
+            .upsert({ type, last_scanned_at: new Date().toISOString() }, { onConflict: 'type' });
+    } catch (e) {
+        console.error(`[TheaterCache] Failed to update last_scanned_at for ${type}:`, e);
+    }
+}
+
+async function maybeTriggerBackgroundRefresh(type: 'archive' | 'round', headers: Record<string, string>) {
+    if (type === 'archive' && archiveRefreshInFlight) return;
+    if (type === 'round' && roundRefreshInFlight) return;
+
+    const lastScanned = await getCacheLastScanned(type);
+    if (Date.now() - lastScanned < CACHE_REFRESH_INTERVAL_MS) return;
+
+    if (type === 'archive') {
+        archiveRefreshInFlight = true;
+        refreshArchiveCache(headers)
+            .catch((e) => console.error('[TheaterCache] Archive background refresh failed:', e))
+            .finally(() => { archiveRefreshInFlight = false; });
+    } else {
+        roundRefreshInFlight = true;
+        refreshRoundCache(headers)
+            .catch((e) => console.error('[TheaterCache] Round background refresh failed:', e))
+            .finally(() => { roundRefreshInFlight = false; });
+    }
+}
+
+
 const PERFORMANCE_LIST_URL = 'https://public.bnk48.io/performance/list';
 const PERFORMANCE_URL = 'https://public.bnk48.io/performance/';
 const HISTORICAL_ID_MIN = 14;
@@ -72,7 +214,7 @@ async function getAllPerformanceIds(headers: Record<string, string>): Promise<nu
             .limit(1)
             .maybeSingle();
         if (data?.id) maxIdFound = Math.max(maxIdFound, data.id);
-    } catch {}
+    } catch { }
 
     try {
         const resp = await fetch(PERFORMANCE_LIST_URL, { headers });
@@ -122,8 +264,8 @@ async function fetchPerformanceArchivePage(
     const idsKey = allIds.join(',');
     const cachedTotal =
         validTotalCache &&
-        validTotalCache.idsKey === idsKey &&
-        Date.now() < validTotalCache.expiresAt
+            validTotalCache.idsKey === idsKey &&
+            Date.now() < validTotalCache.expiresAt
             ? validTotalCache.count
             : null;
 
@@ -167,6 +309,165 @@ async function fetchPerformanceArchivePage(
     return { pairs, total: validCount };
 }
 
+// Full background walk — upserts every known performance into cdn_assets with
+// complete fields (title, description, date/time/place/members in extra_data) so
+// future requests can be served entirely from the DB.
+async function refreshArchiveCache(headers: Record<string, string>) {
+    const allIds = await getAllPerformanceIds(headers);
+
+    for (let i = 0; i < allIds.length; i += PERFORMANCE_FETCH_BATCH) {
+        const batchIds = allIds.slice(i, i + PERFORMANCE_FETCH_BATCH);
+        const batchResults = await Promise.all(
+            batchIds.map(async (id) => {
+                const item = await fetchPerformance(id, headers);
+                return item ? { id, item } : null;
+            }),
+        );
+
+        const rows = [];
+        for (const result of batchResults) {
+            if (!result) continue;
+            const { id, item } = result;
+            const memberIds: number[] = Array.isArray(item.memberIdList) ? item.memberIdList : [];
+            const memberNames = memberIds.length > 0
+                ? await Promise.all(memberIds.map((mid: number) => getMemberName(mid)))
+                : [];
+            const rawDate: string = item.date ?? '';
+            const dateStr = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+            const now = new Date().toISOString();
+
+            rows.push({
+                id: item.eventId ?? id,
+                type: 'archive' as const,
+                url: proxyUrl(item.imageFileUrl || item.thumbnailImageUrl || item.thumbnailUrl || ''),
+                title: item.title || 'Performance',
+                description: item.description || item.detail || '',
+                extra_data: { date: dateStr, time: item.time || '', placeName: item.placeName || '', memberIdList: memberIds, memberNames },
+                skus: [1],
+                discovered_at: now,
+                last_seen: now,
+            });
+        }
+
+        if (rows.length > 0) {
+            await supabaseAdmin.from('cdn_assets').upsert(rows, { onConflict: 'id,type' });
+        }
+    }
+
+    await touchCacheLastScanned('archive');
+}
+
+
+// ── Theater Round Configuration ──────────────────────────────────────────────────
+const ROUND_URL = 'https://public.bnk48.io/performance/round/';
+const ROUND_SEARCH_CEILING = 20000;
+const ROUND_FETCH_BATCH = 20;
+
+async function fetchRound(id: number, headers: Record<string, string>): Promise<any | null> {
+    try {
+        const resp = await fetch(`${ROUND_URL}${id}`, { headers });
+        if (!resp.ok) return null;
+        return await resp.json();
+    } catch {
+        return null;
+    }
+}
+
+function flattenRound(id: number, item: any) {
+    const zones = Array.isArray(item.zoneList)
+        ? item.zoneList.map((z: any) => ({
+            zoneId: z.zoneId,
+            name: z.name || '',
+            price: typeof z.price === 'number' ? z.price : null,
+            remainingSeat: typeof z.remainingSeat === 'number' ? z.remainingSeat : null,
+        }))
+        : [];
+
+    return {
+        id: item.roundId ?? id,
+        roundName: item.roundName || `Round ${id}`,
+        startDate: item.startDate || '',
+        endDate: item.endDate || '',
+        isSoldOut: !!item.isSoldOut,
+        seatMapUrl: proxyUrl(item.seatMapUrl || ''),
+        zones,
+    };
+}
+
+// Round ids aren't contiguous (cancelled/removed rounds leave gaps), and there's no
+// "list all rounds" endpoint to know the true upper bound. Any heuristic that tries
+// to guess where rounds "end" (binary search, stop-after-N-misses) can under-count
+// if a gap is wider than expected. So this just walks straight up from id 1,
+// batching requests, stopping once it's collected `take` results or hit the hard
+// ceiling. This is only the *fallback* path now — used when the DB cache doesn't
+// have enough rows yet; the fast path in the GET handler reads straight from cdn_assets.
+async function fetchRoundPage(
+    headers: Record<string, string>,
+    skip: number,
+    take: number,
+): Promise<{ pairs: { item: any; id: number }[]; hasMore: boolean }> {
+    const pairs: { item: any; id: number }[] = [];
+    let validSeen = 0;
+    let id = ROUND_SEARCH_CEILING;
+
+    while (id >= 1 && pairs.length < take) {
+        const batchIds: number[] = [];
+        for (let i = 0; i < ROUND_FETCH_BATCH && id >= 1; i--, id--) batchIds.push(id);
+
+        const batchResults = await Promise.all(
+            batchIds.map(async (bid) => ({ id: bid, item: await fetchRound(bid, headers) }))
+        );
+
+        for (const { id: bid, item } of batchResults) {
+            if (!item) continue;
+            validSeen++;
+            if (validSeen <= skip) continue;
+            if (pairs.length < take) pairs.push({ id: bid, item });
+        }
+    }
+
+    return { pairs, hasMore: pairs.length === take && id >= 1 };
+}
+
+// Full background walk — upserts every discoverable round into cdn_assets (type='round')
+// so future requests can be served entirely from the DB instead of live-walking.
+async function refreshRoundCache(headers: Record<string, string>) {
+    let id = 1;
+
+    while (id <= ROUND_SEARCH_CEILING) {
+        const batchIds: number[] = [];
+        for (let i = 0; i < ROUND_FETCH_BATCH && id <= ROUND_SEARCH_CEILING; i++, id++) batchIds.push(id);
+
+        const batchResults = await Promise.all(
+            batchIds.map(async (bid) => ({ id: bid, item: await fetchRound(bid, headers) }))
+        );
+
+        const rows = [];
+        const now = new Date().toISOString();
+        for (const { id: bid, item } of batchResults) {
+            if (!item) continue;
+            const flat = flattenRound(bid, item);
+            rows.push({
+                id: flat.id,
+                type: 'round' as const,
+                url: flat.seatMapUrl,
+                title: flat.roundName,
+                description: '',
+                extra_data: { startDate: flat.startDate, endDate: flat.endDate, isSoldOut: flat.isSoldOut, zones: flat.zones },
+                skus: [1],
+                discovered_at: now,
+                last_seen: now,
+            });
+        }
+
+        if (rows.length > 0) {
+            await supabaseAdmin.from('cdn_assets').upsert(rows, { onConflict: 'id,type' });
+        }
+    }
+
+    await touchCacheLastScanned('round');
+}
+
 // ── Scan helper functions ───────────────────────────────────────────────────────
 async function checkAnyExists(urls: string[]): Promise<string | null> {
     const results = await Promise.all(urls.map(async (u) => {
@@ -189,7 +490,8 @@ async function checkAnyExists(urls: string[]): Promise<string | null> {
     return results.find(r => r !== null) ?? null;
 }
 
-async function runScan(type: string, startId: number, endId: number, logId: number) {
+// ── Product scan (unchanged) — CDN URL-guessing for legacy variant image ids ────
+async function runProductCdnScan(startId: number, endId: number, logId: number) {
     const ids: number[] = [];
     for (let i = startId; i <= endId; i++) ids.push(i);
 
@@ -202,7 +504,7 @@ async function runScan(type: string, startId: number, endId: number, logId: numb
 
             const results = await Promise.all(
                 batch.map(async (id) => {
-                    const foundUrl = await checkAnyExists(getCDNDiscoveryUrls(type as 'product' | 'group', id));
+                    const foundUrl = await checkAnyExists(getCDNDiscoveryUrls('product', id));
                     if (!foundUrl) return null;
                     const proxiedUrl = foundUrl.replace('https://img.bnk48cdn.net/', '/api/img/');
                     return { id, proxiedUrl };
@@ -216,7 +518,7 @@ async function runScan(type: string, startId: number, endId: number, logId: numb
             if (found.length > 0) {
                 const rows = found.map(({ id, proxiedUrl }) => ({
                     id,
-                    type,
+                    type: 'product',
                     url: proxiedUrl,
                     skus: [1],
                     discovered_at: new Date().toISOString(),
@@ -255,6 +557,103 @@ async function runScan(type: string, startId: number, endId: number, logId: numb
     }
 }
 
+// ── Group scan — Shop API detail fetch, also discovers variants as type='product' ──
+async function runShopGroupScan(startId: number, endId: number, logId: number) {
+    const ids: number[] = [];
+    for (let i = startId; i <= endId; i++) ids.push(i);
+
+    let scannedCount = 0;
+    let foundCount = 0;
+    const tokenRef = { current: await getValidToken() };
+
+    try {
+        for (let i = 0; i < ids.length; i += SHOP_BATCH_SIZE) {
+            const batch = ids.slice(i, i + SHOP_BATCH_SIZE);
+            const results: ShopGroupScanResult[] = [];
+
+            // Sequential with a small delay — these are authenticated JSON API calls,
+            // not cheap CDN HEAD probes, so we're gentler on the upstream service.
+            for (const id of batch) {
+                results.push(await scanShopGroup(id, tokenRef));
+                await sleep(SHOP_REQUEST_DELAY_MS);
+            }
+
+            scannedCount += batch.length;
+
+            const groupRows = results
+                .map((r) => r.groupRow)
+                .filter((g): g is ShopAssetRow => g !== null);
+            foundCount += groupRows.length;
+
+            if (groupRows.length > 0) {
+                const rows = groupRows.map((g) => ({
+                    id: g.id,
+                    type: 'group',
+                    url: g.url,
+                    title: g.title,
+                    description: g.description,
+                    skus: [1],
+                    discovered_at: new Date().toISOString(),
+                    last_seen: new Date().toISOString(),
+                }));
+
+                await supabaseAdmin
+                    .from('cdn_assets')
+                    .upsert(rows, { onConflict: 'id,type' });
+            }
+
+            const variantRows = results.flatMap((r) => r.variantRows);
+            if (variantRows.length > 0) {
+                const rows = variantRows.map((v) => ({
+                    id: v.id,
+                    type: 'product',
+                    url: v.url,
+                    title: v.title,
+                    description: v.description,
+                    skus: [1],
+                    discovered_at: new Date().toISOString(),
+                    last_seen: new Date().toISOString(),
+                }));
+
+                await supabaseAdmin
+                    .from('cdn_assets')
+                    .upsert(rows, { onConflict: 'id,type' });
+            }
+
+            if (i % (SHOP_BATCH_SIZE * 10) === 0) {
+                await supabaseAdmin
+                    .from('cdn_scan_log')
+                    .update({ scanned_count: scannedCount, found_count: foundCount })
+                    .eq('id', logId);
+            }
+        }
+
+        await supabaseAdmin
+            .from('cdn_scan_log')
+            .update({
+                status: 'done',
+                finished_at: new Date().toISOString(),
+                scanned_count: scannedCount,
+                found_count: foundCount,
+            })
+            .eq('id', logId);
+
+    } catch (err) {
+        console.error('Shop group scan error:', err);
+        await supabaseAdmin
+            .from('cdn_scan_log')
+            .update({ status: 'error', finished_at: new Date().toISOString() })
+            .eq('id', logId);
+    }
+}
+
+async function runScan(type: string, startId: number, endId: number, logId: number) {
+    if (type === 'group') {
+        return runShopGroupScan(startId, endId, logId);
+    }
+    return runProductCdnScan(startId, endId, logId);
+}
+
 // ── Sku Helper Functions ────────────────────────────────────────────────────────
 async function headExists(urlStr: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -289,7 +688,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
 
         try {
             const result = await getTheaterArchive(skip, take);
-            
+
             const assets = result.items.map((item: any) => {
                 const rawDate: string = item.publishedAt ?? item.date ?? '';
                 let dateStr = '';
@@ -341,7 +740,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
 
         try {
             const result = await getTheaterTicketBooking(skip, take);
-            
+
             return json({
                 items: result.items,
                 total: result.total,
@@ -366,6 +765,41 @@ export const GET: RequestHandler = async ({ url, params }) => {
 
         try {
             const headers = await getPerformanceAuthHeaders();
+
+            // Fast path — serve straight from the DB cache when it already has this page.
+            const { data: cachedRows, count: cachedCount } = await supabaseAdmin
+                .from('cdn_assets')
+                .select('id, url, title, description, extra_data', { count: 'exact' })
+                .eq('type', 'archive')
+                .order('id', { ascending: false })
+                .range(skip, skip + take - 1);
+
+            if (cachedRows && cachedRows.length === take) {
+                maybeTriggerBackgroundRefresh('archive', headers);
+
+                const assets = cachedRows.map((row: any) => ({
+                    id: String(row.id),
+                    url: row.url || '',
+                    title: row.title || 'Performance',
+                    description: row.description || '',
+                    date: row.extra_data?.date || '',
+                    time: row.extra_data?.time || '',
+                    placeName: row.extra_data?.placeName || '',
+                    memberIdList: row.extra_data?.memberIdList || [],
+                    memberNames: row.extra_data?.memberNames || [],
+                }));
+
+                return json({
+                    items: assets,
+                    total: cachedCount ?? assets.length,
+                    skip,
+                    take,
+                }, {
+                    headers: { 'Cache-Control': 'no-store' }
+                });
+            }
+
+            // Fallback — cache doesn't cover this page yet, live-walk it (as before).
             const allIds = await getAllPerformanceIds(headers);
             const pageIds = allIds.slice(skip, skip + take);
 
@@ -404,12 +838,16 @@ export const GET: RequestHandler = async ({ url, params }) => {
                 })
             );
 
-            // Sync to DB in background
+            // Sync full fields to DB (title/description/extra_data) so this page is
+            // servable from the fast path next time.
             const syncRows = assets
                 .map(a => ({
                     id: parseInt(a.id),
                     type: 'archive' as const,
                     url: a.url,
+                    title: a.title,
+                    description: a.description,
+                    extra_data: { date: a.date, time: a.time, placeName: a.placeName, memberIdList: a.memberIdList, memberNames: a.memberNames },
                     discovered_at: new Date().toISOString(),
                     last_seen: new Date().toISOString(),
                     skus: [1],
@@ -428,6 +866,8 @@ export const GET: RequestHandler = async ({ url, params }) => {
                     });
             }
 
+            maybeTriggerBackgroundRefresh('archive', headers);
+
             return json({
                 items: assets,
                 total: validTotal,
@@ -438,6 +878,86 @@ export const GET: RequestHandler = async ({ url, params }) => {
             });
         } catch (e: any) {
             console.error('[PerformanceArchive] API error:', e);
+            throw error(500, e.message || 'Internal Server Error');
+        }
+    }
+
+    // 2.5. Theater Rounds (ticket zones/prices/seats) — separate from Performance
+    if (action === 'theater-rounds') {
+        const skip = parseInt(url.searchParams.get('skip') || '0');
+        const take = parseInt(url.searchParams.get('take') || '20');
+
+        if (isNaN(skip) || skip < 0) throw error(400, 'Invalid skip parameter');
+        if (isNaN(take) || take < 1 || take > 200) throw error(400, 'Invalid take parameter (1–200)');
+
+        try {
+            const headers = await getPerformanceAuthHeaders();
+
+            // Fast path — serve straight from the DB cache when it already has this page.
+            const { data: cachedRows } = await supabaseAdmin
+                .from('cdn_assets')
+                .select('id, url, title, extra_data')
+                .eq('type', 'round')
+                .order('id', { ascending: false })
+                .range(skip, skip + take - 1);
+
+            if (cachedRows && cachedRows.length === take) {
+                maybeTriggerBackgroundRefresh('round', headers);
+
+                const items = cachedRows.map((row: any) => ({
+                    id: String(row.id),
+                    roundName: row.title || `Round ${row.id}`,
+                    startDate: row.extra_data?.startDate || '',
+                    endDate: row.extra_data?.endDate || '',
+                    isSoldOut: !!row.extra_data?.isSoldOut,
+                    seatMapUrl: row.url || '',
+                    zones: row.extra_data?.zones || [],
+                }));
+
+                return json({ items, skip, take, hasMore: true }, {
+                    headers: { 'Cache-Control': 'no-store' }
+                });
+            }
+
+            // Fallback — cache doesn't cover this page yet, live-walk it (as before).
+            const { pairs, hasMore } = await fetchRoundPage(headers, skip, take);
+
+            const items = pairs.map(({ id, item }) => flattenRound(id, item));
+
+            // Sync to DB so this page is servable from the fast path next time.
+            const now = new Date().toISOString();
+            const syncRows = items.map((flat) => ({
+                id: flat.id,
+                type: 'round' as const,
+                url: flat.seatMapUrl,
+                title: flat.roundName,
+                description: '',
+                extra_data: { startDate: flat.startDate, endDate: flat.endDate, isSoldOut: flat.isSoldOut, zones: flat.zones },
+                skus: [1],
+                discovered_at: now,
+                last_seen: now,
+            }));
+            if (syncRows.length > 0) {
+                supabaseAdmin
+                    .from('cdn_assets')
+                    .upsert(syncRows, { onConflict: 'id,type' })
+                    .then(({ error: dbErr }) => {
+                        if (dbErr) console.error('[TheaterRoundsSync] Error:', dbErr.message);
+                    });
+            }
+
+            maybeTriggerBackgroundRefresh('round', headers);
+
+            return json({
+                items: items.map((flat) => ({ ...flat, id: String(flat.id) })),
+                skip,
+                take,
+                hasMore,
+            }, {
+                headers: { 'Cache-Control': 'no-store' }
+            });
+        } catch (e: any) {
+            console.error('[TheaterRounds] API error:', e);
             throw error(500, e.message || 'Internal Server Error');
         }
     }
@@ -482,7 +1002,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
         const candidates = getCDNDiscoveryUrls(type as 'product' | 'group', id);
         const validUrls: string[] = [];
         const validSkus: number[] = [1];
-        
+
         const checkResults = await Promise.all(
             candidates.map(async (u) => {
                 if (await headExists(u)) return u;
@@ -494,7 +1014,7 @@ export const GET: RequestHandler = async ({ url, params }) => {
             if (u) {
                 const proxyUrl = u.replace('https://img.bnk48cdn.net/shop/', '/api/image/');
                 validUrls.push(proxyUrl);
-                
+
                 const match = u.match(/(\d+)\.\w+$/);
                 if (match) {
                     const num = parseInt(match[1]);
